@@ -20,14 +20,23 @@ export default function Visualization({
 
   // Memoize to prevent infinite loops
   const continuousStr = useMemo(() => JSON.stringify(continuous), [continuous]);
-  
+
   const canRunCategorical = useMemo(
-    () => Boolean(beforePath && afterPath && targetColumn && mode === "categorical"),
+    () =>
+      Boolean(
+        beforePath && afterPath && targetColumn && mode === "categorical"
+      ),
     [beforePath, afterPath, targetColumn, mode]
   );
-  
+
   const canRunContinuous = useMemo(
-    () => Boolean(beforePath && afterPath && continuous.length > 0 && mode === "continuous"),
+    () =>
+      Boolean(
+        beforePath &&
+          afterPath &&
+          continuous.length > 0 &&
+          mode === "continuous"
+      ),
     [beforePath, afterPath, continuous, mode]
   );
 
