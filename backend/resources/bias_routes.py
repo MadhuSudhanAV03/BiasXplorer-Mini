@@ -1,24 +1,29 @@
-import matplotlib.pyplot as plt
-from flask import request, jsonify
-from flask.views import MethodView
-from flask_smorest import Blueprint
-import os
-import pandas as pd
-from flask import current_app
+from utils.data_stats import compute_skewness
 from sklearn.utils.class_weight import compute_class_weight
-from imblearn.over_sampling import SMOTE, RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
-import io
+from imblearn.over_sampling import RandomOverSampler, SMOTE
+from werkzeug.utils import secure_filename
+from flask_smorest import Blueprint, abort
+from flask.views import MethodView
+from flask import request, jsonify, current_app
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
 import base64
+import io
+import numpy as np
+import pandas as pd
 import matplotlib
-matplotlib.use("Agg")
+matplotlib.use('Agg')
+
+
+blp = Blueprint("bias", __name__,
+                description="Bias detection and correction operations")
 
 ALLOWED_EXTENSIONS = {"csv", "xls", "xlsx"}
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 CORRECTED_DIR = os.path.join(BASE_DIR, "corrected")
-blp = Blueprint("Bias", __name__,
-                description="Detecting and fixing bias")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
 
 @blp.route('/detect_bias')
@@ -38,6 +43,9 @@ class DetectBias(MethodView):
             file_path = data.get("file_path")
             categorical = data.get("categorical")
 
+            print(
+                f"[DEBUG] detect_bias received - file_path: {file_path}, categorical: {categorical}")
+
             if not file_path:
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
 
@@ -47,11 +55,23 @@ class DetectBias(MethodView):
                 return jsonify({"error": "Absolute paths are not allowed. Use relative path under 'uploads/'."}), 400
 
             abs_path = os.path.join(BASE_DIR, norm_rel_path)
-            if os.path.commonpath([abs_path, UPLOAD_DIR]) != UPLOAD_DIR:
+            print(
+                f"[DEBUG] Checking path - abs_path: {abs_path}, UPLOAD_DIR: {UPLOAD_DIR}")
+
+            # Normalize paths for comparison (important on Windows)
+            abs_path_norm = os.path.normpath(os.path.abspath(abs_path))
+            upload_dir_norm = os.path.normpath(os.path.abspath(UPLOAD_DIR))
+
+            print(
+                f"[DEBUG] Normalized - abs_path_norm: {abs_path_norm}, upload_dir_norm: {upload_dir_norm}")
+
+            if not abs_path_norm.startswith(upload_dir_norm):
                 return jsonify({"error": "Invalid file_path. Must be within the 'uploads/' directory."}), 400
 
             if not os.path.exists(abs_path):
                 return jsonify({"error": f"File not found: {file_path}"}), 400
+
+            print(f"[DEBUG] File exists, reading dataset...")
 
             # Read dataset
             ext = os.path.splitext(abs_path)[1].lower()
@@ -418,3 +438,485 @@ class VisualizeBias(MethodView):
             return jsonify({"error": str(e)}), 400
         except Exception as e:
             return jsonify({"error": str(e)}), 400
+
+
+@blp.route("/detect_skew")
+class DetectSkew(MethodView):
+    @blp.response(200, description="Skewness computed successfully")
+    def post(self):
+        """
+        Detect skewness in a specific column of an uploaded dataset.
+
+        Computes the statistical skewness of a numeric column using scipy.stats.skew.
+        Non-numeric values are coerced to NaN and dropped before computation.
+
+        **Request Body (JSON):**
+        - `filename` (string, required): Name of the uploaded file (must exist in uploads/ directory)
+        - `column` (string, required): Column name to analyze
+
+        **Example Request:**
+        ```json
+        {
+            "filename": "dataset.csv",
+            "column": "age"
+        }
+        ```
+
+        **Response (200 OK):**
+        ```json
+        {
+            "column": "age",
+            "skewness": 0.4521,
+            "n_nonnull": 150,
+            "message": "ok"
+        }
+        ```
+
+        **Response Fields:**
+        - `column` (string): The analyzed column name
+        - `skewness` (float|null): Computed skewness value, or null if series is empty
+        - `n_nonnull` (integer): Number of non-null values in the original column
+        - `message` (string): Status message ("ok" on success)
+
+        **Error Responses:**
+        - `400 Bad Request`: Missing required fields, invalid filename, or insufficient data (< 2 numeric values)
+        - `404 Not Found`: File or column not found
+        - `500 Internal Server Error`: File read error or computation failure
+        """
+        try:
+            data = request.get_json()
+
+            if not data:
+                abort(400, message="Request body must be JSON")
+
+            filename = data.get("filename")
+            column = data.get("column")
+
+            print(
+                f"[DEBUG] detect_skew received - filename: {filename}, column: {column}")
+
+            if not filename or not column:
+                abort(400, message="Both 'filename' and 'column' are required")
+
+            # Secure the filename
+            secure_name = secure_filename(filename)
+            if not secure_name:
+                abort(400, message="Invalid filename")
+
+            # Build full file path
+            file_path = os.path.join(UPLOAD_DIR, secure_name)
+
+            # Validate path to prevent directory traversal
+            if not os.path.abspath(file_path).startswith(os.path.abspath(UPLOAD_DIR)):
+                abort(400, message="Invalid file path")
+
+            # Check if file exists
+            if not os.path.exists(file_path):
+                abort(404, message=f"File '{secure_name}' not found")
+
+            # Load the dataset based on file extension
+            file_ext = os.path.splitext(secure_name)[1].lower()
+
+            try:
+                if file_ext == '.csv':
+                    df = pd.read_csv(file_path)
+                elif file_ext in ['.xls', '.xlsx']:
+                    df = pd.read_excel(file_path)
+                else:
+                    abort(400, message=f"Unsupported file type: {file_ext}")
+            except Exception as e:
+                abort(500, message=f"Error reading file: {str(e)}")
+
+            # Check if column exists
+            if column not in df.columns:
+                abort(
+                    404, message=f"Column '{column}' not found in dataset. Available columns: {list(df.columns)}")
+
+            # Get the series
+            series = df[column]
+
+            # Count non-null values before conversion
+            n_nonnull = series.notna().sum()
+
+            # Compute skewness
+            try:
+                skewness = compute_skewness(series)
+
+                return jsonify({
+                    "column": column,
+                    "skewness": skewness,
+                    "n_nonnull": int(n_nonnull),
+                    "message": "ok"
+                }), 200
+
+            except ValueError as e:
+                # Insufficient data error
+                abort(400, message=str(e))
+            except Exception as e:
+                abort(500, message=f"Error computing skewness: {str(e)}")
+
+        except Exception as e:
+            if hasattr(e, 'code'):  # Already an abort error
+                raise
+            abort(500, message=f"Unexpected error: {str(e)}")
+
+
+@blp.route("/fix_skew")
+class FixSkew(MethodView):
+    @blp.response(200, description="Skewness correction applied successfully")
+    def post(self):
+        """
+        Fix skewness in continuous columns by applying appropriate transformations.
+
+        Applies different transformations based on skewness severity:
+        - Small positive skew (0.5 to 1): Square root
+        - Medium positive skew (1 to 2): Log transformation
+        - Small negative skew (-1 to -0.5): Squared power
+        - Medium negative skew (-2 to -1): Cubed power
+        - Severe skew (2 to 3 or -3 to -2): Yeo-Johnson
+        - Extreme skew (>3 or <-3): Quantile Transformer
+
+        **Request Body (JSON):**
+        - `filename` (string, required): Name of the uploaded file
+        - `columns` (array, required): List of continuous column names to fix
+
+        **Example Request:**
+        ```json
+        {
+            "filename": "dataset.csv",
+            "columns": ["age", "income"]
+        }
+        ```
+
+        **Response (200 OK):**
+        ```json
+        {
+            "message": "Skewness correction applied successfully",
+            "corrected_file": "corrected/corrected_dataset.csv",
+            "transformations": {
+                "age": {
+                    "original_skewness": 2.5,
+                    "new_skewness": 0.3,
+                    "method": "Yeo-Johnson"
+                },
+                "income": {
+                    "original_skewness": 5.2,
+                    "new_skewness": 0.1,
+                    "method": "Quantile Transformer"
+                }
+            }
+        }
+        ```
+        """
+        from utils.continuous_data.skew import handle_skew
+        from utils.data_stats import compute_skewness
+
+        try:
+            data = request.get_json()
+
+            if not data:
+                abort(400, message="Request body must be JSON")
+
+            filename = data.get("filename")
+            columns = data.get("columns")
+
+            print(
+                f"[DEBUG] fix_skew received - filename: {filename}, columns: {columns}")
+
+            if not filename:
+                abort(400, message="'filename' is required")
+
+            if not columns or not isinstance(columns, list):
+                abort(400, message="'columns' must be a non-empty list")
+
+            # Secure the filename
+            secure_name = secure_filename(filename)
+            if not secure_name:
+                abort(400, message="Invalid filename")
+
+            # Build full file path
+            file_path = os.path.join(UPLOAD_DIR, secure_name)
+
+            # Validate path to prevent directory traversal
+            if not os.path.abspath(file_path).startswith(os.path.abspath(UPLOAD_DIR)):
+                abort(400, message="Invalid file path")
+
+            # Check if file exists
+            if not os.path.exists(file_path):
+                abort(404, message=f"File '{secure_name}' not found")
+
+            # Load the dataset based on file extension
+            file_ext = os.path.splitext(secure_name)[1].lower()
+
+            try:
+                if file_ext == '.csv':
+                    df = pd.read_csv(file_path)
+                elif file_ext in ['.xls', '.xlsx']:
+                    df = pd.read_excel(file_path)
+                else:
+                    abort(400, message=f"Unsupported file type: {file_ext}")
+            except Exception as e:
+                abort(500, message=f"Error reading file: {str(e)}")
+
+            # Track transformations applied
+            transformations = {}
+
+            # Apply skewness correction to each column
+            for col in columns:
+                if col not in df.columns:
+                    transformations[col] = {
+                        "error": "Column not found",
+                        "original_skewness": None,
+                        "new_skewness": None,
+                        "method": None
+                    }
+                    continue
+
+                try:
+                    # Compute original skewness
+                    original_series = df[col].copy()
+                    original_skewness = compute_skewness(original_series)
+
+                    if original_skewness is None:
+                        transformations[col] = {
+                            "error": "Unable to compute skewness",
+                            "original_skewness": None,
+                            "new_skewness": None,
+                            "method": None
+                        }
+                        continue
+
+                    # Determine transformation method based on skewness
+                    if abs(original_skewness) <= 0.5:
+                        method = "None (already symmetric)"
+                        new_skewness = original_skewness
+                    else:
+                        # Apply transformation
+                        if original_skewness > 0.5 and original_skewness <= 1:
+                            method = "Square Root"
+                        elif original_skewness > 1 and original_skewness <= 2:
+                            method = "Log Transformation"
+                        elif original_skewness < -0.5 and original_skewness >= -1:
+                            method = "Squared Power"
+                        elif original_skewness < -1 and original_skewness >= -2:
+                            method = "Cubed Power"
+                        elif (original_skewness > 2 and original_skewness <= 3) or (original_skewness < -2 and original_skewness >= -3):
+                            method = "Yeo-Johnson"
+                        else:
+                            method = "Quantile Transformer"
+
+                        # Apply the transformation
+                        df = handle_skew(df, col, original_skewness)
+
+                        # Compute new skewness
+                        new_skewness = compute_skewness(df[col])
+
+                    transformations[col] = {
+                        "original_skewness": float(original_skewness),
+                        "new_skewness": float(new_skewness) if new_skewness is not None else None,
+                        "method": method
+                    }
+
+                except Exception as e:
+                    transformations[col] = {
+                        "error": str(e),
+                        "original_skewness": None,
+                        "new_skewness": None,
+                        "method": None
+                    }
+
+            # Save corrected dataset
+            os.makedirs(CORRECTED_DIR, exist_ok=True)
+            corrected_filename = "corrected_dataset.csv"
+            corrected_path = os.path.join(CORRECTED_DIR, corrected_filename)
+
+            df.to_csv(corrected_path, index=False)
+
+            return jsonify({
+                "message": "Skewness correction applied successfully",
+                "corrected_file": f"corrected/{corrected_filename}",
+                "transformations": transformations
+            }), 200
+
+        except Exception as e:
+            if hasattr(e, 'code'):  # Already an abort error
+                raise
+            abort(500, message=f"Unexpected error: {str(e)}")
+
+
+@blp.route("/visualize_skew")
+class VisualizeSkew(MethodView):
+    @blp.response(200, description="Skewness visualization generated successfully")
+    def post(self):
+        """
+        Create distribution plots (histograms + KDE) for continuous columns before and after skewness correction.
+
+        **Request Body (JSON):**
+        - `before_path` (string, required): Path to original dataset
+        - `after_path` (string, required): Path to corrected dataset
+        - `columns` (array, required): List of continuous column names to visualize
+
+        **Response:** Returns base64-encoded histogram plots with KDE overlays
+        """
+        from utils.data_stats import compute_skewness
+
+        try:
+            data = request.get_json()
+
+            if not data:
+                abort(400, message="Request body must be JSON")
+
+            before_path = data.get("before_path")
+            after_path = data.get("after_path")
+            columns = data.get("columns")
+
+            print(
+                f"[DEBUG] visualize_skew - before: {before_path}, after: {after_path}, columns: {columns}")
+
+            if not before_path or not after_path:
+                abort(400, message="'before_path' and 'after_path' are required")
+
+            if not columns or not isinstance(columns, list):
+                abort(400, message="'columns' must be a non-empty list")
+
+            # Resolve and validate paths
+            def resolve_and_validate(path: str):
+                norm_rel = os.path.normpath(path)
+                if os.path.isabs(norm_rel):
+                    return None, "Absolute paths are not allowed"
+
+                abs_p = os.path.join(BASE_DIR, norm_rel)
+
+                # Determine base directory
+                path_parts = norm_rel.split(os.sep)
+                if path_parts[0] == "uploads":
+                    base = UPLOAD_DIR
+                elif path_parts[0] == "corrected":
+                    base = CORRECTED_DIR
+                else:
+                    return None, "Path must start with 'uploads/' or 'corrected/'"
+
+                # Validate path is within base directory
+                try:
+                    abs_p_norm = os.path.normpath(os.path.abspath(abs_p))
+                    base_norm = os.path.normpath(os.path.abspath(base))
+                    if not abs_p_norm.startswith(base_norm):
+                        return None, "Invalid path"
+                except Exception:
+                    return None, "Invalid path"
+
+                if not os.path.exists(abs_p):
+                    return None, f"File not found: {path}"
+
+                return abs_p, None
+
+            before_abs, err = resolve_and_validate(before_path)
+            if err:
+                abort(400, message=f"Before path error: {err}")
+
+            after_abs, err = resolve_and_validate(after_path)
+            if err:
+                abort(400, message=f"After path error: {err}")
+
+            # Read datasets
+            def read_any(p: str):
+                ext = os.path.splitext(p)[1].lower()
+                if ext == ".csv":
+                    return pd.read_csv(p)
+                elif ext in (".xls", ".xlsx"):
+                    return pd.read_excel(p)
+                else:
+                    raise ValueError("Unsupported file type")
+
+            df_before = read_any(before_abs)
+            df_after = read_any(after_abs)
+
+            # Generate charts for each column
+            charts = {}
+
+            for col in columns:
+                if col not in df_before.columns:
+                    charts[col] = {
+                        "error": f"Column '{col}' not found in before dataset"}
+                    continue
+
+                if col not in df_after.columns:
+                    charts[col] = {
+                        "error": f"Column '{col}' not found in after dataset"}
+                    continue
+
+                try:
+                    # Get data
+                    series_before = df_before[col].dropna()
+                    series_after = df_after[col].dropna()
+
+                    if series_before.empty or series_after.empty:
+                        charts[col] = {"error": "No data available"}
+                        continue
+
+                    # Convert to numeric
+                    series_before = pd.to_numeric(
+                        series_before, errors='coerce').dropna()
+                    series_after = pd.to_numeric(
+                        series_after, errors='coerce').dropna()
+
+                    if len(series_before) < 2 or len(series_after) < 2:
+                        charts[col] = {"error": "Insufficient data"}
+                        continue
+
+                    # Compute skewness
+                    before_skew = compute_skewness(series_before)
+                    after_skew = compute_skewness(series_after)
+
+                    # Create histogram plots with KDE using seaborn
+                    def plot_distribution(title: str, series: pd.Series, skew_val) -> str:
+                        fig, ax = plt.subplots(figsize=(7, 5))
+
+                        # Seaborn histplot with KDE overlay
+                        sns.histplot(
+                            x=series,
+                            bins=30,
+                            kde=True,
+                            color='#4C78A8',
+                            edgecolor='black',
+                            alpha=0.7,
+                            stat='density',
+                            ax=ax,
+                            line_kws={'linewidth': 2, 'color': 'red'}
+                        )
+
+                        ax.set_title(
+                            f"{title}\nSkewness: {skew_val:.3f}" if skew_val is not None else title, fontsize=12, fontweight='bold')
+                        ax.set_xlabel("Value", fontsize=10)
+                        ax.set_ylabel("Density", fontsize=10)
+                        ax.grid(alpha=0.3)
+
+                        fig.tight_layout()
+                        buf = io.BytesIO()
+                        fig.savefig(buf, format='png', dpi=120)
+                        plt.close(fig)
+                        buf.seek(0)
+                        b64 = base64.b64encode(buf.read()).decode('ascii')
+                        return b64
+
+                    before_chart = plot_distribution(
+                        f"Before: {col}", series_before, before_skew)
+                    after_chart = plot_distribution(
+                        f"After: {col}", series_after, after_skew)
+
+                    charts[col] = {
+                        "before_chart": before_chart,
+                        "after_chart": after_chart,
+                        "before_skewness": float(before_skew) if before_skew is not None else None,
+                        "after_skewness": float(after_skew) if after_skew is not None else None
+                    }
+
+                except Exception as e:
+                    charts[col] = {"error": str(e)}
+
+            return jsonify({"charts": charts}), 200
+
+        except Exception as e:
+            if hasattr(e, 'code'):
+                raise
+            abort(500, message=f"Unexpected error: {str(e)}")

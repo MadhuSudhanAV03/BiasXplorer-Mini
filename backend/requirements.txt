@@ -16,3 +16,4 @@ scikit-learn
 imbalanced-learn
 matplotlib
 reportlab
+seaborn

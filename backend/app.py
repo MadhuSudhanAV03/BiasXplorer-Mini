@@ -25,6 +25,9 @@ def create_app():
     app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
     app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
 
+    # Initialize in-memory store for column types
+    app.config["COLUMN_TYPES_STORE"] = {}
+
     # CORS setup (frontend on localhost:5173)
     CORS(
         app,
