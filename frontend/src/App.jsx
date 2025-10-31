@@ -12,22 +12,17 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/dashboard",
-        element: (
-            <Dashboard />
-        ),
+        element: <Dashboard />,
       },
       {
         path: "/report",
-        element: (
-            <ReportPage />
-        ),
+        element: <ReportPage />,
       },
-      { path: "/", element: <Home /> }
+      { path: "/", element: <Home /> },
     ],
-  }
+  },
   // Public home page with upload
 ]);
-
 
 export default function App() {
   return <RouterProvider router={router} />;
