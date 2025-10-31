@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request, send_from_directory
 from dotenv import load_dotenv
 from flask_smorest import Api
-from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
@@ -57,8 +56,7 @@ def create_app():
     # In-memory store for column type selections
     app.config["COLUMN_TYPES_STORE"] = {}
 
-    def allowed_file(filename: str) -> bool:
-        return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+    
 
     @app.route("/upload", methods=["POST"])
     def upload_file():
@@ -663,6 +661,7 @@ def create_app():
             return jsonify({"error": "File not found."}), 400
         except Exception as e:
             return jsonify({"error": str(e)}), 400
+        
     @app.route("/select_features", methods=["POST"])
     def select_features():
         """Select a subset of features from the dataset and save as a new CSV.
@@ -750,9 +749,8 @@ def create_app():
             return jsonify({"error": f"Invalid file format: {str(e)}"}), 400
         except Exception as e:
             return jsonify({"error": str(e)}), 400
+        
     @app.route("/preprocess", methods=["POST"])
-
-
     def preprocess_dataset():
         """Preprocess the dataset: handle missing values and remove duplicates.
         Input JSON:
@@ -888,9 +886,8 @@ def create_app():
             return jsonify({"error": f"Invalid file format: {str(e)}"}), 400
         except Exception as e:
             return jsonify({"error": str(e)}), 400
+    
     @app.route("/set_column_types", methods=["POST"])
-
-
     def set_column_types():
         """Set column types (categorical/continuous) for a given uploaded dataset.
         Expects JSON body like:
