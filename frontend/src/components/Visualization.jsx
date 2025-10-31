@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
@@ -18,11 +18,17 @@ export default function Visualization({
   const [afterB64, setAfterB64] = useState("");
   const [skewCharts, setSkewCharts] = useState({}); // For continuous: { column: { before_chart, after_chart, ... } }
 
-  const canRunCategorical = Boolean(
-    beforePath && afterPath && targetColumn && mode === "categorical"
+  // Memoize to prevent infinite loops
+  const continuousStr = useMemo(() => JSON.stringify(continuous), [continuous]);
+  
+  const canRunCategorical = useMemo(
+    () => Boolean(beforePath && afterPath && targetColumn && mode === "categorical"),
+    [beforePath, afterPath, targetColumn, mode]
   );
-  const canRunContinuous = Boolean(
-    beforePath && afterPath && continuous.length > 0 && mode === "continuous"
+  
+  const canRunContinuous = useMemo(
+    () => Boolean(beforePath && afterPath && continuous.length > 0 && mode === "continuous"),
+    [beforePath, afterPath, continuous, mode]
   );
 
   useEffect(() => {
@@ -113,15 +119,7 @@ export default function Visualization({
     return () => {
       cancelled = true;
     };
-  }, [
-    beforePath,
-    afterPath,
-    targetColumn,
-    continuous,
-    mode,
-    canRunCategorical,
-    canRunContinuous,
-  ]);
+  }, [beforePath, afterPath, targetColumn, continuousStr, mode]);
 
   return (
     <div className="w-full">
