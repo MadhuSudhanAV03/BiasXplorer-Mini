@@ -15,11 +15,11 @@ ALLOWED_EXTENSIONS = {"csv", "xls", "xlsx"}
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
-blp = Blueprint("Reports", __name__,
+blp = Blueprint("Reports", __name__, url_prefix="/api",
                 description="Report endpoints")
 
 
-@blp.route("/generate_report")
+@blp.route("/reports/generate")
 class GenerateReport(MethodView):
     def post(self):
         """Generate a PDF report compiling bias detection and correction results.
@@ -148,13 +148,13 @@ class GenerateReport(MethodView):
             c.showPage()
             c.save()
 
-            return jsonify({"report_path": f"reports/{filename}"}), 200
+            return jsonify({"report_path": f"api/reports/download/{filename}"}), 200
 
         except Exception as e:
             return jsonify({"error": str(e)}), 400
         
 
-@blp.route("/reports/<path:filename>")
+@blp.route("/reports/download/<path:filename>")
 class ServeReport(MethodView):
     def get(self, filename):
         """Serve generated PDF reports from the reports directory."""

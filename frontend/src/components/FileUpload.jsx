@@ -3,7 +3,7 @@ import axios from "axios";
 import Spinner from "./Spinner";
 
 const ALLOWED_EXTENSIONS = ["csv", "xls", "xlsx"]; // lowercase
-const UPLOAD_URL = "http://localhost:5000/upload"; // Flask route (not under /api)
+const UPLOAD_URL = "http://localhost:5000/api/upload";
 
 export default function FileUpload({ onUploadSuccess, className = "" }) {
   const [isDragging, setIsDragging] = useState(false);

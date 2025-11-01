@@ -2,19 +2,15 @@ from flask import request, jsonify
 from flask.views import MethodView
 from flask_smorest import Blueprint
 import os
-from werkzeug.utils import secure_filename
-import pandas as pd
 
-ALLOWED_EXTENSIONS = {"csv", "xls", "xlsx"}
+from services import FileService
+from utils.validators import FileValidator, PathValidator
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
-blp = Blueprint("Uploads", __name__,
+blp = Blueprint("Uploads", __name__, url_prefix="/api",
                 description="File upload and preview operations")
-
-
-def allowed_file(filename: str) -> bool:
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @blp.route("/upload")
 class UploadFile(MethodView):
@@ -28,14 +24,13 @@ class UploadFile(MethodView):
             file = request.files["file"]
 
             # Validate filename presence
-            if file.filename == "":
+            if not file.filename or file.filename == "":
                 return jsonify({"error": "No file selected for upload."}), 400
 
-            filename = secure_filename(file.filename)
-
-            # Validate extension
-            if not allowed_file(filename):
-                return jsonify({"error": "Invalid file type. Only .csv, .xls, .xlsx are allowed."}), 400
+            # Validate and secure filename
+            filename, error = FileValidator.validate_filename(file.filename)
+            if error:
+                return jsonify({"error": error}), 400
 
             # Ensure uploads directory exists and save file
             os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -65,38 +60,16 @@ class PreviewDataset(MethodView):
             if not file_path:
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
 
-            # Normalize and validate path: must be under uploads directory
-            norm_rel_path = os.path.normpath(file_path)
-            if os.path.isabs(norm_rel_path):
-                return jsonify({"error": "Absolute paths are not allowed. Use relative path under 'uploads/'."}), 400
+            # Validate path
+            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            if error:
+                return jsonify({"error": error}), 400
 
-            abs_path = os.path.join(BASE_DIR, norm_rel_path)
+            # Read dataset and get preview
+            df = FileService.read_dataset(abs_path)
+            preview_data = FileService.get_preview(df, rows=10)
 
-            # Ensure resolved path is inside the UPLOAD_DIR to prevent path traversal
-            if os.path.commonpath([abs_path, UPLOAD_DIR]) != UPLOAD_DIR:
-                return jsonify({"error": "Invalid file_path. Must be within the 'uploads/' directory."}), 400
-
-            if not os.path.exists(abs_path):
-                return jsonify({"error": f"File not found: {file_path}"}), 400
-
-            ext = os.path.splitext(abs_path)[1].lower()
-            if ext == ".csv":
-                df = pd.read_csv(abs_path)
-            elif ext in (".xls", ".xlsx"):
-                df = pd.read_excel(abs_path)
-            else:
-                return jsonify({"error": "Unsupported file type. Only .csv, .xls, .xlsx are supported."}), 400
-
-            head_df = df.head(10)
-            # Replace NaN/NaT with None for JSON compatibility
-            clean_df = head_df.where(pd.notnull(head_df), None)
-            columns = list(map(str, clean_df.columns.tolist()))
-            preview_records = clean_df.to_dict(orient="records")
-
-            return jsonify({
-                "columns": columns,
-                "preview": preview_records
-            }), 200
+            return jsonify(preview_data), 200
 
         except FileNotFoundError:
             return jsonify({"error": "File not found."}), 400

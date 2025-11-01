@@ -2,7 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const FIX_SKEW_URL = "http://localhost:5000/fix_skew";
+const FIX_SKEW_URL = "http://localhost:5000/api/skewness/fix";
 
 export default function SkewnessFixSandbox({
   filePath,

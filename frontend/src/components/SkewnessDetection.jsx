@@ -3,8 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const PREVIEW_URL = "http://localhost:5000/preview";
-const DETECT_SKEW_URL = "http://localhost:5000/detect_skew";
+const PREVIEW_URL = "http://localhost:5000/api/preview";
+const DETECT_SKEW_URL = "http://localhost:5000/api/skewness/detect";
 
 export default function SkewnessDetection({ uploadedFilename }) {
   const location = useLocation();

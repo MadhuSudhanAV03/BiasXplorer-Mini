@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const SELECT_URL = "http://localhost:5000/select_features"; // Flask route
+const SELECT_URL = "http://localhost:5000/api/features";
 
 export default function FeatureSelector({
   filePath,

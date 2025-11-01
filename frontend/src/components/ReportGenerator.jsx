@@ -2,7 +2,10 @@ import { useMemo, useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const REPORT_URL = "http://localhost:5000/generate_report";
+import { useMemo, useState } from "react";
+import axios from "axios";
+
+const REPORT_URL = "http://localhost:5000/api/reports/generate";
 
 export default function ReportGenerator({ biasSummary = {}, correctionSummary = {}, visualizations = {} }) {
   const [loading, setLoading] = useState(false);

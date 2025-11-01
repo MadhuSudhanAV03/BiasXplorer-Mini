@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const PREVIEW_URL = "http://localhost:5000/preview"; // Flask route (not under /api)
+const PREVIEW_URL = "http://localhost:5000/api/preview";
 
 export default function DatasetPreview({ filePath, onNext }) {
   const [loading, setLoading] = useState(false);

@@ -1,19 +1,19 @@
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from flask.views import MethodView
 from flask_smorest import Blueprint
 import os
-import pandas as pd
-from flask import current_app
 
-ALLOWED_EXTENSIONS = {"csv", "xls", "xlsx"}
+from services import FileService
+from utils.validators import PathValidator
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
-blp = Blueprint("Select and Categorize", __name__,
+blp = Blueprint("Select and Categorize", __name__, url_prefix="/api",
                 description="Selecting columns and categorizing them")
 
 
-@blp.route('/select_features')
+@blp.route('/features')
 class SelectFeatures(MethodView):
     def post(self):
         """Select a subset of features from the dataset and save as a new CSV.
@@ -40,28 +40,14 @@ class SelectFeatures(MethodView):
             if not isinstance(selected, list) or not all(isinstance(c, (str, int, float)) for c in selected):
                 return jsonify({"error": "'selected_features' must be a list of column names."}), 400
 
-            # Normalize path within uploads
-            norm_rel_path = os.path.normpath(file_path)
-            if os.path.isabs(norm_rel_path):
-                return jsonify({"error": "Absolute paths are not allowed. Use relative path under 'uploads/'."}), 400
-
-            abs_path = os.path.join(BASE_DIR, norm_rel_path)
-            if os.path.commonpath([abs_path, UPLOAD_DIR]) != UPLOAD_DIR:
-                return jsonify({"error": "Invalid file_path. Must be within the 'uploads/' directory."}), 400
-
-            if not os.path.exists(abs_path):
-                return jsonify({"error": f"File not found: {file_path}"}), 400
+            # Validate path
+            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            if error:
+                return jsonify({"error": error}), 400
 
             # Read dataset
-            ext = os.path.splitext(abs_path)[1].lower()
-            if ext == ".csv":
-                df = pd.read_csv(abs_path)
-            elif ext in (".xls", ".xlsx"):
-                df = pd.read_excel(abs_path)
-            else:
-                return jsonify({"error": "Unsupported file type. Only .csv, .xls, .xlsx are supported."}), 400
-
-            df_columns = list(map(str, df.columns.tolist()))
+            df = FileService.read_dataset(abs_path)
+            df_columns = FileService.get_columns(df)
             df_col_set = set(df_columns)
 
             # Normalize requested features to strings and dedupe preserving order
@@ -87,7 +73,7 @@ class SelectFeatures(MethodView):
             original_base = os.path.splitext(os.path.basename(abs_path))[0]
             selected_filename = f"selected_{original_base}.csv"
             selected_path = os.path.join(UPLOAD_DIR, selected_filename)
-            filtered_df.to_csv(selected_path, index=False)
+            FileService.save_dataset(filtered_df, selected_path, ensure_dir=True)
 
             return jsonify({
                 "message": "Features selected successfully",
@@ -103,7 +89,7 @@ class SelectFeatures(MethodView):
             return jsonify({"error": str(e)}), 400
 
 
-@blp.route('/set_column_types')
+@blp.route('/column-types')
 class SetColumnTypes(MethodView):
     def post(self):
         """Set column types (categorical/continuous) for a given uploaded dataset.
@@ -123,18 +109,6 @@ class SetColumnTypes(MethodView):
             if not file_path:
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
 
-            # Normalize and validate path: must be under uploads directory
-            norm_rel_path = os.path.normpath(file_path)
-            if os.path.isabs(norm_rel_path):
-                return jsonify({"error": "Absolute paths are not allowed. Use relative path under 'uploads/'."}), 400
-
-            abs_path = os.path.join(BASE_DIR, norm_rel_path)
-            if os.path.commonpath([abs_path, UPLOAD_DIR]) != UPLOAD_DIR:
-                return jsonify({"error": "Invalid file_path. Must be within the 'uploads/' directory."}), 400
-
-            if not os.path.exists(abs_path):
-                return jsonify({"error": f"File not found: {file_path}"}), 400
-
             # Validate input types and coerce simple strings
             if isinstance(categorical, str):
                 categorical = [categorical]
@@ -145,16 +119,14 @@ class SetColumnTypes(MethodView):
             if not isinstance(continuous, list) or not all(isinstance(c, (str, int, float)) for c in continuous):
                 return jsonify({"error": "'continuous' must be a list of column names."}), 400
 
-            # Read dataset to validate column existence
-            ext = os.path.splitext(abs_path)[1].lower()
-            if ext == ".csv":
-                df = pd.read_csv(abs_path)
-            elif ext in (".xls", ".xlsx"):
-                df = pd.read_excel(abs_path)
-            else:
-                return jsonify({"error": "Unsupported file type. Only .csv, .xls, .xlsx are supported."}), 400
+            # Validate path
+            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            if error:
+                return jsonify({"error": error}), 400
 
-            df_columns = list(map(str, df.columns.tolist()))
+            # Read dataset to validate column existence
+            df = FileService.read_dataset(abs_path)
+            df_columns = FileService.get_columns(df)
             df_col_set = set(df_columns)
 
             # Normalize provided column names to strings

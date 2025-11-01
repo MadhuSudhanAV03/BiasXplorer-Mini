@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const SET_TYPES_URL = "http://localhost:5000/set_column_types"; // Flask route
+const SET_TYPES_URL = "http://localhost:5000/api/column-types";
 
 export default function ColumnSelector({
   filePath,

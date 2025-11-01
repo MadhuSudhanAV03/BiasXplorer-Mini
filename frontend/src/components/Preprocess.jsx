@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const PREPROCESS_URL = "http://localhost:5000/preprocess";
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+const PREPROCESS_URL = "http://localhost:5000/api/preprocess";
 
 export default function Preprocess({ filePath }) {
   const [loading, setLoading] = useState(false);

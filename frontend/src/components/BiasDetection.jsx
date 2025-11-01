@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const DETECT_BIAS_URL = "http://localhost:5000/detect_bias";
-const DETECT_SKEW_URL = "http://localhost:5000/detect_skew";
+const DETECT_BIAS_URL = "http://localhost:5000/api/bias/detect";
+const DETECT_SKEW_URL = "http://localhost:5000/api/skewness/detect";
 
 export default function BiasDetection({
   filePath,

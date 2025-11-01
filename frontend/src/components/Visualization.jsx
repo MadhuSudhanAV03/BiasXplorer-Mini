@@ -2,8 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-const VIS_BIAS_URL = "http://localhost:5000/visualize_bias";
-const VIS_SKEW_URL = "http://localhost:5000/visualize_skew";
+const VIS_BIAS_URL = "http://localhost:5000/api/bias/visualize";
+const VIS_SKEW_URL = "http://localhost:5000/api/skewness/visualize";
 
 export default function Visualization({
   beforePath,

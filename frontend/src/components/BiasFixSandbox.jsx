@@ -3,7 +3,7 @@ import axios from "axios";
 import Plot from "react-plotly.js";
 import Spinner from "./Spinner";
 
-const FIX_URL = "http://localhost:5000/fix_bias";
+const FIX_URL = "http://localhost:5000/api/bias/fix";
 
 const METHOD_OPTIONS = [
   { label: "Oversample", value: "oversample" },
