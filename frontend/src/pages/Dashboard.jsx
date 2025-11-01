@@ -10,8 +10,8 @@ import Visualization from "../components/Visualization";
 
 const STEPS = [
   "Dataset Preview",
-  "Column Selector",
-  "Feature Selector",
+  "Target Column Selection",
+  "Column Type Classification",
   "Bias Detection",
   "Bias Fix",
   "Visualization",
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [currentStep, setCurrentStep] = useState(1); // 1..6
   const [filePath, setFilePath] = useState(initialFilePath);
   const [columns, setColumns] = useState([]);
+  const [selectedColumns, setSelectedColumns] = useState([]);
   const [categorical, setCategorical] = useState([]);
   const [continuous, setContinuous] = useState([]);
   const [selectedFilePath, setSelectedFilePath] = useState("");
@@ -186,42 +187,44 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Step 2: Column Selector */}
+        {/* Step 2: Target Column Selection */}
         {currentStep === 2 && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <ColumnSelector
+            <FeatureSelector
               filePath={workingFilePath}
               columns={columns}
-              onSubmit={({ categorical: cat, continuous: cont }) => {
-                setCategorical(cat || []);
-                setContinuous(cont || []);
+              onSelect={({ features }) => {
+                setSelectedColumns(features);
                 setCurrentStep(3);
               }}
             />
             <NavButtons
               onPrev={() => setCurrentStep(1)}
               onNext={() => setCurrentStep(3)}
-              nextDisabled={!columns.length}
+              nextDisabled={!selectedColumns.length}
             />
           </section>
         )}
 
-        {/* Step 3: Feature Selector */}
+        {/* Step 3: Column Type Classification */}
         {currentStep === 3 && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <FeatureSelector
+            <ColumnSelector
               filePath={workingFilePath}
-              columns={columns}
-              onSelect={({ features, response }) => {
-                if (response?.selected_file_path)
+              columns={selectedColumns}
+              onSubmit={({ categorical: cat, continuous: cont, response }) => {
+                setCategorical(cat || []);
+                setContinuous(cont || []);
+                if (response?.selected_file_path) {
                   setSelectedFilePath(response.selected_file_path);
+                }
                 setCurrentStep(4);
               }}
             />
             <NavButtons
               onPrev={() => setCurrentStep(2)}
               onNext={() => setCurrentStep(4)}
-              nextDisabled={!columns.length}
+              nextDisabled={!categorical.length && !continuous.length}
             />
           </section>
         )}
