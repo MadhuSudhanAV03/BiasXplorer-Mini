@@ -1,0 +1,92 @@
+import { useEffect, useMemo } from "react";
+import { useLocation, Link } from "react-router-dom";
+import { usePersistedState } from "../hooks/usePersistedState";
+import DatasetPreview from "../components/DatasetPreview";
+import ColumnSelector from "../components/ColumnSelector";
+import FeatureSelector from "../components/FeatureSelector";
+import BiasDetection from "../components/BiasDetection";
+import BiasFixSandbox from "../components/BiasFixSandbox";
+import SkewnessFixSandbox from "../components/SkewnessFixSandbox";
+import Visualization from "../components/Visualization";
+
+const STEPS = [
+  "Dataset Preview",
+  "Target Column Selection",
+  "Column Type Classification",
+  "Bias Detection",
+  "Bias Fix",
+  "Visualization",
+];
+
+export default function Dashboard() {
+  const location = useLocation();
+  const initialFilePath = location.state?.filePath || "";
+
+  // Initialize all state variables first - order matters!
+  const [previousColumns, setPreviousColumns] = usePersistedState("dashboard_previousColumns", []);
+  const [currentStep, setCurrentStep] = usePersistedState("dashboard_currentStep", 1);
+  const [filePath, setFilePath] = usePersistedState("dashboard_filePath", initialFilePath);
+  const [columns, setColumns] = usePersistedState("dashboard_columns", []);
+  const [selectedColumns, setSelectedColumns] = usePersistedState("dashboard_selectedColumns", []);
+  const [categorical, setCategorical] = usePersistedState("dashboard_categorical", []);
+  const [continuous, setContinuous] = usePersistedState("dashboard_continuous", []);
+  const [selectedFilePath, setSelectedFilePath] = usePersistedState("dashboard_selectedFilePath", "");
+  const [biasSummary, setBiasSummary] = usePersistedState("dashboard_biasSummary", null);
+  const [skewnessResults, setSkewnessResults] = usePersistedState("dashboard_skewnessResults", null);
+  const [targetColumn, setTargetColumn] = usePersistedState("dashboard_targetColumn", "");
+  const [fixMode, setFixMode] = usePersistedState("dashboard_fixMode", "categorical");
+
+  // Prefer selected dataset for downstream steps
+  const workingFilePath = useMemo(
+    () => selectedFilePath || filePath,
+    [selectedFilePath, filePath]
+  );
+
+  // Clear persisted state if new file is uploaded
+  useEffect(() => {
+    if (location.state?.filePath && location.state?.filePath !== localStorage.getItem("dashboard_filePath")) {
+      // Reset all states
+      setCurrentStep(1);
+      setFilePath(location.state?.filePath);
+      setColumns([]);
+      setSelectedColumns([]);
+      setCategorical([]);
+      setContinuous([]);
+      setSelectedFilePath("");
+      setBiasSummary(null);
+      setSkewnessResults(null);
+      setTargetColumn("");
+      setFixMode("categorical");
+      setPreviousColumns([]);
+    }
+  }, [location.state?.filePath]);
+
+  // Handle removed columns
+  useEffect(() => {
+    if (previousColumns?.length > 0) {
+      if (biasSummary) {
+        const updatedBiasSummary = { ...biasSummary };
+        previousColumns.forEach(col => delete updatedBiasSummary[col]);
+        setBiasSummary(updatedBiasSummary);
+      }
+      if (skewnessResults) {
+        const updatedSkewResults = { ...skewnessResults };
+        previousColumns.forEach(col => delete updatedSkewResults[col]);
+        setSkewnessResults(updatedSkewResults);
+      }
+    }
+  }, [previousColumns, biasSummary, skewnessResults]);
+
+  // Auto-pick target column
+  useEffect(() => {
+    if (!biasSummary) return;
+    const entries = Object.entries(biasSummary);
+    const problematic = entries.find(([, v]) =>
+      ["Moderate", "Severe"].includes(v?.severity)
+    );
+    if (problematic) setTargetColumn(problematic[0]);
+    else if (categorical?.length) setTargetColumn(categorical[0]);
+  }, [biasSummary, categorical]);
+
+  // Rest of your component code...
+}

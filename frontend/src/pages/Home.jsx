@@ -9,6 +9,23 @@ export default function Home() {
     navigate("/dashboard", { state: { filePath } });
   };
 
+  const clearAllData = () => {
+    // Clear all dashboard related localStorage items
+    localStorage.removeItem("dashboard_currentStep");
+    localStorage.removeItem("dashboard_columns");
+    localStorage.removeItem("dashboard_selectedColumns");
+    localStorage.removeItem("dashboard_categorical");
+    localStorage.removeItem("dashboard_continuous");
+    localStorage.removeItem("dashboard_selectedFilePath");
+    localStorage.removeItem("dashboard_biasSummary");
+    localStorage.removeItem("dashboard_skewnessResults");
+    localStorage.removeItem("dashboard_targetColumn");
+    localStorage.removeItem("dashboard_fixMode");
+    localStorage.removeItem("dashboard_previousColumns");
+    localStorage.removeItem("dashboard_filePath");
+    alert("Application data has been cleared!");
+  };
+
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100">
       <header className="border-b border-slate-200 bg-white/70 backdrop-blur sticky top-0 z-10">
@@ -43,13 +60,37 @@ export default function Home() {
       <main className="max-w-5xl mx-auto px-4 py-10">
         <div className="grid grid-cols-1 gap-6">
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-800 mb-3">
-              Upload Dataset
-            </h2>
-            <p className="text-sm text-slate-600 mb-4">
-              Accepted formats: CSV, XLS, XLSX. We’ll validate and store it
-              securely for analysis.
-            </p>
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800 mb-1">
+                  Upload Dataset
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Accepted formats: CSV, XLS, XLSX. We'll validate and store it
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  // Clear all dashboard related localStorage items
+                  localStorage.removeItem("dashboard_currentStep");
+                  localStorage.removeItem("dashboard_columns");
+                  localStorage.removeItem("dashboard_selectedColumns");
+                  localStorage.removeItem("dashboard_categorical");
+                  localStorage.removeItem("dashboard_continuous");
+                  localStorage.removeItem("dashboard_selectedFilePath");
+                  localStorage.removeItem("dashboard_biasSummary");
+                  localStorage.removeItem("dashboard_skewnessResults");
+                  localStorage.removeItem("dashboard_targetColumn");
+                  localStorage.removeItem("dashboard_fixMode");
+                  localStorage.removeItem("dashboard_previousColumns");
+                  localStorage.removeItem("dashboard_filePath");
+                  alert("Application data has been cleared!");
+                }}
+                className="px-4 py-2 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-md border border-red-200 transition-colors"
+              >
+                Clear Saved Data
+              </button>
+            </div>
             <FileUpload onUploadSuccess={handleUploadSuccess} />
           </section>
         </div>

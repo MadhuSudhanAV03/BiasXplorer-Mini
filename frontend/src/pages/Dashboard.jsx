@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useLocation, Link } from "react-router-dom";
+import { usePersistedState } from "../hooks/usePersistedState";
 import DatasetPreview from "../components/DatasetPreview";
 import ColumnSelector from "../components/ColumnSelector";
 import FeatureSelector from "../components/FeatureSelector";
@@ -21,17 +22,58 @@ export default function Dashboard() {
   const location = useLocation();
   const initialFilePath = location.state?.filePath || "";
 
-  const [currentStep, setCurrentStep] = useState(1); // 1..6
-  const [filePath, setFilePath] = useState(initialFilePath);
-  const [columns, setColumns] = useState([]);
-  const [selectedColumns, setSelectedColumns] = useState([]);
-  const [categorical, setCategorical] = useState([]);
-  const [continuous, setContinuous] = useState([]);
-  const [selectedFilePath, setSelectedFilePath] = useState("");
-  const [biasSummary, setBiasSummary] = useState(null);
-  const [skewnessResults, setSkewnessResults] = useState(null);
-  const [targetColumn, setTargetColumn] = useState("");
-  const [fixMode, setFixMode] = useState("categorical"); // "categorical" or "skewness"
+  // Initialize all state variables first - order matters!
+  const [previousColumns, setPreviousColumns] = usePersistedState(
+    "dashboard_previousColumns",
+    []
+  );
+  const [analyzedColumns, setAnalyzedColumns] = usePersistedState(
+    "dashboard_analyzedColumns",
+    []
+  );
+  const [currentStep, setCurrentStep] = usePersistedState(
+    "dashboard_currentStep",
+    1
+  );
+  const [filePath, setFilePath] = usePersistedState(
+    "dashboard_filePath",
+    initialFilePath
+  );
+  const [columns, setColumns] = usePersistedState("dashboard_columns", []);
+  const [selectedColumns, setSelectedColumns] = usePersistedState(
+    "dashboard_selectedColumns",
+    []
+  );
+  const [categorical, setCategorical] = usePersistedState(
+    "dashboard_categorical",
+    []
+  );
+  const [continuous, setContinuous] = usePersistedState(
+    "dashboard_continuous",
+    []
+  );
+  const [selectedFilePath, setSelectedFilePath] = usePersistedState(
+    "dashboard_selectedFilePath",
+    ""
+  );
+  const [biasSummary, setBiasSummary] = usePersistedState(
+    "dashboard_biasSummary",
+    null
+  );
+  const [skewnessResults, setSkewnessResults] = usePersistedState(
+    "dashboard_skewnessResults",
+    null
+  );
+  const [targetColumn, setTargetColumn] = usePersistedState(
+    "dashboard_targetColumn",
+    ""
+  );
+  const [fixMode, setFixMode] = usePersistedState(
+    "dashboard_fixMode",
+    "categorical"
+  );
+
+  // State declarations removed as they were duplicated
 
   // Prefer selected dataset for downstream steps
   const workingFilePath = useMemo(
@@ -39,16 +81,7 @@ export default function Dashboard() {
     [selectedFilePath, filePath]
   );
 
-  // Auto-pick a target column with issues after bias detection (Moderate/Severe)
-  useEffect(() => {
-    if (!biasSummary) return;
-    const entries = Object.entries(biasSummary);
-    const problematic = entries.find(([, v]) =>
-      ["Moderate", "Severe"].includes(v?.severity)
-    );
-    if (problematic) setTargetColumn(problematic[0]);
-    else if (categorical?.length) setTargetColumn(categorical[0]);
-  }, [biasSummary, categorical]);
+  // Target column will be selected manually by the user
 
   const pct = Math.round(((currentStep - 1) / (STEPS.length - 1)) * 100);
 
@@ -180,7 +213,14 @@ export default function Dashboard() {
             <DatasetPreview
               filePath={workingFilePath}
               onNext={({ columns: cols }) => {
+                // Reset all column-related states when loading new data
                 setColumns(cols || []);
+                setSelectedColumns([]);
+                setCategorical([]);
+                setContinuous([]);
+                setPreviousColumns([]);
+                setBiasSummary(null);
+                setSkewnessResults(null);
                 setCurrentStep(2);
               }}
             />
@@ -193,7 +233,40 @@ export default function Dashboard() {
             <FeatureSelector
               filePath={workingFilePath}
               columns={columns}
+              initialSelected={selectedColumns}
               onSelect={({ features }) => {
+                const oldSelected = new Set(selectedColumns || []);
+                const newSelected = new Set(features);
+
+                // Keep existing results for all currently selected columns
+                if (biasSummary) {
+                  const newBiasSummary = {};
+                  Object.entries(biasSummary).forEach(([col, result]) => {
+                    if (newSelected.has(col)) {
+                      newBiasSummary[col] = result;
+                    }
+                  });
+                  setBiasSummary(
+                    Object.keys(newBiasSummary).length > 0
+                      ? newBiasSummary
+                      : null
+                  );
+                }
+
+                if (skewnessResults) {
+                  const newSkewResults = {};
+                  Object.entries(skewnessResults).forEach(([col, result]) => {
+                    if (newSelected.has(col)) {
+                      newSkewResults[col] = result;
+                    }
+                  });
+                  setSkewnessResults(
+                    Object.keys(newSkewResults).length > 0
+                      ? newSkewResults
+                      : null
+                  );
+                }
+
                 setSelectedColumns(features);
                 setCurrentStep(3);
               }}
@@ -212,12 +285,53 @@ export default function Dashboard() {
             <ColumnSelector
               filePath={workingFilePath}
               columns={selectedColumns}
+              initialSelections={Object.fromEntries([
+                ...categorical.map((col) => [col, "categorical"]),
+                ...continuous.map((col) => [col, "continuous"]),
+              ])}
               onSubmit={({ categorical: cat, continuous: cont, response }) => {
+                // Get current column types
+                const oldCatSet = new Set(categorical || []);
+                const oldContSet = new Set(continuous || []);
+                const newCatSet = new Set(cat || []);
+                const newContSet = new Set(cont || []);
+
+                // Check which columns changed type
+                const changedColumns = [];
+                [...oldCatSet].forEach((col) => {
+                  if (newContSet.has(col)) changedColumns.push(col);
+                });
+                [...oldContSet].forEach((col) => {
+                  if (newCatSet.has(col)) changedColumns.push(col);
+                });
+
+                // Only reset results for columns that changed type
+                if (biasSummary) {
+                  const newBiasSummary = { ...biasSummary };
+                  changedColumns.forEach((col) => delete newBiasSummary[col]);
+                  setBiasSummary(
+                    Object.keys(newBiasSummary).length > 0
+                      ? newBiasSummary
+                      : null
+                  );
+                }
+
+                if (skewnessResults) {
+                  const newSkewResults = { ...skewnessResults };
+                  changedColumns.forEach((col) => delete newSkewResults[col]);
+                  setSkewnessResults(
+                    Object.keys(newSkewResults).length > 0
+                      ? newSkewResults
+                      : null
+                  );
+                }
+
                 setCategorical(cat || []);
                 setContinuous(cont || []);
                 if (response?.selected_file_path) {
                   setSelectedFilePath(response.selected_file_path);
                 }
+
                 setCurrentStep(4);
               }}
             />
@@ -236,15 +350,42 @@ export default function Dashboard() {
               filePath={workingFilePath}
               categorical={categorical}
               continuous={continuous}
-              onFix={({ results }) => {
-                setBiasSummary(results || {});
+              initialResults={biasSummary}
+              initialSkewnessResults={skewnessResults}
+              removedColumns={[]}
+              onFix={({ results, fromButton }) => {
+                if (!results) return;
+                setBiasSummary(results);
                 setFixMode("categorical");
-                setCurrentStep(5);
+
+                // Add newly analyzed columns to analyzedColumns
+                const newlyAnalyzed = Object.keys(results);
+                setAnalyzedColumns((prev) => {
+                  const newSet = new Set([...prev, ...newlyAnalyzed]);
+                  return Array.from(newSet);
+                });
+
+                // Only navigate when explicitly clicking the Fix button
+                if (fromButton) {
+                  setCurrentStep(5);
+                }
               }}
-              onSkewFix={({ skewnessResults: skewResults }) => {
-                setSkewnessResults(skewResults || {});
+              onSkewFix={({ skewnessResults: skewResults, fromButton }) => {
+                if (!skewResults) return;
+                setSkewnessResults(skewResults);
                 setFixMode("skewness");
-                setCurrentStep(5);
+
+                // Add newly analyzed columns to analyzedColumns
+                const newlyAnalyzed = Object.keys(skewResults);
+                setAnalyzedColumns((prev) => {
+                  const newSet = new Set([...prev, ...newlyAnalyzed]);
+                  return Array.from(newSet);
+                });
+
+                // Only navigate when explicitly clicking the Fix button
+                if (fromButton) {
+                  setCurrentStep(5);
+                }
               }}
             />
             <NavButtons

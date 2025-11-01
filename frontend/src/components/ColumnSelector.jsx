@@ -4,14 +4,23 @@ import Spinner from "./Spinner";
 
 const SET_TYPES_URL = "http://localhost:5000/set_column_types"; // Flask route
 
-export default function ColumnSelector({ filePath, columns = [], onSubmit }) {
+export default function ColumnSelector({
+  filePath,
+  columns = [],
+  onSubmit,
+  initialSelections = {},
+}) {
   const [selections, setSelections] = useState(() => {
     const init = {};
-    (columns || []).forEach((c) => (init[c] = null));
+    (columns || []).forEach((c) => (init[c] = initialSelections[c] || null));
     return init;
   });
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState({ visible: false, type: "success", message: "" });
+  const [toast, setToast] = useState({
+    visible: false,
+    type: "success",
+    message: "",
+  });
   const [error, setError] = useState("");
 
   // Update state when columns prop changes
@@ -67,7 +76,10 @@ export default function ColumnSelector({ filePath, columns = [], onSubmit }) {
       showToast("success", "Column types saved.");
       onSubmit?.({ categorical, continuous, response: res.data });
     } catch (err) {
-      const msg = err?.response?.data?.error || err.message || "Failed to save column types";
+      const msg =
+        err?.response?.data?.error ||
+        err.message ||
+        "Failed to save column types";
       setError(msg);
       showToast("error", msg);
     } finally {
@@ -108,7 +120,9 @@ export default function ColumnSelector({ filePath, columns = [], onSubmit }) {
           <tbody className="divide-y divide-slate-100">
             {(columns || []).map((col) => (
               <tr key={col} className="hover:bg-slate-50">
-                <td className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">{col}</td>
+                <td className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">
+                  {col}
+                </td>
                 <td className="px-4 py-2 text-sm">
                   <label className="inline-flex items-center gap-2">
                     <input
@@ -152,7 +166,9 @@ export default function ColumnSelector({ filePath, columns = [], onSubmit }) {
       </div>
 
       {submitting && (
-        <div className="mt-3"><Spinner text="Saving selections..." /></div>
+        <div className="mt-3">
+          <Spinner text="Saving selections..." />
+        </div>
       )}
 
       {/* Toast */}

@@ -11,11 +11,26 @@ export default function BiasDetection({
   continuous = [],
   onFix,
   onSkewFix,
+  initialResults = null,
+  initialSkewnessResults = null,
+  removedColumns = [],
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [categoricalResults, setCategoricalResults] = useState(null); // { [column]: { class: proportion, ..., severity } }
-  const [skewnessResults, setSkewnessResults] = useState(null); // { [column]: { skewness, n_nonnull, interpretation } }
+  const [categoricalResults, setCategoricalResults] = useState(() => {
+    if (!initialResults) return null;
+    // Remove results for unchecked columns
+    const filtered = { ...initialResults };
+    removedColumns.forEach((col) => delete filtered[col]);
+    return filtered;
+  });
+  const [skewnessResults, setSkewnessResults] = useState(() => {
+    if (!initialSkewnessResults) return null;
+    // Remove results for unchecked columns
+    const filtered = { ...initialSkewnessResults };
+    removedColumns.forEach((col) => delete filtered[col]);
+    return filtered;
+  });
 
   const orderedCategoricalEntries = useMemo(() => {
     if (!categoricalResults) return [];
@@ -55,22 +70,30 @@ export default function BiasDetection({
     return { label: "Symmetric", color: "text-green-600" };
   };
 
-  const runDetection = async () => {
+  // Get columns that need bias detection (not already in results)
+  const getNewColumns = () => {
+    const newCategorical = categorical.filter(
+      (col) => !categoricalResults || !(col in categoricalResults)
+    );
+    const newContinuous = continuous.filter(
+      (col) => !skewnessResults || !(col in skewnessResults)
+    );
+    return { newCategorical, newContinuous };
+  };
+
+  const runDetection = async (columnsToCheck) => {
     setError("");
-    setCategoricalResults(null);
-    setSkewnessResults(null);
 
     if (!filePath) {
       setError("No file selected. Please upload a dataset first.");
       return;
     }
 
-    const hasCategorical = categorical && categorical.length > 0;
-    const hasContinuous = continuous && continuous.length > 0;
+    const hasCategorical = columnsToCheck?.categorical?.length > 0;
+    const hasContinuous = columnsToCheck?.continuous?.length > 0;
 
     if (!hasCategorical && !hasContinuous) {
-      setError("No columns selected for bias detection.");
-      return;
+      return; // No new columns to check
     }
 
     try {
@@ -85,10 +108,20 @@ export default function BiasDetection({
       if (hasCategorical) {
         const catRes = await axios.post(
           DETECT_BIAS_URL,
-          { file_path: filePath, categorical },
+          { file_path: filePath, categorical: columnsToCheck.categorical },
           { headers: { "Content-Type": "application/json" } }
         );
-        setCategoricalResults(catRes.data || {});
+        // Merge new results with existing ones
+        const newCategoricalResults = {
+          ...(categoricalResults || {}),
+          ...(catRes.data || {}),
+        };
+        setCategoricalResults(newCategoricalResults);
+
+        // Notify parent of updated results
+        if (onFix) {
+          onFix({ results: newCategoricalResults, fromButton: false });
+        }
       }
 
       // Run skewness detection for continuous columns
@@ -108,15 +141,20 @@ export default function BiasDetection({
         );
 
         const skewResponses = await Promise.all(skewPromises);
-        const skewResults = {};
+        const newSkewResults = { ...(skewnessResults || {}) };
         skewResponses.forEach(({ column, data, error }) => {
           if (error) {
-            skewResults[column] = { error, skewness: null, n_nonnull: 0 };
+            newSkewResults[column] = { error, skewness: null, n_nonnull: 0 };
           } else {
-            skewResults[column] = data;
+            newSkewResults[column] = data;
           }
         });
-        setSkewnessResults(skewResults);
+        setSkewnessResults(newSkewResults);
+
+        // Notify parent of updated skewness results
+        if (onSkewFix) {
+          onSkewFix({ skewnessResults: newSkewResults, fromButton: false });
+        }
       }
     } catch (err) {
       const msg =
@@ -162,20 +200,55 @@ export default function BiasDetection({
       </p>
 
       <div className="mb-3 flex items-center gap-2 flex-wrap">
-        <button
-          type="button"
-          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-          onClick={runDetection}
-          disabled={loading || !filePath || (!hasCategorical && !hasContinuous)}
-        >
-          {loading ? "Analyzing..." : "Run Bias Detection"}
-        </button>
+        {(() => {
+          const { newCategorical, newContinuous } = getNewColumns();
+          const hasNewColumns =
+            newCategorical.length > 0 || newContinuous.length > 0;
+          const hasExistingResults = categoricalResults || skewnessResults;
+
+          if (hasNewColumns && hasExistingResults) {
+            return (
+              <button
+                type="button"
+                className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+                onClick={() =>
+                  runDetection({
+                    categorical: newCategorical,
+                    continuous: newContinuous,
+                  })
+                }
+                disabled={loading || !filePath}
+              >
+                {loading
+                  ? "Analyzing..."
+                  : `Check ${
+                      newCategorical.length + newContinuous.length
+                    } New Column(s)`}
+              </button>
+            );
+          }
+
+          return (
+            <button
+              type="button"
+              className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+              onClick={() => runDetection({ categorical, continuous })}
+              disabled={
+                loading || !filePath || (!hasCategorical && !hasContinuous)
+              }
+            >
+              {loading ? "Analyzing..." : "Run Bias Detection"}
+            </button>
+          );
+        })()}
 
         {hasIssues && categoricalResults && (
           <button
             type="button"
             className="inline-flex items-center rounded-md bg-amber-600 px-4 py-2 text-white hover:bg-amber-700"
-            onClick={() => onFix?.({ results: categoricalResults })}
+            onClick={() =>
+              onFix?.({ results: categoricalResults, fromButton: true })
+            }
           >
             Fix Categorical Bias
           </button>
@@ -185,7 +258,7 @@ export default function BiasDetection({
           <button
             type="button"
             className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-            onClick={() => onSkewFix?.({ skewnessResults })}
+            onClick={() => onSkewFix?.({ skewnessResults, fromButton: true })}
           >
             Fix Skewness
           </button>
@@ -205,117 +278,123 @@ export default function BiasDetection({
       )}
 
       {/* Categorical Bias Results */}
-      {!loading && categoricalResults && hasCategorical && (
-        <div className="mb-6">
-          <h3 className="text-md font-semibold text-slate-800 mb-2">
-            Categorical Columns (Class Imbalance)
-          </h3>
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="min-w-full table-auto">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                    Column Name
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                    Class Distribution
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                    Severity
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {orderedCategoricalEntries.map(([col, info]) => (
-                  <tr
-                    key={col}
-                    className={`hover:bg-slate-50 ${classNameForSeverity(
-                      info?.severity
-                    )}`}
-                  >
-                    <td className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">
-                      {col}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-slate-700">
-                      {formatDistribution(info)}
-                    </td>
-                    <td className="px-4 py-2 text-sm font-medium text-slate-800">
-                      {info?.severity || "N/A"}
-                    </td>
+      {!loading &&
+        categoricalResults &&
+        hasCategorical &&
+        orderedCategoricalEntries.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-md font-semibold text-slate-800 mb-2">
+              Categorical Columns (Class Imbalance)
+            </h3>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="min-w-full table-auto">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
+                      Column Name
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
+                      Class Distribution
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
+                      Severity
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Continuous Skewness Results */}
-      {!loading && skewnessResults && hasContinuous && (
-        <div>
-          <h3 className="text-md font-semibold text-slate-800 mb-2">
-            Continuous Columns (Skewness)
-          </h3>
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="min-w-full table-auto">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                    Column Name
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                    Skewness Value
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                    Non-null Count
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                    Interpretation
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {orderedSkewnessEntries.map(([col, info]) => {
-                  const interpretation = getSkewnessInterpretation(
-                    info?.skewness
-                  );
-                  return (
-                    <tr key={col} className="hover:bg-slate-50">
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {orderedCategoricalEntries.map(([col, info]) => (
+                    <tr
+                      key={col}
+                      className={`hover:bg-slate-50 ${classNameForSeverity(
+                        info?.severity
+                      )}`}
+                    >
                       <td className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">
                         {col}
                       </td>
-                      <td className="px-4 py-2 text-sm text-slate-800 font-mono">
-                        {info?.error ? (
-                          <span className="text-red-600 text-xs">
-                            {info.error}
-                          </span>
-                        ) : info?.skewness !== null &&
-                          info?.skewness !== undefined ? (
-                          info.skewness.toFixed(4)
-                        ) : (
-                          "N/A"
-                        )}
-                      </td>
                       <td className="px-4 py-2 text-sm text-slate-700">
-                        {info?.n_nonnull || 0}
+                        {formatDistribution(info)}
                       </td>
-                      <td
-                        className={`px-4 py-2 text-sm font-medium ${interpretation.color}`}
-                      >
-                        {info?.error ? "-" : interpretation.label}
+                      <td className="px-4 py-2 text-sm font-medium text-slate-800">
+                        {info?.severity || "N/A"}
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="mt-3 text-xs text-slate-500 bg-slate-50 p-3 rounded">
-            <strong>Note:</strong> Skewness &gt; 0.5 = Right-skewed, &lt; -0.5 =
-            Left-skewed, -0.5 to 0.5 = Symmetric
+        )}
+
+      {/* Continuous Skewness Results */}
+      {!loading &&
+        skewnessResults &&
+        hasContinuous &&
+        orderedSkewnessEntries.length > 0 && (
+          <div>
+            <h3 className="text-md font-semibold text-slate-800 mb-2">
+              Continuous Columns (Skewness)
+            </h3>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="min-w-full table-auto">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
+                      Column Name
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
+                      Skewness Value
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
+                      Non-null Count
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
+                      Interpretation
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {orderedSkewnessEntries.map(([col, info]) => {
+                    const interpretation = getSkewnessInterpretation(
+                      info?.skewness
+                    );
+                    return (
+                      <tr key={col} className="hover:bg-slate-50">
+                        <td className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">
+                          {col}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-slate-800 font-mono">
+                          {info?.error ? (
+                            <span className="text-red-600 text-xs">
+                              {info.error}
+                            </span>
+                          ) : info?.skewness !== null &&
+                            info?.skewness !== undefined ? (
+                            info.skewness.toFixed(4)
+                          ) : (
+                            "N/A"
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-slate-700">
+                          {info?.n_nonnull || 0}
+                        </td>
+                        <td
+                          className={`px-4 py-2 text-sm font-medium ${interpretation.color}`}
+                        >
+                          {info?.error ? "-" : interpretation.label}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-3 text-xs text-slate-500 bg-slate-50 p-3 rounded">
+              <strong>Note:</strong> Skewness &gt; 0.5 = Right-skewed, &lt; -0.5
+              = Left-skewed, -0.5 to 0.5 = Symmetric
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }

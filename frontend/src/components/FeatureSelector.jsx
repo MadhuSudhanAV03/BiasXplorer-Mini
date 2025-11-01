@@ -4,11 +4,20 @@ import Spinner from "./Spinner";
 
 const SELECT_URL = "http://localhost:5000/select_features"; // Flask route
 
-export default function FeatureSelector({ filePath, columns = [], onSelect }) {
-  const [selected, setSelected] = useState(() => new Set());
+export default function FeatureSelector({
+  filePath,
+  columns = [],
+  onSelect,
+  initialSelected = [],
+}) {
+  const [selected, setSelected] = useState(() => new Set(initialSelected));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState({ visible: false, type: "success", message: "" });
+  const [toast, setToast] = useState({
+    visible: false,
+    type: "success",
+    message: "",
+  });
 
   const showToast = (type, message) => {
     setToast({ visible: true, type, message });
@@ -52,7 +61,10 @@ export default function FeatureSelector({ filePath, columns = [], onSelect }) {
       showToast("success", "Features selected successfully.");
       onSelect?.({ features: selectedList, response: res.data });
     } catch (err) {
-      const msg = err?.response?.data?.error || err.message || "Failed to select features";
+      const msg =
+        err?.response?.data?.error ||
+        err.message ||
+        "Failed to select features";
       setError(msg);
       showToast("error", msg);
     } finally {
@@ -112,7 +124,9 @@ export default function FeatureSelector({ filePath, columns = [], onSelect }) {
           <tbody className="divide-y divide-slate-100">
             {(columns || []).map((col) => (
               <tr key={col} className="hover:bg-slate-50">
-                <td className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">{col}</td>
+                <td className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">
+                  {col}
+                </td>
                 <td className="px-4 py-2 text-sm">
                   <label className="inline-flex items-center gap-2">
                     <input
@@ -142,7 +156,9 @@ export default function FeatureSelector({ filePath, columns = [], onSelect }) {
       </div>
 
       {submitting && (
-        <div className="mt-3"><Spinner text="Submitting selection..." /></div>
+        <div className="mt-3">
+          <Spinner text="Submitting selection..." />
+        </div>
       )}
 
       {/* Toast */}
