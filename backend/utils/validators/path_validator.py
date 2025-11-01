@@ -9,12 +9,12 @@ class PathValidator:
     def validate_upload_path(file_path: str, base_dir: str, upload_dir: str) -> tuple[str, str | None]:
         """
         Validate that a file path is within the uploads directory.
-        
+
         Args:
             file_path: Relative file path from request
             base_dir: Base directory of the application
             upload_dir: Upload directory path
-            
+
         Returns:
             Tuple of (absolute_path, error_message)
             If error_message is None, the path is valid
@@ -46,13 +46,13 @@ class PathValidator:
     def validate_any_path(file_path: str, base_dir: str, upload_dir: str, corrected_dir: str) -> tuple[str, str | None]:
         """
         Validate path that can be in either uploads/ or corrected/ directory.
-        
+
         Args:
             file_path: Relative file path from request
             base_dir: Base directory of the application
             upload_dir: Upload directory path
             corrected_dir: Corrected directory path
-            
+
         Returns:
             Tuple of (absolute_path, error_message)
         """

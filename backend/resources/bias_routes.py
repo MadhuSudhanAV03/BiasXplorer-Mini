@@ -18,7 +18,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 CORRECTED_DIR = os.path.join(BASE_DIR, "corrected")
 
-blp = Blueprint("bias", __name__, url_prefix="/api", description="Bias detection and correction operations")
+blp = Blueprint("bias", __name__, url_prefix="/api",
+                description="Bias detection and correction operations")
 
 
 @blp.route('/bias/detect')
@@ -26,13 +27,13 @@ class DetectBias(MethodView):
     def post(self):
         """
         Detect class imbalance for given categorical columns.
-        
+
         Input JSON:
         {
           "file_path": "uploads/selected_dataset.csv",
           "categorical": ["gender", "region"]
         }
-        
+
         Returns:
         Dictionary mapping column names to imbalance statistics with severity levels.
         """
@@ -45,7 +46,8 @@ class DetectBias(MethodView):
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
 
             # Validate path
-            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            abs_path, error = PathValidator.validate_upload_path(
+                file_path, BASE_DIR, UPLOAD_DIR)
             if error:
                 return jsonify({"error": error}), 400
 
@@ -81,7 +83,7 @@ class FixBias(MethodView):
     def post(self):
         """
         Handle categorical imbalance correction.
-        
+
         Input JSON:
         {
           "file_path": "uploads/selected_dataset.csv",
@@ -89,7 +91,7 @@ class FixBias(MethodView):
           "method": "smote" | "oversample" | "undersample" | "reweight",
           "threshold": 0.3  (optional, desired minority/majority ratio for binary classes)
         }
-        
+
         Saves corrected dataset to corrected/corrected_dataset.csv
         Returns before/after class distributions and sample counts.
         """
@@ -108,7 +110,8 @@ class FixBias(MethodView):
                 return jsonify({"error": f"'method' must be one of: {', '.join(BiasCorrectionService.VALID_METHODS)}"}), 400
 
             # Validate path
-            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            abs_path, error = PathValidator.validate_upload_path(
+                file_path, BASE_DIR, UPLOAD_DIR)
             if error:
                 return jsonify({"error": error}), 400
 
@@ -116,12 +119,14 @@ class FixBias(MethodView):
             df = FileService.read_dataset(abs_path)
 
             # Validate target column
-            is_valid, error = BiasCorrectionService.validate_target_column(df, target_col)
+            is_valid, error = BiasCorrectionService.validate_target_column(
+                df, target_col)
             if not is_valid:
                 return jsonify({"error": error}), 400
 
             # Get before statistics
-            before_stats = BiasDetectionService.get_class_distribution(df, target_col)
+            before_stats = BiasDetectionService.get_class_distribution(
+                df, target_col)
 
             # Apply correction
             df_corrected, metadata = BiasCorrectionService.apply_correction(
@@ -129,17 +134,19 @@ class FixBias(MethodView):
             )
 
             # Get after statistics
-            after_stats = BiasDetectionService.get_class_distribution(df_corrected, target_col)
+            after_stats = BiasDetectionService.get_class_distribution(
+                df_corrected, target_col)
 
             # Save corrected dataset
             corrected_filename = "corrected_dataset.csv"
             corrected_path = os.path.join(CORRECTED_DIR, corrected_filename)
-            FileService.save_dataset(df_corrected, corrected_path, ensure_dir=True)
+            FileService.save_dataset(
+                df_corrected, corrected_path, ensure_dir=True)
 
             # Build response
             response = {
-                "message": "Reweighting computed (dataset unchanged)." if method == "reweight" 
-                          else "Bias correction complete.",
+                "message": "Reweighting computed (dataset unchanged)." if method == "reweight"
+                else "Bias correction complete.",
                 "method": method,
                 "before": before_stats,
                 "after": after_stats,
@@ -165,14 +172,14 @@ class VisualizeBias(MethodView):
     def post(self):
         """
         Create bar plots (base64 PNG) of class distributions before and after correction.
-        
+
         Input JSON:
         {
           "before_path": "uploads/selected_dataset.csv",
           "after_path": "corrected/corrected_dataset.csv",
           "target_column": "gender"
         }
-        
+
         Returns:
         {"before_chart": "<base64>", "after_chart": "<base64>"}
         """
@@ -186,11 +193,13 @@ class VisualizeBias(MethodView):
                 return jsonify({"error": "'before_path', 'after_path', and 'target_column' are required."}), 400
 
             # Validate paths
-            before_abs, error = PathValidator.validate_any_path(before_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
+            before_abs, error = PathValidator.validate_any_path(
+                before_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
             if error:
                 return jsonify({"error": f"Before path: {error}"}), 400
 
-            after_abs, error = PathValidator.validate_any_path(after_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
+            after_abs, error = PathValidator.validate_any_path(
+                after_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
             if error:
                 return jsonify({"error": f"After path: {error}"}), 400
 
@@ -205,7 +214,8 @@ class VisualizeBias(MethodView):
                 return jsonify({"error": f"Target column '{target_col}' not found in after dataset."}), 400
 
             # Generate visualizations
-            charts = VisualizationService.visualize_categorical_bias(df_before, df_after, target_col)
+            charts = VisualizationService.visualize_categorical_bias(
+                df_before, df_after, target_col)
 
             return jsonify(charts), 200
 
@@ -223,13 +233,13 @@ class DetectSkew(MethodView):
     def post(self):
         """
         Detect skewness in a specific column of an uploaded dataset.
-        
+
         Input JSON:
         {
             "filename": "dataset.csv",
             "column": "age"
         }
-        
+
         Returns:
         {
             "column": "age",
@@ -284,13 +294,13 @@ class FixSkew(MethodView):
     def post(self):
         """
         Fix skewness in continuous columns by applying appropriate transformations.
-        
+
         Input JSON:
         {
             "filename": "dataset.csv",
             "columns": ["age", "income"]
         }
-        
+
         Returns transformation results including before/after skewness and methods applied.
         """
         try:
@@ -323,12 +333,14 @@ class FixSkew(MethodView):
             df = FileService.read_dataset(file_path)
 
             # Apply skewness corrections
-            df_corrected, transformations = SkewnessCorrectionService.correct_multiple_columns(df, columns)
+            df_corrected, transformations = SkewnessCorrectionService.correct_multiple_columns(
+                df, columns)
 
             # Save corrected dataset
             corrected_filename = "corrected_dataset.csv"
             corrected_path = os.path.join(CORRECTED_DIR, corrected_filename)
-            FileService.save_dataset(df_corrected, corrected_path, ensure_dir=True)
+            FileService.save_dataset(
+                df_corrected, corrected_path, ensure_dir=True)
 
             return jsonify({
                 "message": "Skewness correction applied successfully",
@@ -348,14 +360,14 @@ class VisualizeSkew(MethodView):
     def post(self):
         """
         Create distribution plots (histograms + KDE) for continuous columns before and after skewness correction.
-        
+
         Input JSON:
         {
             "before_path": "uploads/dataset.csv",
             "after_path": "corrected/corrected_dataset.csv",
             "columns": ["age", "income"]
         }
-        
+
         Returns base64-encoded histogram plots with KDE overlays for each column.
         """
         try:
@@ -373,11 +385,13 @@ class VisualizeSkew(MethodView):
                 abort(400, message="'columns' must be a non-empty list")
 
             # Validate paths
-            before_abs, error = PathValidator.validate_any_path(before_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
+            before_abs, error = PathValidator.validate_any_path(
+                before_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
             if error:
                 abort(400, message=f"Before path error: {error}")
 
-            after_abs, error = PathValidator.validate_any_path(after_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
+            after_abs, error = PathValidator.validate_any_path(
+                after_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
             if error:
                 abort(400, message=f"After path error: {error}")
 
@@ -386,7 +400,8 @@ class VisualizeSkew(MethodView):
             df_after = FileService.read_dataset(after_abs)
 
             # Generate visualizations
-            charts = VisualizationService.visualize_skewness(df_before, df_after, columns)
+            charts = VisualizationService.visualize_skewness(
+                df_before, df_after, columns)
 
             return jsonify({"charts": charts}), 200
 

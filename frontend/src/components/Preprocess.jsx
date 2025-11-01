@@ -29,7 +29,8 @@ export default function Preprocess({ filePath }) {
         setResult(res.data);
       } catch (err) {
         if (cancelled) return;
-        const msg = err?.response?.data?.error || err.message || "Preprocess failed";
+        const msg =
+          err?.response?.data?.error || err.message || "Preprocess failed";
         setError(msg);
       } finally {
         if (!cancelled) setLoading(false);
@@ -84,21 +85,25 @@ export default function Preprocess({ filePath }) {
                 <div className="text-sm text-slate-800">
                   Rows: <span className="font-semibold">{datasetShape[0]}</span>
                   <span className="mx-2">·</span>
-                  Columns: <span className="font-semibold">{datasetShape[1]}</span>
+                  Columns:{" "}
+                  <span className="font-semibold">{datasetShape[1]}</span>
                 </div>
               ) : (
                 <div className="text-sm text-slate-500">Not available</div>
               )}
               {result?.cleaned_file_path && (
                 <div className="mt-2 text-xs text-slate-500">
-                  Saved as: <span className="font-mono">{result.cleaned_file_path}</span>
+                  Saved as:{" "}
+                  <span className="font-mono">{result.cleaned_file_path}</span>
                 </div>
               )}
             </div>
 
             {/* Missing values */}
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="font-medium text-slate-700 mb-2">Missing Values (before fill)</h3>
+              <h3 className="font-medium text-slate-700 mb-2">
+                Missing Values (before fill)
+              </h3>
               {missingValues && Object.keys(missingValues).length > 0 ? (
                 <div className="max-h-64 overflow-auto">
                   <table className="min-w-full table-auto">
@@ -115,15 +120,21 @@ export default function Preprocess({ filePath }) {
                     <tbody className="divide-y divide-slate-100">
                       {Object.entries(missingValues).map(([col, count]) => (
                         <tr key={col}>
-                          <td className="px-3 py-2 text-sm text-slate-700">{col}</td>
-                          <td className="px-3 py-2 text-sm text-slate-700">{count}</td>
+                          <td className="px-3 py-2 text-sm text-slate-700">
+                            {col}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-slate-700">
+                            {count}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <div className="text-sm text-slate-500">No missing values summary available.</div>
+                <div className="text-sm text-slate-500">
+                  No missing values summary available.
+                </div>
               )}
             </div>
           </div>

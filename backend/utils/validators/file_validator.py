@@ -17,7 +17,7 @@ class FileValidator:
     def validate_filename(filename: str) -> tuple[str, str | None]:
         """
         Validate and secure a filename.
-        
+
         Returns:
             Tuple of (secure_filename, error_message)
         """

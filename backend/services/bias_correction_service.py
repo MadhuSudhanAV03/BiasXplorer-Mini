@@ -18,20 +18,21 @@ class BiasCorrectionService:
     def validate_target_column(df: pd.DataFrame, target_col: str) -> tuple[bool, Optional[str]]:
         """
         Validate that target column exists and is categorical.
-        
+
         Returns:
             Tuple of (is_valid, error_message)
         """
         if target_col not in df.columns:
             return False, f"Target column '{target_col}' not found in dataset"
-        
+
         y = df[target_col]
         nunique = y.nunique(dropna=True)
-        is_categorical = (str(y.dtype) in ("object", "category", "bool")) or (nunique <= 20)
-        
+        is_categorical = (str(y.dtype) in (
+            "object", "category", "bool")) or (nunique <= 20)
+
         if not is_categorical:
             return False, "Target column is not categorical"
-        
+
         return True, None
 
     @staticmethod
@@ -43,13 +44,13 @@ class BiasCorrectionService:
     ) -> tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Apply bias correction to a DataFrame.
-        
+
         Args:
             df: Input DataFrame
             target_col: Target column name
             method: Correction method (oversample/undersample/smote/reweight)
             threshold: Optional threshold for sampling strategy
-            
+
         Returns:
             Tuple of (corrected_dataframe, metadata_dict)
         """
@@ -79,15 +80,18 @@ class BiasCorrectionService:
             return df.copy(), metadata
 
         elif method == "oversample":
-            df_corrected = CategoricalTransformer.oversample(df, target_col, sampling_strategy)
+            df_corrected = CategoricalTransformer.oversample(
+                df, target_col, sampling_strategy)
             return df_corrected, metadata
 
         elif method == "undersample":
-            df_corrected = CategoricalTransformer.undersample(df, target_col, sampling_strategy)
+            df_corrected = CategoricalTransformer.undersample(
+                df, target_col, sampling_strategy)
             return df_corrected, metadata
 
         elif method == "smote":
-            df_corrected = CategoricalTransformer.smote(df, target_col, sampling_strategy)
+            df_corrected = CategoricalTransformer.smote(
+                df, target_col, sampling_strategy)
             return df_corrected, metadata
 
         else:

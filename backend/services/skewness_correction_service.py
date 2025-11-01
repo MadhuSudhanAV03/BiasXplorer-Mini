@@ -12,11 +12,11 @@ class SkewnessCorrectionService:
     def correct_column(df: pd.DataFrame, column: str) -> Dict[str, Any]:
         """
         Correct skewness in a single column.
-        
+
         Args:
             df: Input DataFrame (will be modified in place)
             column: Column name to correct
-            
+
         Returns:
             Dictionary with transformation results
         """
@@ -42,12 +42,14 @@ class SkewnessCorrectionService:
                 }
 
             # Determine and apply transformation
-            method = ContinuousTransformer.get_transformation_method(original_skewness)
-            
+            method = ContinuousTransformer.get_transformation_method(
+                original_skewness)
+
             if abs(original_skewness) <= 0.5:
                 new_skewness = original_skewness
             else:
-                df = ContinuousTransformer.apply_transformation(df, column, original_skewness)
+                df = ContinuousTransformer.apply_transformation(
+                    df, column, original_skewness)
                 new_skewness = compute_skewness(df[column])
 
             return {
@@ -68,19 +70,20 @@ class SkewnessCorrectionService:
     def correct_multiple_columns(df: pd.DataFrame, columns: List[str]) -> tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Correct skewness in multiple columns.
-        
+
         Args:
             df: Input DataFrame
             columns: List of column names to correct
-            
+
         Returns:
             Tuple of (corrected_dataframe, transformation_results)
         """
         df_corrected = df.copy()
         transformations = {}
-        
+
         for col in columns:
-            result = SkewnessCorrectionService.correct_column(df_corrected, col)
+            result = SkewnessCorrectionService.correct_column(
+                df_corrected, col)
             transformations[col] = result
-        
+
         return df_corrected, transformations

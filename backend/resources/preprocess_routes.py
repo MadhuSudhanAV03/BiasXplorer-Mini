@@ -35,7 +35,8 @@ class PreprocessDatatset(MethodView):
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
 
             # Validate path
-            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            abs_path, error = PathValidator.validate_upload_path(
+                file_path, BASE_DIR, UPLOAD_DIR)
             if error:
                 return jsonify({"error": error}), 400
 

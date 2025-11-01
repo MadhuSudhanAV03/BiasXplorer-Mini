@@ -5,6 +5,7 @@
 ### **1. File Operations**
 
 **❌ OLD WAY:**
+
 ```python
 # Repeated everywhere
 ext = os.path.splitext(filepath)[1].lower()
@@ -18,6 +19,7 @@ df.to_csv(output_path, index=False)
 ```
 
 **✅ NEW WAY:**
+
 ```python
 from services import FileService
 
@@ -39,6 +41,7 @@ columns = FileService.get_columns(df)
 ### **2. Path Validation**
 
 **❌ OLD WAY:**
+
 ```python
 # Repeated validation logic
 norm_rel_path = os.path.normpath(file_path)
@@ -54,6 +57,7 @@ if not os.path.exists(abs_path):
 ```
 
 **✅ NEW WAY:**
+
 ```python
 from utils.validators import PathValidator
 
@@ -77,6 +81,7 @@ if error:
 ### **3. Bias Detection**
 
 **❌ OLD WAY:**
+
 ```python
 # 80+ lines of logic in route handler
 result = {}
@@ -90,6 +95,7 @@ for col in categorical:
 ```
 
 **✅ NEW WAY:**
+
 ```python
 from services import BiasDetectionService
 
@@ -106,6 +112,7 @@ stats = BiasDetectionService.get_class_distribution(df, target_col)
 ### **4. Bias Correction**
 
 **❌ OLD WAY:**
+
 ```python
 # Complex logic with multiple if/elif branches
 if method == "smote":
@@ -121,6 +128,7 @@ elif method == "undersample":
 ```
 
 **✅ NEW WAY:**
+
 ```python
 from services import BiasCorrectionService
 
@@ -144,6 +152,7 @@ df_corrected, metadata = BiasCorrectionService.apply_correction(
 ### **5. Skewness Detection**
 
 **❌ OLD WAY:**
+
 ```python
 # Logic scattered in route handler
 series = df[column]
@@ -154,6 +163,7 @@ skewness = skew(clean_series)
 ```
 
 **✅ NEW WAY:**
+
 ```python
 from services import SkewnessDetectionService
 
@@ -171,6 +181,7 @@ interpretation = SkewnessDetectionService.interpret_skewness(skewness)
 ### **6. Skewness Correction**
 
 **❌ OLD WAY:**
+
 ```python
 # Scattered transformation logic
 transformations = {}
@@ -185,6 +196,7 @@ for col in columns:
 ```
 
 **✅ NEW WAY:**
+
 ```python
 from services import SkewnessCorrectionService
 
@@ -203,6 +215,7 @@ result = SkewnessCorrectionService.correct_column(df, column)
 ### **7. Visualization**
 
 **❌ OLD WAY:**
+
 ```python
 # Matplotlib code in route handlers
 fig, ax = plt.subplots(figsize=(6, 4))
@@ -215,6 +228,7 @@ b64 = base64.b64encode(buf.read()).decode('ascii')
 ```
 
 **✅ NEW WAY:**
+
 ```python
 from services import VisualizationService
 
@@ -236,6 +250,7 @@ charts = VisualizationService.visualize_skewness(
 ### **8. Transformations (For Custom Logic)**
 
 **✅ Categorical Transformations:**
+
 ```python
 from utils.transformers import CategoricalTransformer
 
@@ -253,6 +268,7 @@ weights = CategoricalTransformer.compute_class_weights(y_series)
 ```
 
 **✅ Continuous Transformations:**
+
 ```python
 from utils.transformers import ContinuousTransformer
 
@@ -271,14 +287,14 @@ df = ContinuousTransformer.apply_yeo_johnson(df, col)
 
 ## **🎯 Benefits Summary**
 
-| Aspect | Old Code | New Code |
-|--------|----------|----------|
-| **Lines of Code** | 923 lines | 442 lines |
-| **Code Duplication** | High (repeated everywhere) | None (DRY principle) |
-| **Testability** | Hard (coupled to Flask) | Easy (pure functions) |
-| **Maintainability** | Low (scattered logic) | High (organized) |
-| **Readability** | Poor (100+ line functions) | Excellent (20 line functions) |
-| **Extensibility** | Hard (modify routes) | Easy (add to services) |
+| Aspect               | Old Code                   | New Code                      |
+| -------------------- | -------------------------- | ----------------------------- |
+| **Lines of Code**    | 923 lines                  | 442 lines                     |
+| **Code Duplication** | High (repeated everywhere) | None (DRY principle)          |
+| **Testability**      | Hard (coupled to Flask)    | Easy (pure functions)         |
+| **Maintainability**  | Low (scattered logic)      | High (organized)              |
+| **Readability**      | Poor (100+ line functions) | Excellent (20 line functions) |
+| **Extensibility**    | Hard (modify routes)       | Easy (add to services)        |
 
 ---
 

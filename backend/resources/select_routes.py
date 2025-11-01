@@ -41,7 +41,8 @@ class SelectFeatures(MethodView):
                 return jsonify({"error": "'selected_features' must be a list of column names."}), 400
 
             # Validate path
-            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            abs_path, error = PathValidator.validate_upload_path(
+                file_path, BASE_DIR, UPLOAD_DIR)
             if error:
                 return jsonify({"error": error}), 400
 
@@ -73,7 +74,8 @@ class SelectFeatures(MethodView):
             original_base = os.path.splitext(os.path.basename(abs_path))[0]
             selected_filename = f"selected_{original_base}.csv"
             selected_path = os.path.join(UPLOAD_DIR, selected_filename)
-            FileService.save_dataset(filtered_df, selected_path, ensure_dir=True)
+            FileService.save_dataset(
+                filtered_df, selected_path, ensure_dir=True)
 
             return jsonify({
                 "message": "Features selected successfully",
@@ -120,7 +122,8 @@ class SetColumnTypes(MethodView):
                 return jsonify({"error": "'continuous' must be a list of column names."}), 400
 
             # Validate path
-            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            abs_path, error = PathValidator.validate_upload_path(
+                file_path, BASE_DIR, UPLOAD_DIR)
             if error:
                 return jsonify({"error": error}), 400
 

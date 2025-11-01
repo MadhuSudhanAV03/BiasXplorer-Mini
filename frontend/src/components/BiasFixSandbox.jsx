@@ -24,7 +24,10 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
   const afterDist = result?.after?.distribution || {};
 
   const classes = useMemo(() => {
-    const set = new Set([...Object.keys(beforeDist), ...Object.keys(afterDist)]);
+    const set = new Set([
+      ...Object.keys(beforeDist),
+      ...Object.keys(afterDist),
+    ]);
     // Remove non-class keys if any slipped in
     set.delete("severity");
     set.delete("note");
@@ -65,9 +68,11 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
         headers: { "Content-Type": "application/json" },
       });
       setResult(res.data || {});
-      if (res.data?.corrected_file_path) setCorrectedPath(res.data.corrected_file_path);
+      if (res.data?.corrected_file_path)
+        setCorrectedPath(res.data.corrected_file_path);
     } catch (err) {
-      const msg = err?.response?.data?.error || err.message || "Bias fix failed";
+      const msg =
+        err?.response?.data?.error || err.message || "Bias fix failed";
       setError(msg);
     } finally {
       setLoading(false);
@@ -85,20 +90,26 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <label className="block text-xs font-medium text-slate-600 mb-1">Method</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            Method
+          </label>
           <select
             className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
             value={method}
             onChange={(e) => setMethod(e.target.value)}
           >
             {METHOD_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <label className="block text-xs font-medium text-slate-600 mb-1">Threshold (0.1 – 1.0)</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            Threshold (0.1 – 1.0)
+          </label>
           <input
             type="number"
             min={0.1}
@@ -110,7 +121,8 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
             placeholder="0.5"
           />
           <p className="mt-1 text-xs text-slate-500">
-            Used as target minority/majority ratio (binary classes). Ignored when not applicable.
+            Used as target minority/majority ratio (binary classes). Ignored
+            when not applicable.
           </p>
         </div>
 
@@ -133,13 +145,17 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
       )}
 
       {loading && (
-        <div className="my-3"><Spinner text="Running bias correction..." /></div>
+        <div className="my-3">
+          <Spinner text="Running bias correction..." />
+        </div>
       )}
 
       {result && !loading && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="rounded-lg border border-slate-200 bg-white p-3">
-            <h3 className="font-medium text-slate-700 mb-2">Before ({targetColumn})</h3>
+            <h3 className="font-medium text-slate-700 mb-2">
+              Before ({targetColumn})
+            </h3>
             <Plot
               data={[
                 {
@@ -163,7 +179,9 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white p-3">
-            <h3 className="font-medium text-slate-700 mb-2">After ({targetColumn})</h3>
+            <h3 className="font-medium text-slate-700 mb-2">
+              After ({targetColumn})
+            </h3>
             <Plot
               data={[
                 {
@@ -190,10 +208,13 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
             <div className="text-sm text-slate-700">
               {correctedPath ? (
                 <>
-                  Corrected file saved at: <span className="font-mono">{correctedPath}</span>
+                  Corrected file saved at:{" "}
+                  <span className="font-mono">{correctedPath}</span>
                 </>
               ) : (
-                <span className="text-slate-500">Run correction to see the output path.</span>
+                <span className="text-slate-500">
+                  Run correction to see the output path.
+                </span>
               )}
             </div>
           </div>

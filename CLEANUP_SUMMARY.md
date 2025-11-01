@@ -5,30 +5,37 @@
 ### ✅ **Deleted Successfully:**
 
 1. **`resources/bias_routes_old.py`** (923 lines)
+
    - Backup of old monolithic code
    - Replaced by modular `bias_routes.py` (442 lines)
 
 2. **`utils/categorical/`** folder
+
    - Only contained `imbalance.py` with empty comment
    - Logic moved to `services/bias_detection_service.py`
 
 3. **`utils/continuous_data/`** folder
+
    - Contained `skew.py` with old transformation functions
    - All functions migrated to `utils/transformers/continuous.py`
 
 4. **`models/`** folder
+
    - Empty folder, never used
    - Removed to clean up structure
 
 5. **`utils/column_classifier/test.py`**
+
    - Test file with hardcoded imports
    - Not needed in production
 
 6. **`utils/column_classifier/iris.xls`**
+
    - Test data file
    - Not needed in production
 
 7. **`utils/column_classifier/SampleSuperstore.xls`**
+
    - Test data file
    - Not needed in production
 
@@ -41,7 +48,9 @@
 ## **Kept (But Not Currently Used)**
 
 ### **`utils/column_classifier/`** folder
+
 Contains useful utilities for automatic column type classification:
+
 - `classify_column.py` - Classifies columns as categorical/continuous/identifier
 - `autoThreshold.py` - Automatically determines classification thresholds
 
@@ -105,6 +114,7 @@ backend/
 ## **Before vs After**
 
 ### **Before Cleanup:**
+
 ```
 ❌ bias_routes_old.py           (923 lines - backup)
 ❌ utils/categorical/            (empty folder)
@@ -116,6 +126,7 @@ backend/
 ```
 
 ### **After Cleanup:**
+
 ```
 ✅ Clean modular structure
 ✅ No duplicate code
@@ -139,15 +150,18 @@ backend/
 ### **Optional: Future Enhancements**
 
 1. **Integrate Column Classifier** (if desired)
+
    - Use `column_classifier` utilities for automatic column type detection
    - Would replace manual classification in frontend
 
 2. **Add Unit Tests**
+
    - Create `tests/` folder
    - Add tests for each service
    - Add tests for validators and transformers
 
 3. **Add Logging**
+
    - Create `logs/` folder
    - Add logging throughout services
    - Track operations and errors
@@ -162,9 +176,10 @@ backend/
 
 ✅ **Deleted**: 8 files/folders (obsolete, duplicate, or test files)  
 ✅ **Kept**: `column_classifier/` utilities (for potential future use)  
-✅ **Result**: Clean, modular, production-ready backend structure  
+✅ **Result**: Clean, modular, production-ready backend structure
 
 **Your backend is now:**
+
 - 🧹 **Clean** - No duplicate or obsolete code
 - 📦 **Organized** - Clear 3-layer architecture
 - 🚀 **Production-ready** - Only essential files remain

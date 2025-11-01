@@ -152,7 +152,7 @@ class GenerateReport(MethodView):
 
         except Exception as e:
             return jsonify({"error": str(e)}), 400
-        
+
 
 @blp.route("/reports/download/<path:filename>")
 class ServeReport(MethodView):

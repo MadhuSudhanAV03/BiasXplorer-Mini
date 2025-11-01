@@ -8,7 +8,11 @@ const UPLOAD_URL = "http://localhost:5000/api/upload";
 export default function FileUpload({ onUploadSuccess, className = "" }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [toast, setToast] = useState({ visible: false, type: "success", message: "" });
+  const [toast, setToast] = useState({
+    visible: false,
+    type: "success",
+    message: "",
+  });
   const fileInputRef = useRef(null);
 
   const showToast = useCallback((type, message) => {
@@ -91,7 +95,9 @@ export default function FileUpload({ onUploadSuccess, className = "" }) {
       >
         <div className="flex flex-col items-center gap-3">
           <div className="text-slate-600">Drag & drop your dataset here</div>
-          <div className="text-xs text-slate-500">Accepted: .csv, .xls, .xlsx</div>
+          <div className="text-xs text-slate-500">
+            Accepted: .csv, .xls, .xlsx
+          </div>
 
           <button
             type="button"

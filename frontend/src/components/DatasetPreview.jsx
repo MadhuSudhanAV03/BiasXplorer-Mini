@@ -27,7 +27,8 @@ export default function DatasetPreview({ filePath, onNext }) {
         setRows(Array.isArray(res.data?.preview) ? res.data.preview : []);
       } catch (err) {
         if (cancelled) return;
-        const msg = err?.response?.data?.error || err.message || "Failed to load preview";
+        const msg =
+          err?.response?.data?.error || err.message || "Failed to load preview";
         setError(msg);
       } finally {
         if (!cancelled) setLoading(false);
@@ -39,13 +40,18 @@ export default function DatasetPreview({ filePath, onNext }) {
     };
   }, [filePath]);
 
-  const hasData = useMemo(() => columns.length > 0 && rows.length > 0, [columns, rows]);
+  const hasData = useMemo(
+    () => columns.length > 0 && rows.length > 0,
+    [columns, rows]
+  );
 
   return (
     <div className="w-full">
       <h2 className="text-lg font-semibold mb-3">Dataset Preview</h2>
       {loading && (
-        <div className="my-4"><Spinner text="Loading preview..." /></div>
+        <div className="my-4">
+          <Spinner text="Loading preview..." />
+        </div>
       )}
       {error && (
         <div className="my-3 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
@@ -71,7 +77,10 @@ export default function DatasetPreview({ filePath, onNext }) {
               {rows.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-50">
                   {columns.map((col) => (
-                    <td key={col} className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">
+                    <td
+                      key={col}
+                      className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap"
+                    >
                       {row?.[col] != null ? String(row[col]) : ""}
                     </td>
                   ))}

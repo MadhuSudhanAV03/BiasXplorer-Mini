@@ -38,7 +38,8 @@ class ContinuousTransformer:
     @staticmethod
     def apply_quantile_transformer(df: pd.DataFrame, col: str, output_distribution: Literal['uniform', 'normal'] = 'normal', random_state: int = 42) -> pd.DataFrame:
         """Apply Quantile Transformer (for extreme skew)."""
-        qt = QuantileTransformer(output_distribution=output_distribution, random_state=random_state)
+        qt = QuantileTransformer(
+            output_distribution=output_distribution, random_state=random_state)
         df[col] = qt.fit_transform(df[[col]])
         return df
 
@@ -46,10 +47,10 @@ class ContinuousTransformer:
     def get_transformation_method(skew_value: float) -> str:
         """
         Determine appropriate transformation method based on skewness value.
-        
+
         Args:
             skew_value: Skewness value
-            
+
         Returns:
             String name of the recommended method
         """
@@ -72,12 +73,12 @@ class ContinuousTransformer:
     def apply_transformation(df: pd.DataFrame, col: str, skew_value: float) -> pd.DataFrame:
         """
         Apply appropriate transformation based on skewness value.
-        
+
         Args:
             df: DataFrame
             col: Column name to transform
             skew_value: Skewness value
-            
+
         Returns:
             Transformed DataFrame
         """
@@ -95,5 +96,5 @@ class ContinuousTransformer:
             df = ContinuousTransformer.apply_yeo_johnson(df, col)
         else:
             df = ContinuousTransformer.apply_quantile_transformer(df, col)
-        
+
         return df

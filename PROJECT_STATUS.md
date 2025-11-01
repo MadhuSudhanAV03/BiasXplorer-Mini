@@ -8,6 +8,7 @@
 ## 📊 Project Overview
 
 **BiasXplorer-Mini** is a full-stack web application for detecting and correcting bias in datasets:
+
 - **Categorical Bias**: Class imbalance detection and correction
 - **Continuous Bias**: Skewness detection and transformation
 - **Visualization**: Before/after charts with Plotly.js
@@ -39,6 +40,7 @@ BiasXplorer-Mini/
 **Status**: ✅ **READY**
 
 ### **Refactoring Completed:**
+
 - ✅ Reduced code from 923 → 442 lines (52% reduction)
 - ✅ Created 6 service classes (modular architecture)
 - ✅ Created 2 validators (security)
@@ -48,6 +50,7 @@ BiasXplorer-Mini/
 - ✅ Dependencies installed
 
 ### **API Endpoints:** (11 endpoints)
+
 ```
 POST /upload
 GET  /preview
@@ -65,6 +68,7 @@ GET  /reports/<filename>
 ```
 
 ### **Key Features:**
+
 - ✅ **Bias Correction**: Oversample, Undersample, SMOTE, Reweight
 - ✅ **Skewness Correction**: 6 transformation methods
 - ✅ **Security**: Path validation, file type validation
@@ -72,6 +76,7 @@ GET  /reports/<filename>
 - ✅ **PDF Reports**: ReportLab integration
 
 **Documentation:**
+
 - 📄 `backend/BACKEND_STATUS.md` - Comprehensive health report
 - 📄 `backend/CLEANUP_SUMMARY.md` - Cleanup details
 - 📄 `backend/REFACTORING_SUMMARY.md` - Architecture changes
@@ -87,11 +92,13 @@ GET  /reports/<filename>
 **Status**: ✅ **READY**
 
 ### **Components:** (16 total)
+
 - ✅ 3 pages (Home, Dashboard, ReportPage)
 - ✅ 12 reusable components
 - ✅ 1 custom hook (usePersistedState)
 
 ### **Key Features:**
+
 - ✅ **File Upload**: Drag & drop interface
 - ✅ **Multi-Step Workflow**: 6-step data pipeline
 - ✅ **Interactive Charts**: Plotly.js visualizations
@@ -100,12 +107,14 @@ GET  /reports/<filename>
 - ✅ **Error Handling**: All API calls wrapped
 
 ### **Code Quality:**
+
 - ✅ No ESLint errors
 - ✅ Modern React patterns (hooks only)
 - ✅ Proper error boundaries
 - ✅ Performance optimizations (useMemo, useCallback)
 
 **Documentation:**
+
 - 📄 `frontend/FRONTEND_STATUS.md` - Complete analysis
 
 ---
@@ -113,11 +122,13 @@ GET  /reports/<filename>
 ## 🎯 Testing Status
 
 ### **Backend:**
+
 - ✅ Import test passed (all services load)
 - ✅ Type checking passed (0 errors)
 - ⏳ Manual API testing recommended
 
 ### **Frontend:**
+
 - ✅ ESLint passed (0 errors)
 - ✅ Dependencies installed
 - ⏳ End-to-end testing recommended
@@ -127,6 +138,7 @@ GET  /reports/<filename>
 ## 🚀 Quick Start Guide
 
 ### **Backend Setup:**
+
 ```bash
 cd backend
 
@@ -143,6 +155,7 @@ python app.py
 **API Docs**: http://localhost:5000/swagger-ui
 
 ### **Frontend Setup:**
+
 ```bash
 cd frontend
 
@@ -160,6 +173,7 @@ npm run dev
 ## 📦 Dependencies
 
 ### **Backend:**
+
 ```
 flask, flask-smorest, flask-cors
 pandas, numpy, scipy
@@ -169,6 +183,7 @@ reportlab (PDF generation)
 ```
 
 ### **Frontend:**
+
 ```
 react@19, react-dom@19
 vite@7, @vitejs/plugin-react
@@ -182,12 +197,14 @@ plotly.js, react-plotly.js
 ## 🔒 Security Features
 
 ### **Backend:**
+
 - ✅ Path validation (prevent traversal attacks)
 - ✅ File type validation (CSV, XLS, XLSX only)
 - ✅ Secure filename handling
 - ✅ CORS configured (localhost:5173 only)
 
 ### **Frontend:**
+
 - ✅ React XSS protection (auto-escaping)
 - ✅ No dangerouslySetInnerHTML usage
 - ✅ Client-side validation (backed by server)
@@ -197,18 +214,21 @@ plotly.js, react-plotly.js
 ## 📊 Project Stats
 
 ### **Backend:**
+
 - **Services**: 6 classes
 - **Routes**: 5 blueprints
 - **Utilities**: 4 modules (validators, transformers, stats)
 - **Lines of Code**: ~2,000 (refactored from ~2,500)
 
 ### **Frontend:**
+
 - **Components**: 16 JSX files
 - **Pages**: 3 routes
 - **Hooks**: 1 custom hook
 - **Lines of Code**: ~3,500
 
 ### **Total Project Size:**
+
 - Backend: ~2,000 LOC
 - Frontend: ~3,500 LOC
 - **Total**: ~5,500 LOC
@@ -220,6 +240,7 @@ plotly.js, react-plotly.js
 ### **None Critical**
 
 **Minor (Optional Cleanup):**
+
 1. Frontend: Remove unused dependencies (redux, react-hook-form)
 2. Frontend: Remove debug console.log statements (2 instances)
 3. Backend: Optional - Refactor report_routes.py to use service layer
@@ -233,6 +254,7 @@ plotly.js, react-plotly.js
 ### **Future Enhancements:**
 
 **Backend:**
+
 - [ ] Add unit tests (pytest)
 - [ ] Add logging system
 - [ ] Add configuration management (config.py)
@@ -240,6 +262,7 @@ plotly.js, react-plotly.js
 - [ ] Add database support (PostgreSQL/MongoDB)
 
 **Frontend:**
+
 - [ ] Add unit tests (Vitest + React Testing Library)
 - [ ] Add loading skeletons
 - [ ] Add dark mode
@@ -247,6 +270,7 @@ plotly.js, react-plotly.js
 - [ ] Add chart customization options
 
 **DevOps:**
+
 - [ ] Add Docker configuration
 - [ ] Add CI/CD pipeline (GitHub Actions)
 - [ ] Add environment configurations (dev/staging/prod)
@@ -257,6 +281,7 @@ plotly.js, react-plotly.js
 ## ✅ Verification Checklist
 
 ### **Backend:**
+
 - ✅ All dependencies installed
 - ✅ No import errors
 - ✅ No type errors
@@ -265,6 +290,7 @@ plotly.js, react-plotly.js
 - ✅ Security validators in place
 
 ### **Frontend:**
+
 - ✅ Dependencies installed (node_modules exists)
 - ✅ No ESLint errors
 - ✅ All API endpoints integrated
@@ -273,6 +299,7 @@ plotly.js, react-plotly.js
 - ✅ Responsive design implemented
 
 ### **Integration:**
+
 - ✅ CORS configured correctly
 - ✅ API URLs match backend
 - ✅ File upload/download working
@@ -285,6 +312,7 @@ plotly.js, react-plotly.js
 **Project Status**: ✅ **PRODUCTION READY**
 
 Both frontend and backend are:
+
 - ✅ **Functional**: All features implemented
 - ✅ **Clean**: Well-organized, modular code
 - ✅ **Secure**: Security measures in place
@@ -292,12 +320,14 @@ Both frontend and backend are:
 - ✅ **Documented**: Comprehensive documentation
 
 ### **Ready for:**
+
 - ✅ Local development
 - ✅ Manual testing
 - ✅ Demo/presentation
 - ✅ Deployment (with environment setup)
 
 ### **Next Steps:**
+
 1. **Test the application**: Run both servers and test complete workflow
 2. **Deploy**: Set up production environment (Docker/cloud)
 3. **Monitor**: Add logging and error tracking
@@ -308,6 +338,7 @@ Both frontend and backend are:
 ## 📞 Support
 
 **Documentation Files:**
+
 - `README.md` - Project overview
 - `backend/BACKEND_STATUS.md` - Backend health report
 - `frontend/FRONTEND_STATUS.md` - Frontend analysis

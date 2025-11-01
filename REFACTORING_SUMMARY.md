@@ -3,6 +3,7 @@
 ## ✅ **Completed: Modular Architecture Implementation**
 
 ### **New Directory Structure**
+
 ```
 backend/
 ├── services/                    # 🆕 Business logic layer
@@ -39,6 +40,7 @@ backend/
 ## **📊 Before vs After Comparison**
 
 ### **Before (Monolithic)**
+
 - `bias_routes.py`: **923 lines**
   - All business logic in route handlers
   - Repeated validation code
@@ -47,6 +49,7 @@ backend/
   - Impossible to unit test
 
 ### **After (Modular)**
+
 - `bias_routes.py`: **442 lines** (52% reduction)
 - **Services**: 6 focused service classes
 - **Utilities**: Reusable validators and transformers
@@ -57,6 +60,7 @@ backend/
 ## **🎯 Key Improvements**
 
 ### **1. Service Layer Pattern**
+
 ```python
 # OLD: Business logic in routes
 @blp.route('/detect_bias')
@@ -77,6 +81,7 @@ class DetectBias(MethodView):
 ```
 
 ### **2. Reusable Validators**
+
 ```python
 # Centralized path validation (used in 10+ places)
 PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
@@ -88,6 +93,7 @@ FileValidator.allowed_file(filename)
 ```
 
 ### **3. Focused Service Classes**
+
 - `FileService`: All file I/O operations
 - `BiasDetectionService`: Detects class imbalance
 - `BiasCorrectionService`: Applies correction methods
@@ -96,6 +102,7 @@ FileValidator.allowed_file(filename)
 - `VisualizationService`: Generates charts
 
 ### **4. Testable Code**
+
 ```python
 # Now you can unit test business logic independently
 def test_bias_detection():
@@ -109,17 +116,21 @@ def test_bias_detection():
 ## **📝 What Was Refactored**
 
 ### **✅ Completed Files**
+
 1. **bias_routes.py** - Completely refactored (923 → 442 lines)
+
    - 6 routes now use service layer
    - Removed all duplicate validation
    - Removed all file I/O logic
 
 2. **upload_routes.py** - Refactored
+
    - Uses `FileService` for file operations
    - Uses `PathValidator` for validation
    - Uses `FileValidator` for file type checking
 
 3. **preprocess_routes.py** - Refactored
+
    - Uses `FileService` for read/write operations
    - Uses `PathValidator` for validation
 
@@ -128,6 +139,7 @@ def test_bias_detection():
    - Uses `PathValidator` for validation
 
 ### **🔄 Still Using Old Pattern**
+
 - `report_routes.py` - Can be refactored to use service layer
 
 ---
@@ -135,21 +147,25 @@ def test_bias_detection():
 ## **🚀 Benefits**
 
 ### **1. Maintainability**
+
 - **Single Responsibility**: Each class does one thing well
 - **DRY Principle**: No more duplicate code
 - **Easy to Modify**: Change logic in one place
 
 ### **2. Testability**
+
 - Services can be unit tested independently
 - No Flask dependencies in business logic
 - Easy to mock dependencies
 
 ### **3. Extensibility**
+
 - Want a new correction method? Add it to `CategoricalTransformer`
 - Want a new validation? Add it to validators
 - Want a new visualization? Add it to `VisualizationService`
 
 ### **4. Readability**
+
 - Route handlers are now ~20 lines instead of 100+
 - Business logic is clearly separated
 - Code tells a story: "validate → read → process → respond"
@@ -182,6 +198,7 @@ def test_bias_detection():
 ## **✨ Result**
 
 Your backend is now:
+
 - ✅ **Modular** - Code is organized by responsibility
 - ✅ **Maintainable** - Easy to update and extend
 - ✅ **Testable** - Business logic can be tested independently

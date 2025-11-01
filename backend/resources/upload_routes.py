@@ -12,6 +12,7 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 blp = Blueprint("Uploads", __name__, url_prefix="/api",
                 description="File upload and preview operations")
 
+
 @blp.route("/upload")
 class UploadFile(MethodView):
     def post(self):
@@ -61,7 +62,8 @@ class PreviewDataset(MethodView):
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
 
             # Validate path
-            abs_path, error = PathValidator.validate_upload_path(file_path, BASE_DIR, UPLOAD_DIR)
+            abs_path, error = PathValidator.validate_upload_path(
+                file_path, BASE_DIR, UPLOAD_DIR)
             if error:
                 return jsonify({"error": error}), 400
 

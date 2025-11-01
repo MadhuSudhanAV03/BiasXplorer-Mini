@@ -7,7 +7,11 @@ import axios from "axios";
 
 const REPORT_URL = "http://localhost:5000/api/reports/generate";
 
-export default function ReportGenerator({ biasSummary = {}, correctionSummary = {}, visualizations = {} }) {
+export default function ReportGenerator({
+  biasSummary = {},
+  correctionSummary = {},
+  visualizations = {},
+}) {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
@@ -15,7 +19,13 @@ export default function ReportGenerator({ biasSummary = {}, correctionSummary = 
 
   const biasCounts = useMemo(() => {
     const entries = Object.entries(biasSummary || {});
-    const counts = { total: entries.length, Low: 0, Moderate: 0, Severe: 0, NA: 0 };
+    const counts = {
+      total: entries.length,
+      Low: 0,
+      Moderate: 0,
+      Severe: 0,
+      NA: 0,
+    };
     for (const [, stats] of entries) {
       const sev = (stats && stats.severity) || "N/A";
       if (sev === "Low") counts.Low++;
@@ -30,7 +40,9 @@ export default function ReportGenerator({ biasSummary = {}, correctionSummary = 
   const afterTotal = correctionSummary?.after?.total ?? null;
   const method = correctionSummary?.method ?? null;
 
-  const hasCharts = Boolean(visualizations?.before_chart && visualizations?.after_chart);
+  const hasCharts = Boolean(
+    visualizations?.before_chart && visualizations?.after_chart
+  );
 
   const generateAndDownload = async () => {
     setError("");
@@ -50,7 +62,10 @@ export default function ReportGenerator({ biasSummary = {}, correctionSummary = 
       if (!path) throw new Error("No report path returned by server");
       setReportPath(path);
     } catch (err) {
-      const msg = err?.response?.data?.error || err.message || "Failed to generate report";
+      const msg =
+        err?.response?.data?.error ||
+        err.message ||
+        "Failed to generate report";
       setError(msg);
       setLoading(false);
       return;
@@ -76,7 +91,10 @@ export default function ReportGenerator({ biasSummary = {}, correctionSummary = 
       a.remove();
       URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      const msg = err?.response?.data?.error || err.message || "Failed to download report";
+      const msg =
+        err?.response?.data?.error ||
+        err.message ||
+        "Failed to download report";
       setError(msg);
     } finally {
       setDownloading(false);
@@ -96,22 +114,36 @@ export default function ReportGenerator({ biasSummary = {}, correctionSummary = 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h3 className="font-medium text-slate-700 mb-2">Bias Summary</h3>
-          <div className="text-sm text-slate-700">Columns: {biasCounts.total}</div>
+          <div className="text-sm text-slate-700">
+            Columns: {biasCounts.total}
+          </div>
           <div className="text-xs text-slate-600">Low: {biasCounts.Low}</div>
-          <div className="text-xs text-amber-700">Moderate: {biasCounts.Moderate}</div>
-          <div className="text-xs text-red-700">Severe: {biasCounts.Severe}</div>
+          <div className="text-xs text-amber-700">
+            Moderate: {biasCounts.Moderate}
+          </div>
+          <div className="text-xs text-red-700">
+            Severe: {biasCounts.Severe}
+          </div>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="font-medium text-slate-700 mb-2">Correction Summary</h3>
+          <h3 className="font-medium text-slate-700 mb-2">
+            Correction Summary
+          </h3>
           <div className="text-sm text-slate-700">Method: {method || "-"}</div>
-          <div className="text-xs text-slate-600">Before total: {beforeTotal ?? "-"}</div>
-          <div className="text-xs text-slate-600">After total: {afterTotal ?? "-"}</div>
+          <div className="text-xs text-slate-600">
+            Before total: {beforeTotal ?? "-"}
+          </div>
+          <div className="text-xs text-slate-600">
+            After total: {afterTotal ?? "-"}
+          </div>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h3 className="font-medium text-slate-700 mb-2">Visualizations</h3>
-          <div className="text-sm text-slate-700">Included: {hasCharts ? "Yes" : "No"}</div>
+          <div className="text-sm text-slate-700">
+            Included: {hasCharts ? "Yes" : "No"}
+          </div>
           {hasCharts && (
             <div className="mt-2 grid grid-cols-2 gap-2">
               <img
@@ -141,7 +173,11 @@ export default function ReportGenerator({ biasSummary = {}, correctionSummary = 
       </div>
 
       {(loading || downloading) && (
-        <div className="mt-3"><Spinner text={loading ? "Generating report..." : "Downloading report..."} /></div>
+        <div className="mt-3">
+          <Spinner
+            text={loading ? "Generating report..." : "Downloading report..."}
+          />
+        </div>
       )}
 
       {reportPath && (
