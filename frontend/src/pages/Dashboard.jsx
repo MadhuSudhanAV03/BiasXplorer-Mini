@@ -52,16 +52,20 @@ export default function Dashboard() {
     "dashboard_continuous",
     []
   );
+  const [biasResults, setBiasResults] = usePersistedState(
+    "dashboard_biasResults",
+    {}
+  );
+  const [skewnessResults, setSkewnessResults] = usePersistedState(
+    "dashboard_skewnessResults",
+    {}
+  );
   const [selectedFilePath, setSelectedFilePath] = usePersistedState(
     "dashboard_selectedFilePath",
     ""
   );
   const [biasSummary, setBiasSummary] = usePersistedState(
     "dashboard_biasSummary",
-    null
-  );
-  const [skewnessResults, setSkewnessResults] = usePersistedState(
-    "dashboard_skewnessResults",
     null
   );
   const [targetColumn, setTargetColumn] = usePersistedState(
@@ -355,7 +359,11 @@ export default function Dashboard() {
               removedColumns={[]}
               onFix={({ results, fromButton }) => {
                 if (!results) return;
-                setBiasSummary(results);
+                // Merge new results with existing ones
+                setBiasSummary((prevResults) => ({
+                  ...prevResults,
+                  ...results,
+                }));
                 setFixMode("categorical");
 
                 // Add newly analyzed columns to analyzedColumns
@@ -372,7 +380,11 @@ export default function Dashboard() {
               }}
               onSkewFix={({ skewnessResults: skewResults, fromButton }) => {
                 if (!skewResults) return;
-                setSkewnessResults(skewResults);
+                // Merge new skewness results with existing ones
+                setSkewnessResults((prevResults) => ({
+                  ...prevResults,
+                  ...skewResults,
+                }));
                 setFixMode("skewness");
 
                 // Add newly analyzed columns to analyzedColumns
