@@ -1,8 +1,7 @@
-from flask import request, jsonify, current_app
+from flask import request, jsonify
 from flask.views import MethodView
 from flask_smorest import Blueprint
 import os
-import pandas as pd
 
 from services import FileService
 from utils.validators import PathValidator
@@ -17,16 +16,19 @@ blp = Blueprint("Preprocess", __name__, url_prefix="/api",
 @blp.route("/preprocess")
 class PreprocessDatatset(MethodView):
     def post(self):
-        """Preprocess the dataset: handle missing values and remove duplicates.
+        """Preprocess the dataset: remove rows with NaN values and duplicates.
         Input JSON:
         {
-          "file_path": "uploads/filename.csv",
-          "categorical": [optional list to override],
-          "continuous": [optional list to override]
+          "file_path": "uploads/filename.csv"
         }
-        Uses stored column types if present; otherwise infers from dtypes.
-        Saves cleaned CSV as uploads/cleaned_<original_basename>.csv
-        Returns JSON summary.
+
+        Processing steps:
+        1. Count missing values per column
+        2. Drop rows with any NaN values
+        3. Drop duplicate rows
+        4. Save cleaned CSV as uploads/cleaned_<original_basename>.csv
+
+        Returns JSON summary with statistics.
         """
         try:
             data = request.get_json(silent=True) or {}
@@ -43,84 +45,17 @@ class PreprocessDatatset(MethodView):
             # Read dataset
             df = FileService.read_dataset(abs_path)
 
-            # Determine column types: override > stored > inferred
-            override_cat = data.get("categorical")
-            override_cont = data.get("continuous")
-
-            store = current_app.config.get("COLUMN_TYPES_STORE", {})
-            stored = store.get(file_path, {})
-
-            if isinstance(override_cat, str):
-                override_cat = [override_cat]
-            if isinstance(override_cont, str):
-                override_cont = [override_cont]
-
-            if override_cat is not None and not isinstance(override_cat, list):
-                return jsonify({"error": "'categorical' must be a list of column names if provided."}), 400
-            if override_cont is not None and not isinstance(override_cont, list):
-                return jsonify({"error": "'continuous' must be a list of column names if provided."}), 400
-
-            df_columns = list(map(str, df.columns.tolist()))
-            df_col_set = set(df_columns)
-
-            if override_cat is not None or override_cont is not None:
-                cat_cols = [str(c) for c in (override_cat or [])]
-                cont_cols = [str(c) for c in (override_cont or [])]
-            elif stored:
-                cat_cols = [str(c) for c in stored.get("categorical", [])]
-                cont_cols = [str(c) for c in stored.get("continuous", [])]
-            else:
-                # Infer: object dtype -> categorical; numeric -> continuous
-                cat_cols = [c for c in df_columns if str(
-                    df[c].dtype) == 'object']
-                cont_cols = [c for c in df_columns if c not in cat_cols]
-
-            # Validate provided/inferred columns exist and are disjoint
-            missing_cat = [c for c in cat_cols if c not in df_col_set]
-            missing_cont = [c for c in cont_cols if c not in df_col_set]
-            if missing_cat or missing_cont:
-                return jsonify({
-                    "error": "Some columns were not found in the dataset.",
-                    "details": {
-                        "missing_categorical": missing_cat,
-                        "missing_continuous": missing_cont,
-                        "available_columns": df_columns
-                    }
-                }), 400
-
-            overlaps = sorted(set(cat_cols).intersection(set(cont_cols)))
-            if overlaps:
-                return jsonify({
-                    "error": "Columns overlap between 'categorical' and 'continuous'.",
-                    "details": {"overlaps": overlaps}
-                }), 400
-
-            # Missing values snapshot before filling
+            # Count missing values before removal
             missing_before = df.isna().sum().to_dict()
+            rows_before = len(df)
 
-            # Fill missing values
-            # Categorical: mode (first mode value if multiple)
-            for col in cat_cols:
-                if col in df:
-                    mode_series = df[col].mode(dropna=True)
-                    if not mode_series.empty:
-                        df[col] = df[col].fillna(mode_series.iloc[0])
-
-            # Continuous: mean
-            for col in cont_cols:
-                if col in df:
-                    try:
-                        mean_val = pd.to_numeric(
-                            df[col], errors='coerce').mean()
-                        if pd.notnull(mean_val):
-                            df[col] = pd.to_numeric(
-                                df[col], errors='coerce').fillna(mean_val)
-                    except Exception:
-                        # If conversion fails, skip this column
-                        pass
+            # Drop rows with any NaN values
+            df = df.dropna()
+            rows_after_dropna = len(df)
 
             # Drop duplicate rows
             df = df.drop_duplicates()
+            rows_after = len(df)
 
             # Save cleaned dataset as CSV
             original_base = os.path.splitext(os.path.basename(abs_path))[0]
@@ -129,9 +64,16 @@ class PreprocessDatatset(MethodView):
             FileService.save_dataset(df, cleaned_path, ensure_dir=True)
 
             rows, cols = df.shape
+            rows_with_na = rows_before - rows_after_dropna
+            duplicates_removed = rows_after_dropna - rows_after
+
             return jsonify({
                 "message": "Preprocessing complete",
-                "missing_values": {k: int(v) for k, v in missing_before.items()},
+                "missing_values": {k: int(v) for k, v in missing_before.items() if v > 0},
+                "rows_before": int(rows_before),
+                "rows_with_na_removed": int(rows_with_na),
+                "duplicates_removed": int(duplicates_removed),
+                "rows_after": int(rows_after),
                 "dataset_shape": [int(rows), int(cols)],
                 "cleaned_file_path": f"uploads/{cleaned_filename}"
             }), 200

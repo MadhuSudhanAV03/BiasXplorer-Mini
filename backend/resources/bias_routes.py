@@ -89,7 +89,8 @@ class FixBias(MethodView):
           "file_path": "uploads/selected_dataset.csv",
           "target_column": "gender",
           "method": "smote" | "oversample" | "undersample" | "reweight",
-          "threshold": 0.3  (optional, desired minority/majority ratio for binary classes)
+          "threshold": 0.3  (optional, desired minority/majority ratio for binary classes),
+          "categorical_columns": ["col1", "col2"]  (optional, for SMOTE-NC)
         }
 
         Saves corrected dataset to corrected/corrected_dataset.csv
@@ -101,6 +102,7 @@ class FixBias(MethodView):
             target_col = data.get("target_column")
             method = (data.get("method") or "").lower()
             threshold = data.get("threshold")
+            categorical_columns = data.get("categorical_columns")
 
             if not file_path:
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
@@ -109,9 +111,9 @@ class FixBias(MethodView):
             if not BiasCorrectionService.validate_method(method):
                 return jsonify({"error": f"'method' must be one of: {', '.join(BiasCorrectionService.VALID_METHODS)}"}), 400
 
-            # Validate path
-            abs_path, error = PathValidator.validate_upload_path(
-                file_path, BASE_DIR, UPLOAD_DIR)
+            # Validate path - accept both uploads and corrected directories
+            abs_path, error = PathValidator.validate_any_path(
+                file_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
             if error:
                 return jsonify({"error": error}), 400
 
@@ -130,15 +132,19 @@ class FixBias(MethodView):
 
             # Apply correction
             df_corrected, metadata = BiasCorrectionService.apply_correction(
-                df, target_col, method, threshold
+                df, target_col, method, threshold, categorical_columns
             )
 
             # Get after statistics
             after_stats = BiasDetectionService.get_class_distribution(
                 df_corrected, target_col)
 
-            # Save corrected dataset
-            corrected_filename = "corrected_dataset.csv"
+            # Save corrected dataset with unique filename
+            # Extract base filename from input path
+            input_filename = os.path.basename(file_path).replace('.csv', '')
+            import time
+            timestamp = int(time.time() * 1000)  # milliseconds
+            corrected_filename = f"corrected_{input_filename}_{target_col}_{timestamp}.csv"
             corrected_path = os.path.join(CORRECTED_DIR, corrected_filename)
             FileService.save_dataset(
                 df_corrected, corrected_path, ensure_dir=True)
@@ -156,6 +162,10 @@ class FixBias(MethodView):
             # Add class weights if reweighting
             if "class_weights" in metadata:
                 response["class_weights"] = metadata["class_weights"]
+
+            # Add categorical columns info if used
+            if "categorical_columns" in metadata:
+                response["categorical_columns"] = metadata["categorical_columns"]
 
             return jsonify(response), 200
 

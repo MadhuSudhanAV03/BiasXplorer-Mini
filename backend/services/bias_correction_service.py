@@ -40,7 +40,8 @@ class BiasCorrectionService:
         df: pd.DataFrame,
         target_col: str,
         method: str,
-        threshold: Optional[float] = None
+        threshold: Optional[float] = None,
+        categorical_columns: Optional[list] = None
     ) -> tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Apply bias correction to a DataFrame.
@@ -50,6 +51,7 @@ class BiasCorrectionService:
             target_col: Target column name
             method: Correction method (oversample/undersample/smote/reweight)
             threshold: Optional threshold for sampling strategy
+            categorical_columns: Optional list of categorical column names for SMOTE-NC
 
         Returns:
             Tuple of (corrected_dataframe, metadata_dict)
@@ -59,16 +61,58 @@ class BiasCorrectionService:
         if threshold is not None:
             try:
                 thr = float(threshold)
-                y = df[target_col]
+                y = df[target_col].astype(str)
                 nunique = y.nunique(dropna=True)
-                if 0 < thr <= 1 and nunique == 2:
-                    sampling_strategy = thr
-            except Exception:
+
+                if 0 < thr <= 1:
+                    if nunique == 2:
+                        # Binary class: use threshold directly
+                        sampling_strategy = thr
+                    elif nunique > 2 and method in ["oversample", "smote"]:
+                        # Multi-class oversampling: bring each class toward balance
+                        # threshold controls how aggressively to balance:
+                        # - 1.0 = perfect balance (all classes equal to majority)
+                        # - 0.5 = bring each class halfway toward majority
+                        # - Preserves relative ordering of classes
+                        value_counts = y.value_counts().sort_values(ascending=False)
+                        majority_count = value_counts.iloc[0]
+
+                        sampling_dict = {}
+                        for cls, count in value_counts.items():
+                            if count < majority_count:
+                                # Calculate how much to increase this class
+                                # target = current + (majority - current) * threshold
+                                target_count = int(
+                                    count + (majority_count - count) * thr)
+                                if target_count > count:
+                                    sampling_dict[cls] = target_count
+
+                        if sampling_dict:
+                            sampling_strategy = sampling_dict
+                    elif nunique > 2 and method == "undersample":
+                        # Multi-class undersampling: bring majority down proportionally
+                        value_counts = y.value_counts()
+                        minority_count = value_counts.min()
+
+                        sampling_dict = {}
+                        for cls, count in value_counts.items():
+                            # Calculate target: minority / threshold
+                            # If threshold = 0.5, minority class becomes 0.5 of target majority
+                            target_count = int(minority_count / thr)
+                            # Only undersample classes above target
+                            if count > target_count:
+                                sampling_dict[cls] = target_count
+
+                        if sampling_dict:
+                            sampling_strategy = sampling_dict
+            except Exception as e:
+                print(
+                    f"[BiasCorrectionService] Error calculating sampling strategy: {e}")
                 pass
 
         metadata = {
             "method": method,
-            "sampling_strategy": sampling_strategy if isinstance(sampling_strategy, float) else "auto"
+            "sampling_strategy": str(sampling_strategy) if not isinstance(sampling_strategy, (str, float)) else (sampling_strategy if isinstance(sampling_strategy, float) else "auto")
         }
 
         # Apply correction based on method
@@ -91,7 +135,9 @@ class BiasCorrectionService:
 
         elif method == "smote":
             df_corrected = CategoricalTransformer.smote(
-                df, target_col, sampling_strategy)
+                df, target_col, sampling_strategy, categorical_columns=categorical_columns)
+            if categorical_columns:
+                metadata["categorical_columns"] = categorical_columns
             return df_corrected, metadata
 
         else:

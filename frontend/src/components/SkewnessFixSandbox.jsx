@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
@@ -9,11 +9,28 @@ export default function SkewnessFixSandbox({
   continuous = [],
   skewnessResults = {},
   onFixComplete,
+  initialSelectedColumns = [],
+  hideApplyButton = false,
+  onStateChange,
 }) {
-  const [selectedColumns, setSelectedColumns] = useState(new Set());
+  const [selectedColumns, setSelectedColumns] = useState(
+    new Set(initialSelectedColumns)
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+
+  // Expose state to parent if callback provided
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange({
+        selectedColumns,
+        loading,
+        canApply: filePath && selectedColumns.size > 0 && !loading,
+        applyFix,
+      });
+    }
+  }, [selectedColumns, loading, filePath]);
 
   const toggleColumn = (col) => {
     setSelectedColumns((prev) => {
@@ -102,15 +119,6 @@ export default function SkewnessFixSandbox({
 
   return (
     <div className="w-full">
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Skewness Fix Sandbox</h2>
-          <p className="text-xs text-slate-600 mt-1">
-            Apply transformations to reduce skewness in continuous columns
-          </p>
-        </div>
-      </div>
-
       {/* Column Selection */}
       <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
         <div className="flex items-center justify-between mb-3">
@@ -187,25 +195,27 @@ export default function SkewnessFixSandbox({
       </div>
 
       {/* Apply Button */}
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={applyFix}
-          disabled={!canApply}
-          className="inline-flex items-center rounded-md bg-green-600 px-6 py-3 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? (
-            <>
-              <Spinner />
-              <span className="ml-2">Applying Transformations...</span>
-            </>
-          ) : (
-            `Apply Fix to ${selectedColumns.size} Column${
-              selectedColumns.size !== 1 ? "s" : ""
-            }`
-          )}
-        </button>
-      </div>
+      {!hideApplyButton && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={applyFix}
+            disabled={!canApply}
+            className="inline-flex items-center rounded-md bg-green-600 px-6 py-3 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? (
+              <>
+                <Spinner />
+                <span className="ml-2">Applying Transformations...</span>
+              </>
+            ) : (
+              `Apply Fix to ${selectedColumns.size} Column${
+                selectedColumns.size !== 1 ? "s" : ""
+              }`
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Loading State */}
       {loading && (

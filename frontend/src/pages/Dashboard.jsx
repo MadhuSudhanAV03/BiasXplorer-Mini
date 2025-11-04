@@ -1,16 +1,17 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { usePersistedState } from "../hooks/usePersistedState";
 import DatasetPreview from "../components/DatasetPreview";
+import Preprocess from "../components/Preprocess";
 import ColumnSelector from "../components/ColumnSelector";
 import FeatureSelector from "../components/FeatureSelector";
 import BiasDetection from "../components/BiasDetection";
-import BiasFixSandbox from "../components/BiasFixSandbox";
-import SkewnessFixSandbox from "../components/SkewnessFixSandbox";
+import UnifiedBiasFix from "../components/UnifiedBiasFix";
 import Visualization from "../components/Visualization";
 
 const STEPS = [
   "Dataset Preview",
+  "Data Preprocessing",
   "Target Column Selection",
   "Column Type Classification",
   "Bias Detection",
@@ -72,10 +73,6 @@ export default function Dashboard() {
     "dashboard_targetColumn",
     ""
   );
-  const [fixMode, setFixMode] = usePersistedState(
-    "dashboard_fixMode",
-    "categorical"
-  );
   const [correctedFilePath, setCorrectedFilePath] = usePersistedState(
     "dashboard_correctedFilePath",
     ""
@@ -84,13 +81,26 @@ export default function Dashboard() {
     "dashboard_visualizationKey",
     0
   );
+  const [cleanedFilePath, setCleanedFilePath] = usePersistedState(
+    "dashboard_cleanedFilePath",
+    ""
+  );
+  const [selectedSkewnessColumns, setSelectedSkewnessColumns] = useState([]);
+  const [selectedBiasColumns, setSelectedBiasColumns] = useState([]);
 
   // State declarations removed as they were duplicated
 
-  // Prefer selected dataset for downstream steps
+  // Clear cleanedFilePath when on Step 1 (fresh start)
+  useEffect(() => {
+    if (currentStep === 1 && cleanedFilePath) {
+      setCleanedFilePath("");
+    }
+  }, [currentStep, cleanedFilePath, setCleanedFilePath]);
+
+  // Prefer cleaned > selected > original dataset for downstream steps
   const workingFilePath = useMemo(
-    () => selectedFilePath || filePath,
-    [selectedFilePath, filePath]
+    () => cleanedFilePath || selectedFilePath || filePath,
+    [cleanedFilePath, selectedFilePath, filePath]
   );
 
   // Target column will be selected manually by the user
@@ -223,7 +233,7 @@ export default function Dashboard() {
         {currentStep === 1 && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <DatasetPreview
-              filePath={workingFilePath}
+              filePath={filePath}
               onNext={({ columns: cols }) => {
                 // Reset all column-related states when loading new data
                 setColumns(cols || []);
@@ -232,15 +242,46 @@ export default function Dashboard() {
                 setContinuous([]);
                 setPreviousColumns([]);
                 setBiasSummary(null);
+                setBiasResults({});
                 setSkewnessResults(null);
+                setCleanedFilePath(""); // Clear cleaned file path
                 setCurrentStep(2);
               }}
             />
           </section>
         )}
 
-        {/* Step 2: Target Column Selection */}
+        {/* Step 2: Data Preprocessing */}
         {currentStep === 2 && (
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <Preprocess
+              filePath={selectedFilePath || filePath}
+              onComplete={({ cleanedFilePath: cleaned }) => {
+                if (cleaned) {
+                  setCleanedFilePath(cleaned);
+                }
+              }}
+            />
+
+            <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setCurrentStep(1)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                ← Previous
+              </button>
+              <button
+                onClick={() => setCurrentStep(3)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                Next →
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Step 3: Target Column Selection */}
+        {currentStep === 3 && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <FeatureSelector
               filePath={workingFilePath}
@@ -262,6 +303,9 @@ export default function Dashboard() {
                     Object.keys(newBiasSummary).length > 0
                       ? newBiasSummary
                       : null
+                  );
+                  setBiasResults(
+                    Object.keys(newBiasSummary).length > 0 ? newBiasSummary : {}
                   );
                 }
 
@@ -288,19 +332,19 @@ export default function Dashboard() {
                   setTargetColumn("");
                 }
 
-                setCurrentStep(3);
+                setCurrentStep(4);
               }}
             />
             <NavButtons
-              onPrev={() => setCurrentStep(1)}
-              onNext={() => setCurrentStep(3)}
+              onPrev={() => setCurrentStep(2)}
+              onNext={() => setCurrentStep(4)}
               nextDisabled={!selectedColumns.length}
             />
           </section>
         )}
 
-        {/* Step 3: Column Type Classification */}
-        {currentStep === 3 && (
+        {/* Step 4: Column Type Classification */}
+        {currentStep === 4 && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <ColumnSelector
               filePath={workingFilePath}
@@ -334,6 +378,9 @@ export default function Dashboard() {
                       ? newBiasSummary
                       : null
                   );
+                  setBiasResults(
+                    Object.keys(newBiasSummary).length > 0 ? newBiasSummary : {}
+                  );
                 }
 
                 if (skewnessResults) {
@@ -360,68 +407,7 @@ export default function Dashboard() {
                   setTargetColumn("");
                 }
 
-                setCurrentStep(4);
-              }}
-            />
-            <NavButtons
-              onPrev={() => setCurrentStep(2)}
-              onNext={() => setCurrentStep(4)}
-              nextDisabled={!categorical.length && !continuous.length}
-            />
-          </section>
-        )}
-
-        {/* Step 4: Bias Detection */}
-        {currentStep === 4 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <BiasDetection
-              filePath={workingFilePath}
-              categorical={categorical}
-              continuous={continuous}
-              initialResults={biasSummary}
-              initialSkewnessResults={skewnessResults}
-              removedColumns={[]}
-              onFix={({ results, fromButton }) => {
-                if (!results) return;
-                // Merge new results with existing ones
-                setBiasSummary((prevResults) => ({
-                  ...prevResults,
-                  ...results,
-                }));
-                setFixMode("categorical");
-
-                // Add newly analyzed columns to analyzedColumns
-                const newlyAnalyzed = Object.keys(results);
-                setAnalyzedColumns((prev) => {
-                  const newSet = new Set([...prev, ...newlyAnalyzed]);
-                  return Array.from(newSet);
-                });
-
-                // Only navigate when explicitly clicking the Fix button
-                if (fromButton) {
-                  setCurrentStep(5);
-                }
-              }}
-              onSkewFix={({ skewnessResults: skewResults, fromButton }) => {
-                if (!skewResults) return;
-                // Merge new skewness results with existing ones
-                setSkewnessResults((prevResults) => ({
-                  ...prevResults,
-                  ...skewResults,
-                }));
-                setFixMode("skewness");
-
-                // Add newly analyzed columns to analyzedColumns
-                const newlyAnalyzed = Object.keys(skewResults);
-                setAnalyzedColumns((prev) => {
-                  const newSet = new Set([...prev, ...newlyAnalyzed]);
-                  return Array.from(newSet);
-                });
-
-                // Only navigate when explicitly clicking the Fix button
-                if (fromButton) {
-                  setCurrentStep(5);
-                }
+                setCurrentStep(5);
               }}
             />
             <NavButtons
@@ -432,80 +418,121 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Step 5: Bias Fix */}
+        {/* Step 5: Bias Detection */}
         {currentStep === 5 && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            {fixMode === "categorical" ? (
-              <>
-                <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">
-                      Choose Target Column
-                    </h2>
-                    <p className="text-xs text-slate-600">
-                      Pick a categorical column to apply correction.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-600">Target</label>
-                    <select
-                      className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-                      value={targetColumn}
-                      onChange={(e) => {
-                        const newTarget = e.target.value;
-                        setTargetColumn(newTarget);
-                        // Clear corrected file path when target changes
-                        // This forces re-generation of visualization
-                        setCorrectedFilePath("");
-                        setVisualizationKey((prev) => prev + 1);
-                      }}
-                    >
-                      <option value="" disabled>
-                        Select column
-                      </option>
-                      {(categorical || []).map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+            <BiasDetection
+              filePath={workingFilePath}
+              categorical={categorical}
+              continuous={continuous}
+              initialResults={biasSummary}
+              initialSkewnessResults={skewnessResults}
+              removedColumns={[]}
+              onFix={({ results, fromButton, targetColumn, targetColumns }) => {
+                if (!results) return;
+                // Merge new results with existing ones
+                setBiasSummary((prevResults) => ({
+                  ...prevResults,
+                  ...results,
+                }));
+                setBiasResults((prevResults) => ({
+                  ...prevResults,
+                  ...results,
+                }));
 
-                <BiasFixSandbox
-                  filePath={workingFilePath}
-                  targetColumn={targetColumn}
-                  onFixComplete={(correctedPath) => {
-                    setCorrectedFilePath(correctedPath);
-                    setVisualizationKey((prev) => prev + 1);
-                  }}
-                />
-              </>
-            ) : (
-              <SkewnessFixSandbox
-                filePath={workingFilePath}
-                continuous={continuous}
-                skewnessResults={skewnessResults || {}}
-                onFixComplete={(correctedPath) => {
-                  setCorrectedFilePath(correctedPath);
-                  setVisualizationKey((prev) => prev + 1);
-                }}
-              />
-            )}
+                // Add newly analyzed columns to analyzedColumns
+                const newlyAnalyzed = Object.keys(results);
+                setAnalyzedColumns((prev) => {
+                  const newSet = new Set([...prev, ...newlyAnalyzed]);
+                  return Array.from(newSet);
+                });
+
+                // Store selected columns for auto-selection in BiasFixSandbox
+                if (targetColumns && targetColumns.length > 0) {
+                  setSelectedBiasColumns(targetColumns);
+                } else if (targetColumn) {
+                  setSelectedBiasColumns([targetColumn]);
+                  setTargetColumn(targetColumn);
+                } else {
+                  setSelectedBiasColumns([]);
+                  setTargetColumn(""); // Clear for "Fix All"
+                }
+
+                // Only navigate when explicitly clicking the Fix button
+                if (fromButton) {
+                  setCurrentStep(6);
+                }
+              }}
+              onSkewFix={({
+                skewnessResults: skewResults,
+                fromButton,
+                targetColumns,
+              }) => {
+                if (!skewResults) return;
+                // Merge new skewness results with existing ones
+                setSkewnessResults((prevResults) => ({
+                  ...prevResults,
+                  ...skewResults,
+                }));
+
+                // Store selected columns for auto-selection in SkewnessFixSandbox
+                if (targetColumns && targetColumns.length > 0) {
+                  setSelectedSkewnessColumns(targetColumns);
+                } else {
+                  setSelectedSkewnessColumns([]);
+                }
+
+                // Add newly analyzed columns to analyzedColumns
+                const newlyAnalyzed = Object.keys(skewResults);
+                setAnalyzedColumns((prev) => {
+                  const newSet = new Set([...prev, ...newlyAnalyzed]);
+                  return Array.from(newSet);
+                });
+
+                // Only navigate when explicitly clicking the Fix button
+                if (fromButton) {
+                  setCurrentStep(6);
+                }
+              }}
+            />
+            <NavButtons
+              onPrev={() => setCurrentStep(4)}
+              onNext={() => setCurrentStep(6)}
+              nextDisabled={!categorical.length && !continuous.length}
+            />
+          </section>
+        )}
+
+        {/* Step 6: Bias Fix */}
+        {currentStep === 6 && (
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <UnifiedBiasFix
+              filePath={workingFilePath}
+              categorical={categorical}
+              continuous={continuous}
+              biasResults={biasResults}
+              skewnessResults={skewnessResults}
+              columns={columns}
+              selectedBiasColumns={selectedBiasColumns}
+              selectedSkewnessColumns={selectedSkewnessColumns}
+              onFixComplete={(correctedPath) => {
+                setCorrectedFilePath(correctedPath);
+                setVisualizationKey((prev) => prev + 1);
+              }}
+            />
 
             <div className="mt-6 flex items-center justify-between">
               <button
                 type="button"
                 className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-50"
-                onClick={() => setCurrentStep(4)}
+                onClick={() => setCurrentStep(5)}
               >
                 Back
               </button>
               <button
                 type="button"
                 className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-                onClick={() => setCurrentStep(6)}
-                disabled={fixMode === "categorical" ? !targetColumn : false}
+                onClick={() => setCurrentStep(7)}
               >
                 Next
               </button>
@@ -513,28 +540,26 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Step 6: Visualization */}
-        {currentStep === 6 && (
+        {/* Step 7: Visualization */}
+        {currentStep === 7 && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            {!correctedFilePath && fixMode === "categorical" && (
+            {!correctedFilePath && (
               <div className="mb-4 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
                 Please apply bias correction in the previous step before viewing
                 visualization.
               </div>
             )}
             <Visualization
-              key={`viz-${visualizationKey}-${targetColumn}`}
-              mode={fixMode === "skewness" ? "continuous" : "categorical"}
+              key={`viz-${visualizationKey}`}
+              mode="categorical"
               beforePath={workingFilePath}
               afterPath={correctedFilePath || "corrected/corrected_dataset.csv"}
-              targetColumn={
-                fixMode === "categorical" ? targetColumn : undefined
-              }
-              continuous={fixMode === "skewness" ? continuous : undefined}
+              targetColumn={targetColumn}
+              continuous={continuous}
             />
             <NavButtons
-              onPrev={() => setCurrentStep(5)}
-              onNext={() => setCurrentStep(6)}
+              onPrev={() => setCurrentStep(6)}
+              onNext={() => setCurrentStep(7)}
               nextDisabled
             />
           </section>

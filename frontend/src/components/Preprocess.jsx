@@ -2,12 +2,9 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-import { useEffect, useState } from "react";
-import axios from "axios";
-
 const PREPROCESS_URL = "http://localhost:5000/api/preprocess";
 
-export default function Preprocess({ filePath }) {
+export default function Preprocess({ filePath, onComplete }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
@@ -16,6 +13,21 @@ export default function Preprocess({ filePath }) {
     let cancelled = false;
     async function runPreprocess() {
       if (!filePath) return;
+
+      // Skip if file is already cleaned
+      if (filePath.includes("cleaned_")) {
+        setResult({
+          message: "File already preprocessed",
+          cleaned_file_path: filePath,
+          dataset_shape: null,
+          missing_values: {},
+        });
+        if (onComplete) {
+          onComplete({ cleanedFilePath: filePath });
+        }
+        return;
+      }
+
       setLoading(true);
       setError("");
       setResult(null);
@@ -27,6 +39,10 @@ export default function Preprocess({ filePath }) {
         );
         if (cancelled) return;
         setResult(res.data);
+        // Notify parent with cleaned file path if available
+        if (res.data?.cleaned_file_path && onComplete) {
+          onComplete({ cleanedFilePath: res.data.cleaned_file_path });
+        }
       } catch (err) {
         if (cancelled) return;
         const msg =
@@ -40,12 +56,14 @@ export default function Preprocess({ filePath }) {
     return () => {
       cancelled = true;
     };
-  }, [filePath]);
+  }, [filePath, onComplete]);
 
   const datasetShape = Array.isArray(result?.dataset_shape)
     ? result.dataset_shape
     : null;
   const missingValues = result?.missing_values || {};
+
+  const isAlreadyCleaned = filePath && filePath.includes("cleaned_");
 
   return (
     <div className="w-full">
@@ -54,6 +72,12 @@ export default function Preprocess({ filePath }) {
       {!filePath && (
         <div className="mb-3 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
           Please upload a dataset first.
+        </div>
+      )}
+
+      {isAlreadyCleaned && (
+        <div className="mb-3 rounded-md bg-blue-50 p-3 text-sm text-blue-800 border border-blue-200">
+          ℹ️ This file has already been preprocessed. Skipping cleaning step.
         </div>
       )}
 
@@ -76,25 +100,59 @@ export default function Preprocess({ filePath }) {
             {result.message || "Preprocessing complete"}
           </div>
 
-          {/* Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Rows Removed */}
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="font-medium text-slate-700 mb-2">Rows Removed</h3>
+              <div className="space-y-1 text-sm">
+                <div className="text-slate-800">
+                  Before:{" "}
+                  <span className="font-semibold">
+                    {result.rows_before || 0}
+                  </span>
+                </div>
+                <div className="text-red-600">
+                  With NaN:{" "}
+                  <span className="font-semibold">
+                    -{result.rows_with_na_removed || 0}
+                  </span>
+                </div>
+                <div className="text-orange-600">
+                  Duplicates:{" "}
+                  <span className="font-semibold">
+                    -{result.duplicates_removed || 0}
+                  </span>
+                </div>
+                <div className="text-green-600 font-semibold pt-1 border-t">
+                  After: {result.rows_after || 0}
+                </div>
+              </div>
+            </div>
+
             {/* Dataset shape */}
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="font-medium text-slate-700 mb-2">Dataset Shape</h3>
+              <h3 className="font-medium text-slate-700 mb-2">Final Dataset</h3>
               {datasetShape ? (
-                <div className="text-sm text-slate-800">
-                  Rows: <span className="font-semibold">{datasetShape[0]}</span>
-                  <span className="mx-2">·</span>
-                  Columns:{" "}
-                  <span className="font-semibold">{datasetShape[1]}</span>
+                <div className="text-sm text-slate-800 space-y-1">
+                  <div>
+                    Rows:{" "}
+                    <span className="font-semibold">{datasetShape[0]}</span>
+                  </div>
+                  <div>
+                    Columns:{" "}
+                    <span className="font-semibold">{datasetShape[1]}</span>
+                  </div>
                 </div>
               ) : (
                 <div className="text-sm text-slate-500">Not available</div>
               )}
               {result?.cleaned_file_path && (
-                <div className="mt-2 text-xs text-slate-500">
+                <div className="mt-3 text-xs text-slate-500">
                   Saved as:{" "}
-                  <span className="font-mono">{result.cleaned_file_path}</span>
+                  <span className="font-mono text-blue-600">
+                    {result.cleaned_file_path}
+                  </span>
                 </div>
               )}
             </div>
@@ -102,7 +160,7 @@ export default function Preprocess({ filePath }) {
             {/* Missing values */}
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <h3 className="font-medium text-slate-700 mb-2">
-                Missing Values (before fill)
+                Missing Values Found
               </h3>
               {missingValues && Object.keys(missingValues).length > 0 ? (
                 <div className="max-h-64 overflow-auto">
@@ -132,8 +190,8 @@ export default function Preprocess({ filePath }) {
                   </table>
                 </div>
               ) : (
-                <div className="text-sm text-slate-500">
-                  No missing values summary available.
+                <div className="text-sm text-green-600">
+                  ✓ No missing values detected
                 </div>
               )}
             </div>
