@@ -282,12 +282,12 @@ export default function Dashboard() {
                 setSelectedColumns(features);
                 // Clear corrected file path when changing columns
                 setCorrectedFilePath("");
-                
+
                 // Clear target column if it's no longer in selected columns
                 if (targetColumn && !newSelected.has(targetColumn)) {
                   setTargetColumn("");
                 }
-                
+
                 setCurrentStep(3);
               }}
             />
@@ -351,10 +351,10 @@ export default function Dashboard() {
                 if (response?.selected_file_path) {
                   setSelectedFilePath(response.selected_file_path);
                 }
-                
+
                 // Clear corrected file path when column types change
                 setCorrectedFilePath("");
-                
+
                 // Clear target column if it's no longer categorical or if it changed type
                 if (targetColumn && !newCatSet.has(targetColumn)) {
                   setTargetColumn("");
@@ -518,7 +518,8 @@ export default function Dashboard() {
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             {!correctedFilePath && fixMode === "categorical" && (
               <div className="mb-4 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
-                Please apply bias correction in the previous step before viewing visualization.
+                Please apply bias correction in the previous step before viewing
+                visualization.
               </div>
             )}
             <Visualization

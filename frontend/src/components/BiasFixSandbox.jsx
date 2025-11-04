@@ -12,7 +12,11 @@ const METHOD_OPTIONS = [
   { label: "Reweight", value: "reweight" },
 ];
 
-export default function BiasFixSandbox({ filePath, targetColumn, onFixComplete }) {
+export default function BiasFixSandbox({
+  filePath,
+  targetColumn,
+  onFixComplete,
+}) {
   const [method, setMethod] = useState("oversample");
   const [threshold, setThreshold] = useState(0.5);
   const [loading, setLoading] = useState(false);
@@ -66,8 +70,11 @@ export default function BiasFixSandbox({ filePath, targetColumn, onFixComplete }
         target_column: String(targetColumn),
         method,
       };
-      console.log("[BiasFixSandbox] Sending fix request with payload:", payload);
-      
+      console.log(
+        "[BiasFixSandbox] Sending fix request with payload:",
+        payload
+      );
+
       // Only include threshold if a number within (0,1]
       const thr = Number(threshold);
       if (!Number.isNaN(thr) && thr > 0 && thr <= 1) {
@@ -77,7 +84,12 @@ export default function BiasFixSandbox({ filePath, targetColumn, onFixComplete }
       const res = await axios.post(FIX_URL, payload, {
         headers: { "Content-Type": "application/json" },
       });
-      console.log("[BiasFixSandbox] Fix response for", targetColumn, ":", res.data);
+      console.log(
+        "[BiasFixSandbox] Fix response for",
+        targetColumn,
+        ":",
+        res.data
+      );
       setResult(res.data || {});
       const corrPath = res.data?.corrected_file_path;
       if (corrPath) {
