@@ -56,13 +56,13 @@ export default function UnifiedBiasFix({
 
   const handleUnifiedApply = async () => {
     setIsApplying(true);
-    
+
     try {
       // Apply categorical fixes first if any selected
       if (biasState?.selectedColumns?.size > 0 && biasState?.handleApplyClick) {
         await biasState.handleApplyClick();
       }
-      
+
       // Then apply skewness fixes if any selected
       if (skewnessState?.selectedColumns?.size > 0 && skewnessState?.applyFix) {
         await skewnessState.applyFix();
@@ -74,7 +74,9 @@ export default function UnifiedBiasFix({
     }
   };
 
-  const totalSelected = (biasState?.selectedColumns?.size || 0) + (skewnessState?.selectedColumns?.size || 0);
+  const totalSelected =
+    (biasState?.selectedColumns?.size || 0) +
+    (skewnessState?.selectedColumns?.size || 0);
   const canApplyUnified = !isApplying && totalSelected > 0 && filePath;
 
   return (
