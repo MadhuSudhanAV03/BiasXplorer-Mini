@@ -61,9 +61,11 @@ class FileService:
         Returns:
             Dict with 'columns' and 'preview' keys
         """
+        import numpy as np
+
         head_df = df.head(rows)
         # Replace NaN/NaT with None for JSON compatibility
-        clean_df = head_df.where(pd.notnull(head_df), None)
+        clean_df = head_df.replace({np.nan: None, pd.NaT: None})
         columns = list(map(str, clean_df.columns.tolist()))
         preview_records = clean_df.to_dict(orient="records")
 

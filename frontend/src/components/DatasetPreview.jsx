@@ -16,6 +16,8 @@ export default function DatasetPreview({ filePath, onNext }) {
       if (!filePath) return;
       setLoading(true);
       setError("");
+      setColumns([]);
+      setRows([]);
       try {
         const res = await axios.post(
           PREVIEW_URL,
@@ -23,13 +25,31 @@ export default function DatasetPreview({ filePath, onNext }) {
           { headers: { "Content-Type": "application/json" } }
         );
         if (cancelled) return;
-        setColumns(Array.isArray(res.data?.columns) ? res.data.columns : []);
-        setRows(Array.isArray(res.data?.preview) ? res.data.preview : []);
+
+        console.log("Preview API response:", res.data); // Debug log
+
+        const cols = Array.isArray(res.data?.columns) ? res.data.columns : [];
+        const rowsData = Array.isArray(res.data?.preview)
+          ? res.data.preview
+          : [];
+
+        console.log("Parsed columns:", cols.length, cols); // Debug log
+        console.log("Parsed rows:", rowsData.length); // Debug log
+
+        setColumns(cols);
+        setRows(rowsData);
+
+        if (cols.length === 0 && !res.data?.error) {
+          setError(
+            "No columns found in dataset. The file may be empty or corrupted."
+          );
+        }
       } catch (err) {
         if (cancelled) return;
         const msg =
           err?.response?.data?.error || err.message || "Failed to load preview";
         setError(msg);
+        console.error("Preview fetch error:", err); // Debug log
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -48,6 +68,13 @@ export default function DatasetPreview({ filePath, onNext }) {
   return (
     <div className="w-full">
       <h2 className="text-lg font-semibold mb-3">Dataset Preview</h2>
+
+      {!filePath && (
+        <div className="my-3 rounded-md bg-blue-50 p-3 text-sm text-blue-700 border border-blue-200">
+          No file path provided. Please upload a dataset first.
+        </div>
+      )}
+
       {loading && (
         <div className="my-4">
           <Spinner text="Loading preview..." />
@@ -59,35 +86,46 @@ export default function DatasetPreview({ filePath, onNext }) {
         </div>
       )}
       {!loading && !error && hasData && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="min-w-full table-auto">
-            <thead className="bg-slate-50">
-              <tr>
-                {columns.map((col) => (
-                  <th
-                    key={col}
-                    className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b"
-                  >
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50">
+        <div>
+          <div className="mb-3 text-sm text-slate-600">
+            Showing {rows.length} rows × {columns.length} columns
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-slate-200 max-h-[600px] overflow-y-auto">
+            <table className="min-w-full table-auto">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
                   {columns.map((col) => (
-                    <td
+                    <th
                       key={col}
-                      className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap"
+                      className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b"
                     >
-                      {row?.[col] != null ? String(row[col]) : ""}
-                    </td>
+                      {col}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {rows.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50">
+                    {columns.map((col) => (
+                      <td
+                        key={col}
+                        className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap"
+                      >
+                        {row?.[col] != null ? String(row[col]) : ""}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {!loading && !error && !hasData && filePath && (
+        <div className="my-3 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
+          No data available for preview. The file may be empty or in an
+          unexpected format.
         </div>
       )}
 

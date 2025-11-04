@@ -1,7 +1,9 @@
 from flask import Flask, jsonify
+from flask.json.provider import DefaultJSONProvider
 from flask_smorest import Api
 from flask_cors import CORS
 from dotenv import load_dotenv
+import math
 
 # Import all route Blueprints
 from resources.upload_routes import blp as UploadBlueprint
@@ -11,10 +13,23 @@ from resources.report_routes import blp as ReportBlueprint
 from resources.select_routes import blp as SelectBlueprint
 
 
+class CustomJSONProvider(DefaultJSONProvider):
+    """Custom JSON provider that converts NaN/Infinity to null"""
+
+    def default(self, obj):
+        if isinstance(obj, float):
+            if math.isnan(obj) or math.isinf(obj):
+                return None
+        return super().default(obj)
+
+
 def create_app():
     """Application factory for BiasXplorer API"""
     app = Flask(__name__)
     load_dotenv()
+
+    # Set custom JSON provider to handle NaN values
+    app.json = CustomJSONProvider(app)
 
     # Flask-Smorest / OpenAPI setup
     app.config["PROPAGATE_EXCEPTIONS"] = True
