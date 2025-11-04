@@ -8,6 +8,7 @@ export default function SkewnessFixSandbox({
   filePath,
   continuous = [],
   skewnessResults = {},
+  onFixComplete,
 }) {
   const [selectedColumns, setSelectedColumns] = useState(new Set());
   const [loading, setLoading] = useState(false);
@@ -80,6 +81,11 @@ export default function SkewnessFixSandbox({
       });
 
       setResult(res.data || {});
+      const corrPath = res.data?.corrected_file_path;
+      if (corrPath) {
+        // Notify parent component that fix is complete
+        onFixComplete?.(corrPath);
+      }
     } catch (err) {
       const msg =
         err?.response?.data?.message ||

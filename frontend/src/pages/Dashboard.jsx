@@ -76,6 +76,14 @@ export default function Dashboard() {
     "dashboard_fixMode",
     "categorical"
   );
+  const [correctedFilePath, setCorrectedFilePath] = usePersistedState(
+    "dashboard_correctedFilePath",
+    ""
+  );
+  const [visualizationKey, setVisualizationKey] = usePersistedState(
+    "dashboard_visualizationKey",
+    0
+  );
 
   // State declarations removed as they were duplicated
 
@@ -272,6 +280,14 @@ export default function Dashboard() {
                 }
 
                 setSelectedColumns(features);
+                // Clear corrected file path when changing columns
+                setCorrectedFilePath("");
+                
+                // Clear target column if it's no longer in selected columns
+                if (targetColumn && !newSelected.has(targetColumn)) {
+                  setTargetColumn("");
+                }
+                
                 setCurrentStep(3);
               }}
             />
@@ -334,6 +350,14 @@ export default function Dashboard() {
                 setContinuous(cont || []);
                 if (response?.selected_file_path) {
                   setSelectedFilePath(response.selected_file_path);
+                }
+                
+                // Clear corrected file path when column types change
+                setCorrectedFilePath("");
+                
+                // Clear target column if it's no longer categorical or if it changed type
+                if (targetColumn && !newCatSet.has(targetColumn)) {
+                  setTargetColumn("");
                 }
 
                 setCurrentStep(4);
@@ -427,7 +451,14 @@ export default function Dashboard() {
                     <select
                       className="rounded-md border border-slate-300 px-2 py-1 text-sm"
                       value={targetColumn}
-                      onChange={(e) => setTargetColumn(e.target.value)}
+                      onChange={(e) => {
+                        const newTarget = e.target.value;
+                        setTargetColumn(newTarget);
+                        // Clear corrected file path when target changes
+                        // This forces re-generation of visualization
+                        setCorrectedFilePath("");
+                        setVisualizationKey((prev) => prev + 1);
+                      }}
                     >
                       <option value="" disabled>
                         Select column
@@ -444,6 +475,10 @@ export default function Dashboard() {
                 <BiasFixSandbox
                   filePath={workingFilePath}
                   targetColumn={targetColumn}
+                  onFixComplete={(correctedPath) => {
+                    setCorrectedFilePath(correctedPath);
+                    setVisualizationKey((prev) => prev + 1);
+                  }}
                 />
               </>
             ) : (
@@ -451,6 +486,10 @@ export default function Dashboard() {
                 filePath={workingFilePath}
                 continuous={continuous}
                 skewnessResults={skewnessResults || {}}
+                onFixComplete={(correctedPath) => {
+                  setCorrectedFilePath(correctedPath);
+                  setVisualizationKey((prev) => prev + 1);
+                }}
               />
             )}
 
@@ -477,10 +516,16 @@ export default function Dashboard() {
         {/* Step 6: Visualization */}
         {currentStep === 6 && (
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            {!correctedFilePath && fixMode === "categorical" && (
+              <div className="mb-4 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
+                Please apply bias correction in the previous step before viewing visualization.
+              </div>
+            )}
             <Visualization
+              key={`viz-${visualizationKey}-${targetColumn}`}
               mode={fixMode === "skewness" ? "continuous" : "categorical"}
               beforePath={workingFilePath}
-              afterPath={"corrected/corrected_dataset.csv"}
+              afterPath={correctedFilePath || "corrected/corrected_dataset.csv"}
               targetColumn={
                 fixMode === "categorical" ? targetColumn : undefined
               }

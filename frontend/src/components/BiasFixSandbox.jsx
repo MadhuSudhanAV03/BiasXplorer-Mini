@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import axios from "axios";
 import Plot from "react-plotly.js";
 import Spinner from "./Spinner";
@@ -12,13 +12,21 @@ const METHOD_OPTIONS = [
   { label: "Reweight", value: "reweight" },
 ];
 
-export default function BiasFixSandbox({ filePath, targetColumn }) {
+export default function BiasFixSandbox({ filePath, targetColumn, onFixComplete }) {
   const [method, setMethod] = useState("oversample");
   const [threshold, setThreshold] = useState(0.5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null); // backend response
   const [correctedPath, setCorrectedPath] = useState("");
+
+  // Clear results when target column changes
+  useEffect(() => {
+    console.log("[BiasFixSandbox] Target column changed to:", targetColumn);
+    setResult(null);
+    setCorrectedPath("");
+    setError("");
+  }, [targetColumn]);
 
   const beforeDist = result?.before?.distribution || {};
   const afterDist = result?.after?.distribution || {};
@@ -58,6 +66,8 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
         target_column: String(targetColumn),
         method,
       };
+      console.log("[BiasFixSandbox] Sending fix request with payload:", payload);
+      
       // Only include threshold if a number within (0,1]
       const thr = Number(threshold);
       if (!Number.isNaN(thr) && thr > 0 && thr <= 1) {
@@ -67,9 +77,14 @@ export default function BiasFixSandbox({ filePath, targetColumn }) {
       const res = await axios.post(FIX_URL, payload, {
         headers: { "Content-Type": "application/json" },
       });
+      console.log("[BiasFixSandbox] Fix response for", targetColumn, ":", res.data);
       setResult(res.data || {});
-      if (res.data?.corrected_file_path)
-        setCorrectedPath(res.data.corrected_file_path);
+      const corrPath = res.data?.corrected_file_path;
+      if (corrPath) {
+        setCorrectedPath(corrPath);
+        // Notify parent component that fix is complete
+        onFixComplete?.(corrPath);
+      }
     } catch (err) {
       const msg =
         err?.response?.data?.error || err.message || "Bias fix failed";
