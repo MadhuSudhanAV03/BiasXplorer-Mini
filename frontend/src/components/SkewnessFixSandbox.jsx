@@ -11,6 +11,7 @@ export default function SkewnessFixSandbox({
   onFixComplete,
   initialSelectedColumns = [],
   hideApplyButton = false,
+  hideResults = false, // New prop to hide results
   onStateChange,
 }) {
   const [selectedColumns, setSelectedColumns] = useState(
@@ -26,11 +27,12 @@ export default function SkewnessFixSandbox({
       onStateChange({
         selectedColumns,
         loading,
+        result,
         canApply: filePath && selectedColumns.size > 0 && !loading,
         applyFix,
       });
     }
-  }, [selectedColumns, loading, filePath]);
+  }, [selectedColumns, loading, result, filePath]);
 
   const toggleColumn = (col) => {
     setSelectedColumns((prev) => {
@@ -83,15 +85,22 @@ export default function SkewnessFixSandbox({
     try {
       setLoading(true);
 
-      // Extract filename from path
-      const filenameOnly = filePath.includes("/")
-        ? filePath.split("/").pop()
-        : filePath;
+      // Use full path for corrected files, otherwise extract filename
+      let filenameOrPath = filePath;
+      if (filePath.startsWith("corrected/")) {
+        // Already a corrected file path, use as-is
+        filenameOrPath = filePath;
+      } else if (filePath.includes("/")) {
+        // Extract just the filename from uploads/ path
+        filenameOrPath = filePath.split("/").pop();
+      }
 
       const payload = {
-        filename: filenameOnly,
+        filename: filenameOrPath,
         columns: Array.from(selectedColumns),
       };
+
+      console.log("[SkewnessFixSandbox] Applying fix with payload:", payload);
 
       const res = await axios.post(FIX_SKEW_URL, payload, {
         headers: { "Content-Type": "application/json" },
@@ -99,6 +108,10 @@ export default function SkewnessFixSandbox({
 
       setResult(res.data || {});
       const corrPath = res.data?.corrected_file_path;
+      console.log(
+        "[SkewnessFixSandbox] Fix completed, corrected path:",
+        corrPath
+      );
       if (corrPath) {
         // Notify parent component that fix is complete
         onFixComplete?.(corrPath);
@@ -232,7 +245,7 @@ export default function SkewnessFixSandbox({
       )}
 
       {/* Results Display */}
-      {!loading && result && (
+      {!loading && result && !hideResults && (
         <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
           <h3 className="text-lg font-semibold text-green-800 mb-3">
             ✓ Transformation Results

@@ -1,13 +1,9 @@
 """Visualization service for generating charts."""
 from utils.data_stats import compute_skewness
 from typing import Dict, List
-import seaborn as sns
-import matplotlib.pyplot as plt
-import base64
-import io
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
+import plotly.graph_objects as go
+import json
 
 
 class VisualizationService:
@@ -16,36 +12,55 @@ class VisualizationService:
     @staticmethod
     def plot_categorical_distribution(series: pd.Series, title: str) -> str:
         """
-        Create a bar plot of categorical distribution.
+        Create an interactive bar plot of categorical distribution using Plotly.
 
         Args:
             series: Pandas Series with categorical data
             title: Chart title
 
         Returns:
-            Base64-encoded PNG image
+            JSON string with Plotly figure data
         """
         dist = series.value_counts(normalize=True).sort_index()
-
-        fig, ax = plt.subplots(figsize=(6, 4))
-        dist.plot(kind='bar', ax=ax, color="#4C78A8")
-        ax.set_title(title)
-        ax.set_ylabel("Proportion")
-        ax.set_xlabel("Class")
-        ax.set_ylim(0, 1)
-
-        # Add value labels on bars
-        for i, v in enumerate(dist.values):
-            ax.text(i, v + 0.02, f"{v:.2f}",
-                    ha='center', va='bottom', fontsize=8)
-
-        fig.tight_layout()
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=150)
-        plt.close(fig)
-        buf.seek(0)
-        b64 = base64.b64encode(buf.read()).decode('ascii')
-        return b64
+        
+        # Convert to Python native types to avoid JSON serialization issues
+        x_values = [str(x) for x in dist.index.tolist()]
+        y_values = [float(y) for y in dist.values.tolist()]
+        text_values = [f"{v:.2%}" for v in y_values]
+        
+        # Create interactive bar chart with Plotly
+        fig = go.Figure(data=[
+            go.Bar(
+                x=x_values,
+                y=y_values,
+                text=text_values,
+                textposition='outside',
+                marker=dict(
+                    color='#4C78A8',
+                    line=dict(color='#2C5282', width=1)
+                ),
+                hovertemplate='<b>%{x}</b><br>' +
+                              'Proportion: %{y:.2%}<br>' +
+                              '<extra></extra>'
+            )
+        ])
+        
+        fig.update_layout(
+            title=dict(text=title, font=dict(size=16, weight='bold')),
+            xaxis_title="Class",
+            yaxis_title="Proportion",
+            yaxis=dict(range=[0, 1], tickformat='.0%'),
+            plot_bgcolor='white',
+            height=400,
+            margin=dict(l=50, r=50, t=60, b=50),
+            hovermode='closest'
+        )
+        
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#E2E8F0')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#E2E8F0')
+        
+        # Return as JSON
+        return json.dumps(fig.to_dict())
 
     @staticmethod
     def visualize_categorical_bias(
@@ -62,7 +77,7 @@ class VisualizationService:
             target_col: Target column name
 
         Returns:
-            Dictionary with 'before_chart' and 'after_chart' keys
+            Dictionary with 'before_chart' and 'after_chart' keys (Plotly JSON)
         """
         s_before = df_before[target_col].dropna()
         s_after = df_after[target_col].dropna()
@@ -70,22 +85,22 @@ class VisualizationService:
         if s_before.empty or s_after.empty:
             raise ValueError("No data in target column")
 
-        before_b64 = VisualizationService.plot_categorical_distribution(
+        before_json = VisualizationService.plot_categorical_distribution(
             s_before, f"Before: {target_col}"
         )
-        after_b64 = VisualizationService.plot_categorical_distribution(
+        after_json = VisualizationService.plot_categorical_distribution(
             s_after, f"After: {target_col}"
         )
 
         return {
-            "before_chart": before_b64,
-            "after_chart": after_b64
+            "before_chart": before_json,
+            "after_chart": after_json
         }
 
     @staticmethod
     def plot_continuous_distribution(series: pd.Series, title: str, skew_val: float | None = None) -> str:
         """
-        Create a histogram with KDE overlay for continuous distribution.
+        Create an interactive histogram with KDE overlay for continuous distribution using Plotly.
 
         Args:
             series: Pandas Series with continuous data
@@ -93,36 +108,67 @@ class VisualizationService:
             skew_val: Optional skewness value to display
 
         Returns:
-            Base64-encoded PNG image
+            JSON string with Plotly figure data
         """
-        fig, ax = plt.subplots(figsize=(7, 5))
-
-        # Seaborn histplot with KDE overlay
-        sns.histplot(
+        from scipy import stats
+        import numpy as np
+        
+        # Create histogram
+        fig = go.Figure()
+        
+        # Add histogram
+        fig.add_trace(go.Histogram(
             x=series,
-            bins=30,
-            kde=True,
-            color='#4C78A8',
-            edgecolor='black',
-            alpha=0.7,
-            stat='density',
-            ax=ax,
-            line_kws={'linewidth': 2, 'color': 'red'}
+            nbinsx=30,
+            name='Histogram',
+            marker=dict(
+                color='#4C78A8',
+                line=dict(color='#2C5282', width=1)
+            ),
+            opacity=0.7,
+            histnorm='probability density',
+            hovertemplate='Value: %{x}<br>Density: %{y:.4f}<extra></extra>'
+        ))
+        
+        # Add KDE line using scipy
+        kde = stats.gaussian_kde(series)
+        x_range = np.linspace(series.min(), series.max(), 200)
+        kde_values = kde(x_range)
+        
+        fig.add_trace(go.Scatter(
+            x=x_range,
+            y=kde_values,
+            mode='lines',
+            name='KDE',
+            line=dict(color='red', width=2),
+            hovertemplate='Value: %{x:.2f}<br>Density: %{y:.4f}<extra></extra>'
+        ))
+        
+        # Update layout
+        title_with_skew = f"{title}<br>Skewness: {skew_val:.3f}" if skew_val is not None else title
+        fig.update_layout(
+            title=dict(text=title_with_skew, font=dict(size=14, weight='bold')),
+            xaxis_title="Value",
+            yaxis_title="Density",
+            plot_bgcolor='white',
+            height=450,
+            margin=dict(l=50, r=50, t=80, b=50),
+            hovermode='closest',
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
-
-        title_with_skew = f"{title}\nSkewness: {skew_val:.3f}" if skew_val is not None else title
-        ax.set_title(title_with_skew, fontsize=12, fontweight='bold')
-        ax.set_xlabel("Value", fontsize=10)
-        ax.set_ylabel("Density", fontsize=10)
-        ax.grid(alpha=0.3)
-
-        fig.tight_layout()
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png', dpi=120)
-        plt.close(fig)
-        buf.seek(0)
-        b64 = base64.b64encode(buf.read()).decode('ascii')
-        return b64
+        
+        fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#E2E8F0')
+        fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#E2E8F0')
+        
+        # Return as JSON
+        return json.dumps(fig.to_dict())
 
     @staticmethod
     def visualize_skewness(
@@ -170,16 +216,16 @@ class VisualizationService:
                 after_skew = compute_skewness(series_after)
 
                 # Create charts
-                before_chart = VisualizationService.plot_continuous_distribution(
+                before_json = VisualizationService.plot_continuous_distribution(
                     series_before, f"Before: {col}", before_skew
                 )
-                after_chart = VisualizationService.plot_continuous_distribution(
+                after_json = VisualizationService.plot_continuous_distribution(
                     series_after, f"After: {col}", after_skew
                 )
 
                 charts[col] = {
-                    "before_chart": before_chart,
-                    "after_chart": after_chart,
+                    "before_chart": before_json,
+                    "after_chart": after_json,
                     "before_skewness": float(before_skew) if before_skew is not None else None,
                     "after_skewness": float(after_skew) if after_skew is not None else None
                 }

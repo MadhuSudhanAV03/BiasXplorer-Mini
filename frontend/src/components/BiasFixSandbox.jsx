@@ -20,6 +20,7 @@ export default function BiasFixSandbox({
   onFixComplete,
   initialSelectedColumns = [],
   hideApplyButton = false,
+  hideResults = false, // New prop to hide results
   onApplyFix,
   onStateChange,
 }) {
@@ -40,11 +41,12 @@ export default function BiasFixSandbox({
         selectedColumns,
         columnSettings,
         loading,
+        result,
         canApply: filePath && selectedColumns.size > 0 && !loading,
         handleApplyClick,
       });
     }
-  }, [selectedColumns, columnSettings, loading, filePath]);
+  }, [selectedColumns, columnSettings, loading, result, filePath]);
 
   // Initialize settings for pre-selected columns
   useEffect(() => {
@@ -435,7 +437,7 @@ export default function BiasFixSandbox({
       )}
 
       {/* Results Display */}
-      {!loading && result && (
+      {!loading && result && !hideResults && (
         <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
           <h3 className="text-lg font-semibold text-green-800 mb-3">
             ✓ Bias Correction Applied

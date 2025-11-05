@@ -87,6 +87,13 @@ export default function Dashboard() {
   );
   const [selectedSkewnessColumns, setSelectedSkewnessColumns] = useState([]);
   const [selectedBiasColumns, setSelectedBiasColumns] = useState([]);
+  const [fixedCategoricalColumns, setFixedCategoricalColumns] =
+    usePersistedState("dashboard_fixedCategoricalColumns", []);
+  const [fixedContinuousColumns, setFixedContinuousColumns] = usePersistedState(
+    "dashboard_fixedContinuousColumns",
+    []
+  );
+  const [isApplyingFixes, setIsApplyingFixes] = useState(false); // Track if fixes are being applied
 
   // State declarations removed as they were duplicated
 
@@ -166,7 +173,7 @@ export default function Dashboard() {
               style={{ width: `${pct}%` }}
             />
           </div>
-          <div className="mt-2 grid grid-cols-6 text-[11px] text-slate-600">
+          <div className="mt-2 grid grid-cols-7 text-[11px] text-slate-600">
             {STEPS.map((label, i) => {
               const stepNum = i + 1;
               const active = stepNum === currentStep;
@@ -174,7 +181,7 @@ export default function Dashboard() {
               return (
                 <div
                   key={label}
-                  className={`flex items-center gap-2 ${
+                  className={`flex items-center gap-1 ${
                     active
                       ? "text-blue-700"
                       : done
@@ -183,7 +190,7 @@ export default function Dashboard() {
                   }`}
                 >
                   <span
-                    className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold border ${
+                    className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold border ${
                       done
                         ? "bg-blue-600 text-white border-blue-600"
                         : active
@@ -193,7 +200,7 @@ export default function Dashboard() {
                   >
                     {stepNum}
                   </span>
-                  <span className="truncate">{label}</span>
+                  <span className="truncate text-[10px]">{label}</span>
                 </div>
               );
             })}
@@ -515,24 +522,42 @@ export default function Dashboard() {
               columns={columns}
               selectedBiasColumns={selectedBiasColumns}
               selectedSkewnessColumns={selectedSkewnessColumns}
-              onFixComplete={(correctedPath) => {
+              onApplyingChange={setIsApplyingFixes} // Track applying state
+              onFixComplete={(
+                correctedPath,
+                fixedCategorical,
+                fixedContinuous
+              ) => {
+                console.log("[Dashboard] onFixComplete called with:", {
+                  correctedPath,
+                  fixedCategorical,
+                  fixedContinuous,
+                });
                 setCorrectedFilePath(correctedPath);
+                setFixedCategoricalColumns(fixedCategorical || []);
+                setFixedContinuousColumns(fixedContinuous || []);
                 setVisualizationKey((prev) => prev + 1);
+                console.log(
+                  "[Dashboard] State updated - correctedFilePath:",
+                  correctedPath
+                );
               }}
             />
 
             <div className="mt-6 flex items-center justify-between">
               <button
                 type="button"
-                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-50"
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => setCurrentStep(5)}
+                disabled={isApplyingFixes}
               >
                 Back
               </button>
               <button
                 type="button"
-                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => setCurrentStep(7)}
+                disabled={isApplyingFixes}
               >
                 Next
               </button>
@@ -542,26 +567,93 @@ export default function Dashboard() {
 
         {/* Step 7: Visualization */}
         {currentStep === 7 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="space-y-6">
+            {(() => {
+              console.log("[Dashboard Step 7] Current state:", {
+                correctedFilePath,
+                fixedCategoricalColumns,
+                fixedContinuousColumns,
+                workingFilePath,
+              });
+              return null;
+            })()}
+
             {!correctedFilePath && (
-              <div className="mb-4 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
-                Please apply bias correction in the previous step before viewing
-                visualization.
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
+                  Please apply bias correction in the previous step before
+                  viewing visualization.
+                </div>
               </div>
             )}
-            <Visualization
-              key={`viz-${visualizationKey}`}
-              mode="categorical"
-              beforePath={workingFilePath}
-              afterPath={correctedFilePath || "corrected/corrected_dataset.csv"}
-              targetColumn={targetColumn}
-              continuous={continuous}
-            />
-            <NavButtons
-              onPrev={() => setCurrentStep(6)}
-              onNext={() => setCurrentStep(7)}
-              nextDisabled
-            />
+
+            {correctedFilePath && (
+              <>
+                {/* Categorical Visualizations */}
+                {fixedCategoricalColumns.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+                    <div className="mb-4">
+                      <h3 className="text-xl font-bold text-amber-900">
+                        Categorical Bias - Before & After
+                      </h3>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Visualizations for fixed categorical columns (
+                        {fixedCategoricalColumns.length} column
+                        {fixedCategoricalColumns.length !== 1 ? "s" : ""})
+                      </p>
+                    </div>
+                    <Visualization
+                      key={`viz-cat-${visualizationKey}`}
+                      mode="categorical-multi"
+                      beforePath={workingFilePath}
+                      afterPath={correctedFilePath}
+                      targetColumns={fixedCategoricalColumns}
+                    />
+                  </div>
+                )}
+
+                {/* Continuous Visualizations */}
+                {fixedContinuousColumns.length > 0 && (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+                    <div className="mb-4">
+                      <h3 className="text-xl font-bold text-blue-900">
+                        Continuous Skewness - Before & After
+                      </h3>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Visualizations for fixed continuous columns (
+                        {fixedContinuousColumns.length} column
+                        {fixedContinuousColumns.length !== 1 ? "s" : ""})
+                      </p>
+                    </div>
+                    <Visualization
+                      key={`viz-cont-${visualizationKey}`}
+                      mode="continuous"
+                      beforePath={workingFilePath}
+                      afterPath={correctedFilePath}
+                      continuous={fixedContinuousColumns}
+                    />
+                  </div>
+                )}
+
+                {fixedCategoricalColumns.length === 0 &&
+                  fixedContinuousColumns.length === 0 && (
+                    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                      <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800 border border-blue-200">
+                        No columns were fixed. Please go back to the Bias Fix
+                        step and apply corrections.
+                      </div>
+                    </div>
+                  )}
+              </>
+            )}
+
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <NavButtons
+                onPrev={() => setCurrentStep(6)}
+                onNext={() => setCurrentStep(7)}
+                nextDisabled
+              />
+            </div>
           </section>
         )}
       </main>
