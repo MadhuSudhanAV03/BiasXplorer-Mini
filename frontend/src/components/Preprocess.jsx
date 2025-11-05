@@ -67,122 +67,194 @@ export default function Preprocess({ filePath, onComplete }) {
 
   return (
     <div className="w-full">
-      <h2 className="text-lg font-semibold mb-3">Preprocess</h2>
+      <div className="mb-6 flex items-center gap-3">
+        <div className="text-4xl animate-float">🧹</div>
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">
+            Data Preprocessing
+          </h2>
+          <p className="text-sm text-slate-600 mt-1">
+            Clean and prepare your dataset for analysis
+          </p>
+        </div>
+      </div>
 
       {!filePath && (
-        <div className="mb-3 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
-          Please upload a dataset first.
+        <div className="mb-4 rounded-2xl bg-gradient-to-r from-yellow-50 to-amber-50 p-6 border-2 border-yellow-200 shadow-lg flex items-center gap-3 animate-slideInLeft">
+          <span className="text-3xl">⚠️</span>
+          <div>
+            <h3 className="font-bold text-yellow-900 mb-1">No File Selected</h3>
+            <p className="text-sm text-yellow-700">
+              Please upload a dataset first to begin preprocessing.
+            </p>
+          </div>
         </div>
       )}
 
       {isAlreadyCleaned && (
-        <div className="mb-3 rounded-md bg-blue-50 p-3 text-sm text-blue-800 border border-blue-200">
-          ℹ️ This file has already been preprocessed. Skipping cleaning step.
+        <div className="mb-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-2 border-blue-200 shadow-lg flex items-center gap-3 animate-slideInLeft">
+          <span className="text-3xl">✅</span>
+          <div>
+            <h3 className="font-bold text-blue-900 mb-1">
+              Already Preprocessed
+            </h3>
+            <p className="text-sm text-blue-700">
+              This file has already been cleaned and preprocessed. Skipping
+              cleaning step.
+            </p>
+          </div>
         </div>
       )}
 
       {loading && (
-        <div className="my-4">
-          <Spinner text="Running preprocessing..." />
+        <div className="my-8 flex flex-col items-center justify-center p-12 bg-gradient-to-br from-purple-50 to-pink-50 rounded-3xl border-2 border-purple-200 shadow-xl">
+          <Spinner text="Cleaning your data..." />
+          <div className="mt-6 text-center">
+            <p className="text-sm text-slate-600 animate-pulse mb-2">
+              Removing missing values, duplicates, and inconsistencies
+            </p>
+            <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
+              <span className="animate-bounce">🔍</span>
+              <span>This may take a moment...</span>
+            </div>
+          </div>
         </div>
       )}
 
       {error && (
-        <div className="my-3 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
-          {error}
+        <div className="my-4 rounded-2xl bg-gradient-to-r from-red-50 to-pink-50 p-6 border-2 border-red-200 shadow-lg flex items-center gap-3 animate-slideInLeft">
+          <span className="text-3xl">❌</span>
+          <div>
+            <h3 className="font-bold text-red-900 mb-1">Preprocessing Error</h3>
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
         </div>
       )}
 
       {!loading && !error && result && (
-        <div className="space-y-4">
+        <div className="space-y-6 animate-fadeInUp">
           {/* Success message */}
-          <div className="rounded-md border border-green-200 bg-green-50 p-3 text-green-800">
-            {result.message || "Preprocessing complete"}
+          <div className="rounded-2xl border-2 border-green-300 bg-gradient-to-r from-green-50 to-emerald-50 p-6 shadow-lg flex items-center gap-4">
+            <div className="text-5xl animate-bounce-slow">✨</div>
+            <div>
+              <h3 className="text-xl font-bold text-green-900 mb-1">
+                Preprocessing Complete!
+              </h3>
+              <p className="text-sm text-green-700">
+                {result.message ||
+                  "Your dataset has been cleaned and is ready for analysis"}
+              </p>
+            </div>
           </div>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Rows Removed */}
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="font-medium text-slate-700 mb-2">Rows Removed</h3>
-              <div className="space-y-1 text-sm">
-                <div className="text-slate-800">
-                  Before:{" "}
-                  <span className="font-semibold">
+            <div className="rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-orange-50 p-6 shadow-xl card-hover-lift animate-scaleIn">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-3xl">🗑️</span>
+                <h3 className="font-bold text-red-900 text-lg">Data Cleaned</h3>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
+                  <span className="text-slate-700">Before:</span>
+                  <span className="font-bold text-slate-900 text-lg">
                     {result.rows_before || 0}
                   </span>
                 </div>
-                <div className="text-red-600">
-                  With NaN:{" "}
-                  <span className="font-semibold">
+                <div className="flex justify-between items-center p-2 bg-red-100 rounded-lg">
+                  <span className="text-red-700">Removed (NaN):</span>
+                  <span className="font-bold text-red-900">
                     -{result.rows_with_na_removed || 0}
                   </span>
                 </div>
-                <div className="text-orange-600">
-                  Duplicates:{" "}
-                  <span className="font-semibold">
+                <div className="flex justify-between items-center p-2 bg-orange-100 rounded-lg">
+                  <span className="text-orange-700">Duplicates:</span>
+                  <span className="font-bold text-orange-900">
                     -{result.duplicates_removed || 0}
                   </span>
                 </div>
-                <div className="text-green-600 font-semibold pt-1 border-t">
-                  After: {result.rows_after || 0}
+                <div className="flex justify-between items-center p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg border-2 border-green-600 mt-3">
+                  <span className="text-white font-bold">After:</span>
+                  <span className="font-bold text-white text-xl">
+                    {result.rows_after || 0}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Dataset shape */}
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="font-medium text-slate-700 mb-2">Final Dataset</h3>
+            <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-xl card-hover-lift animate-scaleIn stagger-1">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-3xl">📊</span>
+                <h3 className="font-bold text-blue-900 text-lg">
+                  Final Dataset
+                </h3>
+              </div>
               {datasetShape ? (
-                <div className="text-sm text-slate-800 space-y-1">
-                  <div>
-                    Rows:{" "}
-                    <span className="font-semibold">{datasetShape[0]}</span>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center p-3 bg-white/70 rounded-lg">
+                    <span className="text-slate-700 font-semibold">Rows:</span>
+                    <span className="font-bold text-blue-900 text-xl">
+                      {datasetShape[0]}
+                    </span>
                   </div>
-                  <div>
-                    Columns:{" "}
-                    <span className="font-semibold">{datasetShape[1]}</span>
+                  <div className="flex justify-between items-center p-3 bg-white/70 rounded-lg">
+                    <span className="text-slate-700 font-semibold">
+                      Columns:
+                    </span>
+                    <span className="font-bold text-indigo-900 text-xl">
+                      {datasetShape[1]}
+                    </span>
+                  </div>
+                  <div className="mt-4 p-3 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg border border-blue-300">
+                    <div className="text-xs font-semibold text-blue-900 mb-1">
+                      💾 Saved Location:
+                    </div>
+                    <div className="text-xs font-mono text-blue-700 break-all">
+                      {result?.cleaned_file_path?.split("/").pop() ||
+                        result?.cleaned_file_path}
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-slate-500">Not available</div>
-              )}
-              {result?.cleaned_file_path && (
-                <div className="mt-3 text-xs text-slate-500">
-                  Saved as:{" "}
-                  <span className="font-mono text-blue-600">
-                    {result.cleaned_file_path}
-                  </span>
+                <div className="text-sm text-slate-500 text-center py-8">
+                  Not available
                 </div>
               )}
             </div>
 
             {/* Missing values */}
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="font-medium text-slate-700 mb-2">
-                Missing Values Found
-              </h3>
+            <div className="rounded-2xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-6 shadow-xl card-hover-lift animate-scaleIn stagger-2">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-3xl">🔍</span>
+                <h3 className="font-bold text-purple-900 text-lg">
+                  Missing Values
+                </h3>
+              </div>
               {missingValues && Object.keys(missingValues).length > 0 ? (
-                <div className="max-h-64 overflow-auto">
+                <div className="max-h-64 overflow-auto rounded-xl border border-purple-200">
                   <table className="min-w-full table-auto">
-                    <thead className="bg-slate-50">
+                    <thead className="bg-gradient-to-r from-purple-100 to-pink-100 sticky top-0">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
+                        <th className="px-3 py-2 text-left text-xs font-bold uppercase tracking-wider text-purple-900 border-b-2 border-purple-300">
                           Column
                         </th>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                          Missing
+                        <th className="px-3 py-2 text-right text-xs font-bold uppercase tracking-wider text-purple-900 border-b-2 border-purple-300">
+                          Count
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-purple-100 bg-white">
                       {Object.entries(missingValues).map(([col, count]) => (
-                        <tr key={col}>
-                          <td className="px-3 py-2 text-sm text-slate-700">
+                        <tr key={col} className="hover:bg-purple-50">
+                          <td className="px-3 py-2 text-sm text-slate-700 font-medium">
                             {col}
                           </td>
-                          <td className="px-3 py-2 text-sm text-slate-700">
-                            {count}
+                          <td className="px-3 py-2 text-sm text-right">
+                            <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full font-bold text-xs">
+                              {count}
+                            </span>
                           </td>
                         </tr>
                       ))}
@@ -190,8 +262,14 @@ export default function Preprocess({ filePath, onComplete }) {
                   </table>
                 </div>
               ) : (
-                <div className="text-sm text-green-600">
-                  ✓ No missing values detected
+                <div className="text-center py-8">
+                  <div className="text-5xl mb-3">✅</div>
+                  <div className="text-sm font-bold text-green-700">
+                    No missing values detected!
+                  </div>
+                  <div className="text-xs text-green-600 mt-1">
+                    Your data is clean and complete
+                  </div>
                 </div>
               )}
             </div>

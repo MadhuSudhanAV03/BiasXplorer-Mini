@@ -86,26 +86,66 @@ export default function FileUpload({ onUploadSuccess, className = "" }) {
   return (
     <div className={`w-full ${className}`}>
       <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors duration-150 ${
-          isDragging ? "border-blue-500 bg-blue-50" : "border-slate-300"
+        className={`relative border-3 border-dashed rounded-2xl p-12 text-center transition-all duration-300 ${
+          isDragging
+            ? "border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 scale-105 shadow-2xl animate-pulseGlow"
+            : "border-slate-300 bg-gradient-to-br from-white to-slate-50 hover:border-blue-400 hover:shadow-xl"
         }`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <div className="flex flex-col items-center gap-3">
-          <div className="text-slate-600">Drag & drop your dataset here</div>
-          <div className="text-xs text-slate-500">
-            Accepted: .csv, .xls, .xlsx
+        <div className="flex flex-col items-center gap-5">
+          {/* Icon */}
+          <div
+            className={`text-7xl transition-all duration-300 ${
+              isDragging ? "animate-bounce-slow" : "animate-float"
+            }`}
+          >
+            {isDragging ? "📥" : "📂"}
           </div>
 
+          {/* Text */}
+          <div>
+            <div className="text-xl font-bold text-slate-800 mb-2">
+              {isDragging ? "Drop your file here!" : "Drag & Drop Your Dataset"}
+            </div>
+            <div className="text-sm text-slate-500">
+              or click the button below to browse
+            </div>
+          </div>
+
+          {/* Supported formats */}
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+              📄 CSV
+            </span>
+            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+              📊 XLS
+            </span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+              📈 XLSX
+            </span>
+          </div>
+
+          {/* Upload Button */}
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="relative inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-white font-bold text-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transition-all duration-300 card-hover-lift button-ripple"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
           >
-            {isUploading ? "Uploading..." : "Choose File"}
+            {isUploading ? (
+              <>
+                <Spinner className="h-5 w-5" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              <>
+                <span>📤</span>
+                <span>Choose File</span>
+              </>
+            )}
           </button>
 
           <input
@@ -116,24 +156,42 @@ export default function FileUpload({ onUploadSuccess, className = "" }) {
             onChange={handleFileChange}
           />
         </div>
+
+        {/* Decorative elements */}
+        {!isUploading && (
+          <>
+            <div className="absolute top-4 left-4 w-20 h-20 bg-blue-200/30 rounded-full blur-2xl"></div>
+            <div className="absolute bottom-4 right-4 w-32 h-32 bg-purple-200/30 rounded-full blur-3xl"></div>
+          </>
+        )}
       </div>
 
       {isUploading && (
-        <div className="mt-3">
-          <Spinner text="Uploading..." />
+        <div className="mt-4 text-center animate-fadeInUp">
+          <div className="inline-flex items-center gap-3 bg-white rounded-xl px-6 py-3 shadow-lg">
+            <Spinner />
+            <span className="text-slate-700 font-medium">
+              Processing your file...
+            </span>
+          </div>
         </div>
       )}
 
       {/* Toast */}
       {toast.visible && (
         <div
-          className={`fixed bottom-4 right-4 z-50 rounded-md px-4 py-3 shadow-lg ${
+          className={`fixed bottom-6 right-6 z-50 rounded-2xl px-6 py-4 shadow-2xl animate-slideInRight ${
             toast.type === "success"
-              ? "bg-green-600 text-white"
-              : "bg-red-600 text-white"
+              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+              : "bg-gradient-to-r from-red-500 to-pink-500 text-white"
           }`}
         >
-          {toast.message}
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">
+              {toast.type === "success" ? "✅" : "❌"}
+            </span>
+            <span className="font-semibold">{toast.message}</span>
+          </div>
         </div>
       )}
     </div>

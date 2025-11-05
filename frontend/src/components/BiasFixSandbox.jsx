@@ -21,6 +21,7 @@ export default function BiasFixSandbox({
   initialSelectedColumns = [],
   hideApplyButton = false,
   hideResults = false, // New prop to hide results
+  initialResult = null, // New prop to restore previous results
   onApplyFix,
   onStateChange,
 }) {
@@ -30,9 +31,23 @@ export default function BiasFixSandbox({
   const [columnSettings, setColumnSettings] = useState({}); // { colName: { method, threshold } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(initialResult); // Initialize with previous result
   const [showCategoricalModal, setShowCategoricalModal] = useState(false);
   const [currentColumn, setCurrentColumn] = useState(null); // For SMOTE modal
+
+  // Update result when initialResult prop changes (for persistence)
+  useEffect(() => {
+    console.log("[BiasFixSandbox] initialResult changed:", initialResult);
+    if (initialResult !== undefined && initialResult !== null) {
+      console.log("[BiasFixSandbox] Setting result to:", initialResult);
+      setResult(initialResult);
+    }
+  }, [initialResult]);
+
+  // Debug logging for result state
+  useEffect(() => {
+    console.log("[BiasFixSandbox] result state:", result);
+  }, [result]);
 
   // Expose state to parent if callback provided
   useEffect(() => {
@@ -230,13 +245,14 @@ export default function BiasFixSandbox({
       }
 
       // Set combined results
-      setResult({
+      const finalResult = {
         columns: allResults,
         corrected_file_path: currentFilePath,
-      });
+      };
+      setResult(finalResult);
 
       if (currentFilePath) {
-        onFixComplete?.(currentFilePath);
+        onFixComplete?.(currentFilePath, finalResult);
       }
     } catch (err) {
       const msg =
@@ -253,31 +269,39 @@ export default function BiasFixSandbox({
   return (
     <div className="w-full">
       {/* Column Selection */}
-      <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-slate-700">
-            Select Columns to Fix
-          </h3>
+      <div className="mb-6 p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm animate-fadeInUp">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl animate-bounce-slow">🎯</span>
+            <h3 className="text-base font-bold text-slate-800">
+              Select Columns to Fix
+            </h3>
+            {selectedColumns.size > 0 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-500 text-white text-xs font-bold animate-scaleIn">
+                {selectedColumns.size}
+              </span>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={selectAll}
-              className="text-xs px-3 py-1 rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
+              className="text-xs px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
             >
               Select All Imbalanced
             </button>
             <button
               type="button"
               onClick={clearAll}
-              className="text-xs px-3 py-1 rounded bg-slate-200 text-slate-700 hover:bg-slate-300"
+              className="text-xs px-4 py-2 rounded-lg bg-white text-slate-700 font-medium hover:bg-slate-100 border border-slate-300 shadow-sm hover:shadow-md transition-all duration-300"
             >
               Clear All
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3">
-          {categorical.map((col) => {
+        <div className="grid grid-cols-1 gap-4">
+          {categorical.map((col, index) => {
             const severity = biasResults[col]?.severity;
             const hasIssue = severity === "Moderate" || severity === "Severe";
             const isSelected = selectedColumns.has(col);
@@ -286,43 +310,61 @@ export default function BiasFixSandbox({
               threshold: 0.5,
             };
 
+            // Severity emoji mapping
+            const severityEmoji = {
+              Severe: "🔴",
+              Moderate: "🟡",
+              Low: "🟢",
+            };
+
             return (
               <div
                 key={col}
-                className={`p-4 rounded border transition-colors ${
+                className={`p-5 rounded-xl border-2 transition-all duration-300 hover:shadow-lg animate-fadeInUp ${
                   isSelected
-                    ? "bg-blue-50 border-blue-300"
+                    ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-400 shadow-md scale-[1.02]"
                     : hasIssue
-                    ? "bg-white border-slate-300"
+                    ? "bg-white border-slate-300 hover:border-blue-300"
                     : "bg-slate-50 border-slate-200 opacity-60"
                 }`}
+                style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-4">
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleColumn(col)}
                     disabled={!hasIssue}
-                    className="mt-1"
+                    className="mt-1 w-5 h-5 rounded border-2 border-blue-400 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <div className="font-medium text-sm text-slate-800">
-                          {col}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-base font-bold text-slate-900">
+                            {col}
+                          </span>
+                          {severity && (
+                            <span className="text-lg">
+                              {severityEmoji[severity] || "⚪"}
+                            </span>
+                          )}
                         </div>
-                        <div className="text-xs text-slate-600 mt-1">
-                          Distribution: {getDistributionText(col)}
+                        <div className="text-sm text-slate-600 flex items-center gap-1">
+                          <span className="font-medium">Distribution:</span>
+                          <span className="text-slate-700">
+                            {getDistributionText(col)}
+                          </span>
                         </div>
                       </div>
                       {severity && (
                         <span
-                          className={`text-xs px-2 py-1 rounded ${
+                          className={`text-xs px-3 py-1 rounded-full font-bold shadow-sm ${
                             severity === "Severe"
-                              ? "bg-red-100 text-red-700"
+                              ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
                               : severity === "Moderate"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-green-100 text-green-700"
+                              ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white"
+                              : "bg-gradient-to-r from-green-400 to-emerald-500 text-white"
                           }`}
                         >
                           {severity}
@@ -331,13 +373,14 @@ export default function BiasFixSandbox({
                     </div>
 
                     {isSelected && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t-2 border-blue-200 animate-fadeInUp">
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">
-                            Method
+                          <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <span>🛠️</span>
+                            Fix Method
                           </label>
                           <select
-                            className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+                            className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white hover:border-blue-400"
                             value={settings.method}
                             onChange={(e) =>
                               updateColumnSetting(col, "method", e.target.value)
@@ -351,7 +394,8 @@ export default function BiasFixSandbox({
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-1">
+                          <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <span>🎚️</span>
                             Threshold (0.1 – 1.0)
                           </label>
                           <input
@@ -359,7 +403,7 @@ export default function BiasFixSandbox({
                             min={0.1}
                             max={1}
                             step={0.1}
-                            className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+                            className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all hover:border-blue-400"
                             value={settings.threshold}
                             onChange={(e) =>
                               updateColumnSetting(
@@ -370,7 +414,8 @@ export default function BiasFixSandbox({
                             }
                             placeholder="0.5"
                           />
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-2 text-xs text-slate-600 flex items-center gap-1">
+                            <span>💡</span>
                             Target ratio for minority class
                           </p>
                         </div>
@@ -384,7 +429,8 @@ export default function BiasFixSandbox({
         </div>
 
         {categorical.length === 0 && (
-          <div className="text-sm text-slate-500 text-center py-4">
+          <div className="text-sm text-slate-500 text-center py-8 animate-fadeIn">
+            <span className="text-3xl mb-2 block">📭</span>
             No categorical columns available
           </div>
         )}
@@ -392,22 +438,31 @@ export default function BiasFixSandbox({
 
       {/* Apply Button */}
       {!hideApplyButton && (
-        <div className="mb-4">
+        <div className="mb-6">
           <button
             type="button"
             onClick={handleApplyClick}
             disabled={!canApply}
-            className="inline-flex items-center rounded-md bg-green-600 px-6 py-3 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-4 text-white font-bold text-lg shadow-xl hover:shadow-2xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 disabled:hover:scale-100 animate-pulseGlow"
           >
             {loading ? (
               <>
                 <Spinner />
-                <span className="ml-2">Applying...</span>
+                <span className="ml-2">Applying fixes...</span>
               </>
             ) : (
-              `Apply Fix to ${selectedColumns.size} Column${
-                selectedColumns.size !== 1 ? "s" : ""
-              }`
+              <>
+                <span className="text-2xl">✨</span>
+                <span>
+                  Apply Fix to {selectedColumns.size} Column
+                  {selectedColumns.size !== 1 ? "s" : ""}
+                </span>
+                {selectedColumns.size > 0 && (
+                  <span className="absolute -top-2 -right-2 w-8 h-8 bg-blue-500 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-lg animate-bounce-slow">
+                    {selectedColumns.size}
+                  </span>
+                )}
+              </>
             )}
           </button>
         </div>
@@ -424,55 +479,99 @@ export default function BiasFixSandbox({
 
       {/* Loading State */}
       {loading && (
-        <div className="my-4">
-          <Spinner text="Applying bias correction..." />
+        <div className="my-6 p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 animate-pulseGlow">
+          <div className="flex flex-col items-center gap-4">
+            <Spinner />
+            <p className="text-lg font-bold text-blue-800 animate-pulse">
+              Applying bias correction...
+            </p>
+            <p className="text-sm text-slate-600">
+              This may take a moment. Please wait.
+            </p>
+          </div>
         </div>
       )}
 
       {/* Error Display */}
       {error && (
-        <div className="my-4 rounded-md bg-red-50 p-4 text-sm text-red-700 border border-red-200">
-          {error}
+        <div className="my-6 rounded-xl bg-gradient-to-br from-red-50 to-rose-50 p-6 text-sm text-red-700 border-2 border-red-300 shadow-lg animate-fadeInUp">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">❌</span>
+            <div className="flex-1">
+              <p className="font-bold text-red-800 mb-1">Error occurred</p>
+              <p>{error}</p>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Results Display */}
       {!loading && result && !hideResults && (
-        <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
-          <h3 className="text-lg font-semibold text-green-800 mb-3">
-            ✓ Bias Correction Applied
-          </h3>
-
-          <div className="mb-3 text-sm">
-            <span className="font-medium text-slate-700">
-              Corrected file saved:{" "}
-            </span>
-            <span className="font-mono text-blue-600">
-              {result.corrected_file_path || "N/A"}
-            </span>
+        <div className="mt-6 rounded-2xl border-2 border-green-300 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6 shadow-xl animate-fadeInUp">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="text-4xl animate-bounce-slow">✨</span>
+            <div>
+              <h3 className="text-2xl font-bold text-green-800 flex items-center gap-2">
+                Bias Correction Applied Successfully!
+                <span className="text-green-600">✓</span>
+              </h3>
+              <p className="text-sm text-green-700 mt-1">
+                Your dataset has been corrected and balanced
+              </p>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full table-auto bg-white rounded-lg">
-              <thead className="bg-slate-100">
+          <div className="mb-6 p-4 bg-white rounded-xl border-2 border-green-200 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">💾</span>
+              <span className="font-bold text-slate-700">
+                Corrected File Saved:
+              </span>
+            </div>
+            <div className="font-mono text-blue-600 text-sm break-all bg-blue-50 p-3 rounded-lg border border-blue-200">
+              {result.corrected_file_path || "N/A"}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border-2 border-slate-200 shadow-lg">
+            <table className="min-w-full table-auto bg-white">
+              <thead className="bg-gradient-to-r from-slate-700 to-slate-800 text-white">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-600">
-                    Column
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <span>📊</span>
+                      Column
+                    </div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-600">
-                    Class
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <span>🏷️</span>
+                      Class
+                    </div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-600">
-                    Before Distribution
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <span>📉</span>
+                      Before
+                    </div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-600">
-                    After Distribution
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <span>📈</span>
+                      After
+                    </div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-600">
-                    Method Applied
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <span>🛠️</span>
+                      Method
+                    </div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase text-slate-600">
-                    Threshold
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <span>🎯</span>
+                      Threshold
+                    </div>
                   </th>
                 </tr>
               </thead>
@@ -491,51 +590,67 @@ export default function BiasFixSandbox({
                     if (classes.length === 0) return;
 
                     classes.forEach((className, idx) => {
+                      const beforeValue =
+                        beforeDist[className] !== null &&
+                        beforeDist[className] !== undefined
+                          ? Number(beforeDist[className]).toFixed(2)
+                          : "N/A";
+                      const afterValue =
+                        afterDist[className] !== null &&
+                        afterDist[className] !== undefined
+                          ? Number(afterDist[className]).toFixed(2)
+                          : "N/A";
+
                       rows.push(
                         <tr
                           key={`${colName}-${className}`}
-                          className="hover:bg-slate-50"
+                          className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 animate-fadeInUp"
+                          style={{ animationDelay: `${rows.length * 0.03}s` }}
                         >
                           {idx === 0 && (
                             <td
                               rowSpan={classes.length}
-                              className="px-4 py-2 text-sm font-medium text-slate-800 align-top border-r border-slate-200"
+                              className="px-6 py-4 text-sm font-bold text-slate-900 align-top border-r-2 border-slate-200 bg-slate-50"
                             >
                               {colName}
                             </td>
                           )}
-                          <td className="px-4 py-2 text-sm text-slate-700">
-                            {className}
+                          <td className="px-6 py-4 text-sm font-medium text-slate-700">
+                            <span className="px-3 py-1 bg-slate-100 rounded-full">
+                              {className}
+                            </span>
                           </td>
-                          <td className="px-4 py-2 text-sm text-slate-600">
-                            {beforeDist[className] !== null &&
-                            beforeDist[className] !== undefined
-                              ? Number(beforeDist[className]).toFixed(2)
-                              : "N/A"}
+                          <td className="px-6 py-4 text-sm font-medium text-red-600">
+                            <span className="px-3 py-1 bg-red-50 rounded-lg border border-red-200">
+                              {beforeValue}
+                            </span>
                           </td>
-                          <td className="px-4 py-2 text-sm font-semibold text-green-600">
-                            {afterDist[className] !== null &&
-                            afterDist[className] !== undefined
-                              ? Number(afterDist[className]).toFixed(2)
-                              : "N/A"}
+                          <td className="px-6 py-4 text-sm font-bold text-green-600">
+                            <span className="px-3 py-1 bg-green-50 rounded-lg border-2 border-green-300 shadow-sm">
+                              {afterValue}
+                            </span>
                           </td>
                           {idx === 0 && (
                             <>
                               <td
                                 rowSpan={classes.length}
-                                className="px-4 py-2 text-sm text-blue-600 align-top"
+                                className="px-6 py-4 text-sm font-semibold text-blue-700 align-top"
                               >
-                                {METHOD_OPTIONS.find(
-                                  (m) => m.value === colData?.method
-                                )?.label ||
-                                  colData?.method ||
-                                  "N/A"}
+                                <span className="px-3 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg border border-blue-300 inline-block">
+                                  {METHOD_OPTIONS.find(
+                                    (m) => m.value === colData?.method
+                                  )?.label ||
+                                    colData?.method ||
+                                    "N/A"}
+                                </span>
                               </td>
                               <td
                                 rowSpan={classes.length}
-                                className="px-4 py-2 text-sm text-slate-600 align-top"
+                                className="px-6 py-4 text-sm font-bold text-slate-700 align-top"
                               >
-                                {colData?.threshold || "N/A"}
+                                <span className="px-3 py-2 bg-purple-100 rounded-lg border border-purple-300 inline-block">
+                                  {colData?.threshold || "N/A"}
+                                </span>
                               </td>
                             </>
                           )}
@@ -550,10 +665,41 @@ export default function BiasFixSandbox({
             </table>
           </div>
 
-          <div className="mt-4 p-3 bg-blue-50 rounded text-xs text-slate-600">
-            <strong>Note:</strong> The corrected dataset has been saved.
-            Distribution values closer to equal proportions indicate reduced
-            bias. View detailed visualizations in the Visualization section.
+          <div className="mt-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-sm animate-fadeInUp">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">💡</span>
+              <div>
+                <p className="font-bold text-blue-800 mb-2 text-sm">
+                  Success! What's Next?
+                </p>
+                <ul className="text-sm text-slate-700 space-y-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>
+                      The corrected dataset has been saved to your corrected
+                      folder
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>
+                      Distribution values closer to equal proportions indicate
+                      reduced bias
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">→</span>
+                    <span className="font-medium">
+                      View detailed visualizations in the{" "}
+                      <span className="text-blue-700 font-bold">
+                        Visualization section
+                      </span>{" "}
+                      📈
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       )}

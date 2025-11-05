@@ -82,27 +82,60 @@ export default function BiasDetection({
         label: "N/A",
         color: "text-gray-500",
         bgColor: "border-slate-200",
+        emoji: "❓",
+      };
+    }
+    if (skewness > 1.0) {
+      return {
+        label: "Highly Right-skewed",
+        color: "text-red-600",
+        bgColor: "bg-red-50 border-red-200",
+        emoji: "🔴",
       };
     }
     if (skewness > 0.5) {
       return {
         label: "Right-skewed",
+        color: "text-orange-600",
+        bgColor: "bg-orange-50 border-orange-200",
+        emoji: "🟠",
+      };
+    }
+    if (skewness < -1.0) {
+      return {
+        label: "Highly Left-skewed",
         color: "text-red-600",
         bgColor: "bg-red-50 border-red-200",
+        emoji: "🔴",
       };
     }
     if (skewness < -0.5) {
       return {
         label: "Left-skewed",
-        color: "text-red-600",
-        bgColor: "bg-red-50 border-red-200",
+        color: "text-orange-600",
+        bgColor: "bg-orange-50 border-orange-200",
+        emoji: "🟠",
       };
     }
     return {
       label: "Symmetric",
       color: "text-green-600",
       bgColor: "bg-green-50 border-green-200",
+      emoji: "✅",
     };
+  };
+
+  const getSeverityEmoji = (severity) => {
+    switch (severity) {
+      case "Severe":
+        return "🔴";
+      case "Moderate":
+        return "🟡";
+      case "Low":
+        return "🟢";
+      default:
+        return "⚪";
+    }
   };
 
   // Get columns that need bias detection (not already in results)
@@ -299,17 +332,28 @@ export default function BiasDetection({
   return (
     <div className="w-full space-y-6">
       {/* Page Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Bias Detection</h2>
-        <p className="text-sm text-slate-600 mt-1">
-          Analyze class imbalance in categorical columns and skewness in
-          continuous columns
-        </p>
-        <div className="mt-2 text-sm bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200 inline-block">
-          <span className="text-slate-500">File:</span>{" "}
-          <span className="font-mono text-slate-700">
-            {filePath || "(none)"}
-          </span>
+      <div className="mb-6 bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-2xl border border-purple-200 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="text-4xl">🔍</div>
+          <div className="flex-1">
+            <h2 className="text-3xl font-bold text-slate-800 mb-2">
+              Bias Detection
+            </h2>
+            <p className="text-sm text-slate-600">
+              Analyze class imbalance in categorical columns and skewness in
+              continuous columns to identify potential biases in your dataset
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase">
+                Active File:
+              </span>
+              <span className="text-sm bg-white px-3 py-1.5 rounded-lg border border-slate-300 font-mono text-slate-700 shadow-sm">
+                {filePath
+                  ? filePath.split("/").pop() || filePath
+                  : "(No file selected)"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -333,63 +377,68 @@ export default function BiasDetection({
 
       {/* Categorical Columns Card */}
       {hasCategorical && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-amber-900">
-              Categorical Columns (Class Imbalance)
-            </h3>
-            <p className="text-sm text-amber-700 mt-1">
-              Detect imbalance in categorical feature distributions
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="text-sm rounded-md bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700 disabled:opacity-50"
-                onClick={() => {
-                  const allCategorical = new Set(categorical);
-                  setSelectedColumns((prev) => {
-                    const newSet = new Set(prev);
-                    categorical.forEach((col) => newSet.add(col));
-                    return newSet;
-                  });
-                }}
-                disabled={!filePath || !hasCategorical}
-              >
-                Select All Categorical
-              </button>
-              <button
-                type="button"
-                className="text-sm rounded-md bg-green-600 px-3 py-1.5 text-white hover:bg-green-700 disabled:opacity-50"
-                onClick={() => runDetectionForSelected()}
-                disabled={
-                  !filePath || !hasCategorical || selectedColumns.size === 0
-                }
-              >
-                Check Selected
-              </button>
+        <div className="rounded-xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-6 shadow-lg">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="text-3xl">📊</div>
+            <div>
+              <h3 className="text-xl font-bold text-amber-900">
+                Categorical Columns
+              </h3>
+              <p className="text-sm text-amber-700 mt-0.5">
+                Detect class imbalance in categorical feature distributions
+              </p>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              className="text-sm rounded-lg bg-amber-600 px-4 py-2 text-white font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow flex items-center gap-2"
+              onClick={() => {
+                const allCategorical = new Set(categorical);
+                setSelectedColumns((prev) => {
+                  const newSet = new Set(prev);
+                  categorical.forEach((col) => newSet.add(col));
+                  return newSet;
+                });
+              }}
+              disabled={!filePath || !hasCategorical}
+            >
+              <span>☑️</span>
+              <span>Select All</span>
+            </button>
+            <button
+              type="button"
+              className="text-sm rounded-lg bg-green-600 px-4 py-2 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow flex items-center gap-2"
+              onClick={() => runDetectionForSelected()}
+              disabled={
+                !filePath || !hasCategorical || selectedColumns.size === 0
+              }
+            >
+              <span>✓</span>
+              <span>Check Selected</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {categorical.map((col) => {
               const info = categoricalResults?.[col];
               const isSelected = selectedColumns.has(col);
               const isLoading = loading[col];
+              const emoji = info ? getSeverityEmoji(info.severity) : "⚪";
 
               return (
                 <div
                   key={col}
-                  className={`p-3 rounded-lg border transition-colors duration-200 ${
+                  className={`relative p-5 rounded-xl border-2 transition-all duration-300 shadow-sm hover:shadow-md ${
                     info
                       ? classNameForSeverity(info.severity)
-                      : "border-slate-200"
-                  } ${isSelected ? "ring-2 ring-blue-500" : ""}`}
+                      : "bg-white border-slate-200"
+                  } ${isSelected ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 flex-1">
                       <input
                         type="checkbox"
                         id={`cat-${col}`}
@@ -405,105 +454,159 @@ export default function BiasDetection({
                             return newSet;
                           });
                         }}
-                        className="h-4 w-4 rounded border-slate-300"
+                        className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                       />
                       <label
                         htmlFor={`cat-${col}`}
-                        className="text-sm font-medium text-slate-700"
+                        className="text-base font-semibold text-slate-800 cursor-pointer flex-1"
                       >
                         {col}
                       </label>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="text-sm rounded-md bg-slate-600 px-2 py-1 text-white hover:bg-slate-700 disabled:opacity-50"
-                        onClick={() =>
-                          runDetectionForColumn(col, "categorical")
-                        }
-                        disabled={isLoading || !filePath}
-                      >
-                        {isLoading ? (
-                          <span className="flex items-center gap-1">
-                            <Spinner className="h-3 w-3" />
-                            Analyzing...
-                          </span>
-                        ) : info ? (
-                          "Check Again"
-                        ) : (
-                          "Check Bias"
-                        )}
-                      </button>
-                    </div>
+                    {info && (
+                      <div className="text-3xl ml-2 animate-bounce-slow">
+                        {emoji}
+                      </div>
+                    )}
                   </div>
 
+                  {/* Results Section */}
                   {info && (
-                    <div className="text-sm">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-slate-600">Distribution:</span>
-                          <div className="font-mono">
-                            {formatDistribution(info)}
-                          </div>
+                    <div className="space-y-3 mb-4">
+                      <div className="bg-white/50 rounded-lg p-3 border border-slate-200">
+                        <div className="text-xs font-semibold text-slate-500 uppercase mb-1">
+                          Distribution
                         </div>
+                        <div className="font-mono text-sm text-slate-800">
+                          {formatDistribution(info)}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-slate-600">Severity:</span>
-                          <div className="font-medium">
-                            {info.severity || "N/A"}
+                          <div className="text-xs font-semibold text-slate-500 uppercase">
+                            Severity
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${
+                                info.severity === "Severe"
+                                  ? "bg-red-600 text-white"
+                                  : info.severity === "Moderate"
+                                  ? "bg-yellow-500 text-white"
+                                  : "bg-green-600 text-white"
+                              }`}
+                            >
+                              {info.severity || "N/A"}
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
                   )}
+
+                  {/* Action Button */}
+                  <button
+                    type="button"
+                    className="w-full text-sm rounded-lg bg-slate-700 px-4 py-2.5 text-white font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    onClick={() => runDetectionForColumn(col, "categorical")}
+                    disabled={isLoading || !filePath}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Spinner className="h-4 w-4" />
+                        <span>Analyzing...</span>
+                      </>
+                    ) : info ? (
+                      <>
+                        <span>🔄</span>
+                        <span>Check Again</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🔍</span>
+                        <span>Check Bias</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               );
             })}
+          </div>
+
+          <div className="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-lg border border-amber-200">
+            <div className="flex items-start gap-2">
+              <span className="text-2xl">💡</span>
+              <div className="text-xs text-slate-700">
+                <strong className="text-amber-800">Severity Guide:</strong>
+                <div className="mt-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span>🔴 Severe:</span>
+                    <span>
+                      Significant class imbalance requiring correction
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>🟡 Moderate:</span>
+                    <span>
+                      Noticeable imbalance, may affect model performance
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>🟢 Low:</span>
+                    <span>Minimal imbalance, generally acceptable</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Continuous Columns Card */}
       {hasContinuous && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-blue-900">
-              Continuous Columns (Skewness)
-            </h3>
-            <p className="text-sm text-blue-700 mt-1">
-              Detect skewness in continuous feature distributions
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="text-sm rounded-md bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700 disabled:opacity-50"
-                onClick={() => {
-                  setSelectedColumns((prev) => {
-                    const newSet = new Set(prev);
-                    continuous.forEach((col) => newSet.add(col));
-                    return newSet;
-                  });
-                }}
-                disabled={!filePath || !hasContinuous}
-              >
-                Select All Continuous
-              </button>
-              <button
-                type="button"
-                className="text-sm rounded-md bg-green-600 px-3 py-1.5 text-white hover:bg-green-700 disabled:opacity-50"
-                onClick={() => runDetectionForSelected()}
-                disabled={
-                  !filePath || !hasContinuous || selectedColumns.size === 0
-                }
-              >
-                Check Selected
-              </button>
+        <div className="rounded-xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-lg">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="text-3xl">📈</div>
+            <div>
+              <h3 className="text-xl font-bold text-blue-900">
+                Continuous Columns
+              </h3>
+              <p className="text-sm text-blue-700 mt-0.5">
+                Detect skewness in continuous feature distributions
+              </p>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              className="text-sm rounded-lg bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow flex items-center gap-2"
+              onClick={() => {
+                setSelectedColumns((prev) => {
+                  const newSet = new Set(prev);
+                  continuous.forEach((col) => newSet.add(col));
+                  return newSet;
+                });
+              }}
+              disabled={!filePath || !hasContinuous}
+            >
+              <span>☑️</span>
+              <span>Select All</span>
+            </button>
+            <button
+              type="button"
+              className="text-sm rounded-lg bg-green-600 px-4 py-2 text-white font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow flex items-center gap-2"
+              onClick={() => runDetectionForSelected()}
+              disabled={
+                !filePath || !hasContinuous || selectedColumns.size === 0
+              }
+            >
+              <span>✓</span>
+              <span>Check Selected</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {continuous.map((col) => {
               const info = skewnessResults?.[col];
               const interpretation = info
@@ -516,18 +619,20 @@ export default function BiasDetection({
                 skewValue !== null &&
                 skewValue !== undefined &&
                 Math.abs(skewValue) > 0.5;
+              const emoji = interpretation?.emoji || "⚪";
 
               return (
                 <div
                   key={col}
-                  className={`p-3 rounded-lg border transition-colors duration-200 ${
+                  className={`relative p-5 rounded-xl border-2 transition-all duration-300 shadow-sm hover:shadow-md ${
                     info && interpretation
                       ? interpretation.bgColor
-                      : "border-slate-200"
-                  } ${isSelected ? "ring-2 ring-blue-500" : ""}`}
+                      : "bg-white border-slate-200"
+                  } ${isSelected ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 flex-1">
                       <input
                         type="checkbox"
                         id={`cont-${col}`}
@@ -543,42 +648,31 @@ export default function BiasDetection({
                             return newSet;
                           });
                         }}
-                        className="h-4 w-4 rounded border-slate-300"
+                        className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
                       />
                       <label
                         htmlFor={`cont-${col}`}
-                        className="text-sm font-medium text-slate-700"
+                        className="text-base font-semibold text-slate-800 cursor-pointer flex-1"
                       >
                         {col}
                       </label>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="text-sm rounded-md bg-slate-600 px-2 py-1 text-white hover:bg-slate-700 disabled:opacity-50"
-                        onClick={() => runDetectionForColumn(col, "continuous")}
-                        disabled={isLoading || !filePath}
-                      >
-                        {isLoading ? (
-                          <span className="flex items-center gap-1">
-                            <Spinner className="h-3 w-3" />
-                            Analyzing...
-                          </span>
-                        ) : info ? (
-                          "Check Again"
-                        ) : (
-                          "Check Skewness"
-                        )}
-                      </button>
-                    </div>
+                    {info && (
+                      <div className="text-3xl ml-2 animate-bounce-slow">
+                        {emoji}
+                      </div>
+                    )}
                   </div>
 
+                  {/* Results Section */}
                   {info && (
-                    <div className="text-sm">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <span className="text-slate-600">Skewness:</span>
-                          <div className="font-mono">
+                    <div className="space-y-3 mb-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white/50 rounded-lg p-3 border border-slate-200">
+                          <div className="text-xs font-semibold text-slate-500 uppercase mb-1">
+                            Skewness
+                          </div>
+                          <div className="font-mono text-lg font-bold text-slate-800">
                             {info?.error ? (
                               <span className="text-red-600 text-xs">
                                 {info.error}
@@ -591,43 +685,98 @@ export default function BiasDetection({
                             )}
                           </div>
                         </div>
-                        <div>
-                          <span className="text-slate-600">
-                            Non-null Count:
-                          </span>
-                          <div>{info?.n_nonnull || 0}</div>
-                        </div>
-                        <div>
-                          <span className="text-slate-600">
-                            Interpretation:
-                          </span>
-                          <div
-                            className={`font-medium ${interpretation?.color}`}
-                          >
-                            {info?.error ? "-" : interpretation?.label}
+                        <div className="bg-white/50 rounded-lg p-3 border border-slate-200">
+                          <div className="text-xs font-semibold text-slate-500 uppercase mb-1">
+                            Non-null
                           </div>
+                          <div className="text-lg font-bold text-slate-800">
+                            {info?.n_nonnull || 0}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-white/50 rounded-lg p-3 border border-slate-200">
+                        <div className="text-xs font-semibold text-slate-500 uppercase mb-1">
+                          Interpretation
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${
+                              info?.error
+                                ? "bg-gray-500 text-white"
+                                : needsFixing
+                                ? Math.abs(skewValue) > 1.0
+                                  ? "bg-red-600 text-white"
+                                  : "bg-orange-500 text-white"
+                                : "bg-green-600 text-white"
+                            }`}
+                          >
+                            {info?.error ? "Error" : interpretation?.label}
+                          </span>
                         </div>
                       </div>
                     </div>
                   )}
+
+                  {/* Action Button */}
+                  <button
+                    type="button"
+                    className="w-full text-sm rounded-lg bg-slate-700 px-4 py-2.5 text-white font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                    onClick={() => runDetectionForColumn(col, "continuous")}
+                    disabled={isLoading || !filePath}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Spinner className="h-4 w-4" />
+                        <span>Analyzing...</span>
+                      </>
+                    ) : info ? (
+                      <>
+                        <span>🔄</span>
+                        <span>Check Again</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🔍</span>
+                        <span>Check Skewness</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-3 text-xs text-slate-500 bg-slate-50 p-3 rounded">
-            <strong>Note:</strong> Skewness &gt; 0.5 = Right-skewed, &lt; -0.5 =
-            Left-skewed, -0.5 to 0.5 = Symmetric
+          <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex items-start gap-2">
+              <span className="text-2xl">💡</span>
+              <div className="text-xs text-slate-700">
+                <strong className="text-blue-800">Skewness Guide:</strong>
+                <div className="mt-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span>🔴 Highly skewed:</span>
+                    <span className="font-mono">|skew| &gt; 1.0</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>🟠 Moderately skewed:</span>
+                    <span className="font-mono">0.5 &lt; |skew| ≤ 1.0</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>✅ Symmetric:</span>
+                    <span className="font-mono">|skew| ≤ 0.5</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* Global Action Button */}
       {(hasIssues || hasSkewnessIssues) && (
-        <div className="mt-6 flex justify-center">
+        <div className="mt-8 flex justify-center">
           <button
             type="button"
-            className="rounded-md bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700 shadow-md"
+            className="group relative rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-4 text-white font-bold text-lg hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-3"
             onClick={() => {
               // Collect all categorical columns needing fix
               const categoricalToFix = [];
@@ -680,23 +829,29 @@ export default function BiasDetection({
               }
             }}
           >
-            Fix Bias (
-            {(hasIssues
-              ? Object.values(categoricalResults).filter((v) =>
-                  ["Moderate", "Severe"].includes(v?.severity)
-                ).length
-              : 0) +
-              (hasSkewnessIssues
-                ? Object.values(skewnessResults || {}).filter((v) => {
-                    const skewValue = v?.skewness;
-                    return (
-                      skewValue !== null &&
-                      skewValue !== undefined &&
-                      Math.abs(skewValue) > 0.5
-                    );
-                  }).length
-                : 0)}{" "}
-            columns)
+            <span className="text-2xl">🛠️</span>
+            <span>
+              Fix Detected Bias (
+              {(hasIssues
+                ? Object.values(categoricalResults).filter((v) =>
+                    ["Moderate", "Severe"].includes(v?.severity)
+                  ).length
+                : 0) +
+                (hasSkewnessIssues
+                  ? Object.values(skewnessResults || {}).filter((v) => {
+                      const skewValue = v?.skewness;
+                      return (
+                        skewValue !== null &&
+                        skewValue !== undefined &&
+                        Math.abs(skewValue) > 0.5
+                      );
+                    }).length
+                  : 0)}{" "}
+              columns)
+            </span>
+            <span className="absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+              →
+            </span>
           </button>
         </div>
       )}

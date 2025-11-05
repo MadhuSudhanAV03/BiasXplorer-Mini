@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { usePersistedState } from "../hooks/usePersistedState";
 import DatasetPreview from "../components/DatasetPreview";
@@ -95,6 +95,30 @@ export default function Dashboard() {
   );
   const [isApplyingFixes, setIsApplyingFixes] = useState(false); // Track if fixes are being applied
 
+  // Persisted state for fix results (to show when navigating back)
+  const [biasFixResult, setBiasFixResult] = usePersistedState(
+    "dashboard_biasFixResult",
+    null
+  );
+  const [skewnessFixResult, setSkewnessFixResult] = usePersistedState(
+    "dashboard_skewnessFixResult",
+    null
+  );
+
+  // Store the file path that was used as input to bias fixing (for visualization "before" state)
+  const [beforeFixFilePath, setBeforeFixFilePath] = usePersistedState(
+    "dashboard_beforeFixFilePath",
+    ""
+  );
+
+  // Persisted state for selected columns (to restore checkboxes when navigating back)
+  const [persistedBiasSelectedColumns, setPersistedBiasSelectedColumns] =
+    usePersistedState("dashboard_biasSelectedColumns", []);
+  const [
+    persistedSkewnessSelectedColumns,
+    setPersistedSkewnessSelectedColumns,
+  ] = usePersistedState("dashboard_skewnessSelectedColumns", []);
+
   // State declarations removed as they were duplicated
 
   // Clear cleanedFilePath when on Step 1 (fresh start)
@@ -114,21 +138,70 @@ export default function Dashboard() {
 
   const pct = Math.round(((currentStep - 1) / (STEPS.length - 1)) * 100);
 
+  // Memoized callbacks to prevent unnecessary re-renders
+  const handleSelectedColumnsChange = useCallback(
+    ({ biasSelectedColumns, skewnessSelectedColumns }) => {
+      console.log("[Dashboard] handleSelectedColumnsChange called:", {
+        biasSelectedColumns,
+        skewnessSelectedColumns,
+        currentPersistedBias: persistedBiasSelectedColumns,
+        currentPersistedSkewness: persistedSkewnessSelectedColumns,
+      });
+      if (biasSelectedColumns !== undefined) {
+        setPersistedBiasSelectedColumns(biasSelectedColumns);
+      }
+      if (skewnessSelectedColumns !== undefined) {
+        setPersistedSkewnessSelectedColumns(skewnessSelectedColumns);
+      }
+    },
+    [
+      setPersistedBiasSelectedColumns,
+      setPersistedSkewnessSelectedColumns,
+      persistedBiasSelectedColumns,
+      persistedSkewnessSelectedColumns,
+    ]
+  );
+
+  const handleResultsChange = useCallback(
+    ({ biasFixResult: newBiasResult, skewnessFixResult: newSkewResult }) => {
+      console.log("[Dashboard] onResultsChange called:", {
+        newBiasResult,
+        newSkewResult,
+        currentBiasFixResult: biasFixResult,
+        currentSkewnessFixResult: skewnessFixResult,
+      });
+      if (newBiasResult !== undefined) {
+        console.log("[Dashboard] Setting biasFixResult to:", newBiasResult);
+        setBiasFixResult(newBiasResult);
+      }
+      if (newSkewResult !== undefined) {
+        console.log("[Dashboard] Setting skewnessFixResult to:", newSkewResult);
+        setSkewnessFixResult(newSkewResult);
+      }
+    },
+    [biasFixResult, skewnessFixResult, setBiasFixResult, setSkewnessFixResult]
+  );
+
   if (!workingFilePath && currentStep > 1) {
     // Guide users back to upload if they landed here without a file
     return (
-      <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100">
-        <div className="max-w-5xl mx-auto px-4 py-10">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-amber-900">
-            <h2 className="text-lg font-semibold mb-2">No dataset selected</h2>
-            <p className="text-sm mb-4">
-              Go back to the Home page and upload a dataset to begin.
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 flex items-center justify-center">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="rounded-3xl border-2 border-white/50 glass-effect p-12 shadow-2xl text-center animate-scaleIn">
+            <div className="text-8xl mb-6 animate-bounce-slow">⚠️</div>
+            <h2 className="text-3xl font-bold text-slate-800 mb-4">
+              No Dataset Found
+            </h2>
+            <p className="text-lg text-slate-600 mb-8">
+              It looks like you haven't uploaded a dataset yet. Please go back
+              to the Home page and upload your data to begin exploring!
             </p>
             <Link
-              className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              className="inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-white font-bold text-lg hover:from-blue-700 hover:to-indigo-700 shadow-xl hover:shadow-2xl transition-all duration-300 card-hover-lift"
               to="/"
             >
-              Go to Home
+              <span>🏠</span>
+              <span>Go to Home</span>
             </Link>
           </div>
         </div>
@@ -137,70 +210,87 @@ export default function Dashboard() {
   }
 
   const StepHeader = () => (
-    <header className="border-b border-slate-200 bg-white/70 backdrop-blur sticky top-0 z-10">
-      <div className="max-w-6xl mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-blue-600 tracking-tight">
-              Dashboard
-            </h1>
-            <div className="text-xs text-slate-600 mt-1">
-              File:{" "}
-              <span className="font-mono">{workingFilePath || "(none)"}</span>
+    <header className="border-b border-white/30 glass-effect sticky top-0 z-50 shadow-xl">
+      <div className="max-w-7xl mx-auto px-4 py-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3 animate-fadeInLeft">
+            <div className="text-3xl animate-pulse">📊</div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-gradient-blue tracking-tight">
+                Dashboard
+              </h1>
+              <div className="text-xs text-slate-600 mt-0.5 flex items-center gap-2">
+                <span className="font-semibold">Active File:</span>
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md font-mono text-[10px]">
+                  {workingFilePath?.split("/").pop() ||
+                    workingFilePath ||
+                    "(none)"}
+                </span>
+              </div>
             </div>
           </div>
-          <nav className="flex items-center gap-4">
+          <nav className="flex items-center gap-2 animate-fadeInRight">
             <Link
               to="/"
-              className="text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors"
+              className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
             >
-              Home
+              🏠 Home
             </Link>
             <Link
               to="/report"
-              className="text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors"
+              className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
             >
-              Reports
+              📊 Reports
             </Link>
           </nav>
         </div>
 
         {/* Progress bar */}
-        <div className="mt-4">
-          <div className="h-2 w-full rounded bg-slate-200">
+        <div className="animate-fadeInUp">
+          <div className="relative h-3 w-full rounded-full bg-slate-200 overflow-hidden shadow-inner">
             <div
-              className="h-2 rounded bg-blue-600 transition-all"
+              className="absolute h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transition-all duration-700 ease-out shadow-lg"
               style={{ width: `${pct}%` }}
-            />
+            >
+              <div className="absolute inset-0 animate-shimmer"></div>
+            </div>
           </div>
-          <div className="mt-2 grid grid-cols-7 text-[11px] text-slate-600">
+          <div className="mt-3 grid grid-cols-7 gap-1 text-[10px]">
             {STEPS.map((label, i) => {
               const stepNum = i + 1;
               const active = stepNum === currentStep;
               const done = stepNum < currentStep;
+              const stepIcons = ["📂", "🧹", "🎯", "🔤", "🔍", "🛠️", "📈"];
+
               return (
                 <div
                   key={label}
-                  className={`flex items-center gap-1 ${
-                    active
-                      ? "text-blue-700"
-                      : done
-                      ? "text-slate-800"
-                      : "text-slate-500"
+                  className={`flex flex-col items-center gap-1 transition-all duration-300 ${
+                    active ? "scale-110" : done ? "opacity-80" : "opacity-50"
                   }`}
                 >
-                  <span
-                    className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold border ${
+                  <div
+                    className={`relative inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-300 ${
                       done
-                        ? "bg-blue-600 text-white border-blue-600"
+                        ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg scale-95"
                         : active
-                        ? "border-blue-600 text-blue-600"
-                        : "border-slate-300"
+                        ? "bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-xl animate-pulseGlow"
+                        : "bg-slate-200 text-slate-400"
                     }`}
                   >
-                    {stepNum}
+                    {done ? "✓" : stepIcons[i]}
+                  </div>
+                  <span
+                    className={`text-center leading-tight font-medium ${
+                      active
+                        ? "text-blue-700"
+                        : done
+                        ? "text-slate-700"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    {label}
                   </span>
-                  <span className="truncate text-[10px]">{label}</span>
                 </div>
               );
             })}
@@ -232,13 +322,13 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 animate-gradient">
       <StepHeader />
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Step 1: Preview */}
         {currentStep === 1 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
             <DatasetPreview
               filePath={filePath}
               onNext={({ columns: cols }) => {
@@ -252,6 +342,13 @@ export default function Dashboard() {
                 setBiasResults({});
                 setSkewnessResults(null);
                 setCleanedFilePath(""); // Clear cleaned file path
+                setCorrectedFilePath(""); // Clear corrected file path
+                setBeforeFixFilePath(""); // Clear before fix file path
+                // Clear persisted fix selections and results
+                setPersistedBiasSelectedColumns([]);
+                setPersistedSkewnessSelectedColumns([]);
+                setBiasFixResult(null);
+                setSkewnessFixResult(null);
                 setCurrentStep(2);
               }}
             />
@@ -260,7 +357,7 @@ export default function Dashboard() {
 
         {/* Step 2: Data Preprocessing */}
         {currentStep === 2 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
             <Preprocess
               filePath={selectedFilePath || filePath}
               onComplete={({ cleanedFilePath: cleaned }) => {
@@ -270,18 +367,24 @@ export default function Dashboard() {
               }}
             />
 
-            <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-200">
+            <div className="flex justify-between items-center mt-8 pt-6 border-t-2 border-slate-200">
               <button
                 onClick={() => setCurrentStep(1)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                className="group px-6 py-3 text-sm font-bold text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
               >
-                ← Previous
+                <span className="group-hover:-translate-x-1 transition-transform">
+                  ←
+                </span>
+                <span>Previous</span>
               </button>
               <button
                 onClick={() => setCurrentStep(3)}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                className="group px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
               >
-                Next →
+                <span>Next</span>
+                <span className="group-hover:translate-x-1 transition-transform">
+                  →
+                </span>
               </button>
             </div>
           </section>
@@ -289,7 +392,7 @@ export default function Dashboard() {
 
         {/* Step 3: Target Column Selection */}
         {currentStep === 3 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
             <FeatureSelector
               filePath={workingFilePath}
               columns={columns}
@@ -331,8 +434,14 @@ export default function Dashboard() {
                 }
 
                 setSelectedColumns(features);
-                // Clear corrected file path when changing columns
+                // Clear corrected file path and before fix path when changing columns
                 setCorrectedFilePath("");
+                setBeforeFixFilePath("");
+                // Clear persisted fix selections and results
+                setPersistedBiasSelectedColumns([]);
+                setPersistedSkewnessSelectedColumns([]);
+                setBiasFixResult(null);
+                setSkewnessFixResult(null);
 
                 // Clear target column if it's no longer in selected columns
                 if (targetColumn && !newSelected.has(targetColumn)) {
@@ -352,7 +461,7 @@ export default function Dashboard() {
 
         {/* Step 4: Column Type Classification */}
         {currentStep === 4 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
             <ColumnSelector
               filePath={workingFilePath}
               columns={selectedColumns}
@@ -406,8 +515,9 @@ export default function Dashboard() {
                   setSelectedFilePath(response.selected_file_path);
                 }
 
-                // Clear corrected file path when column types change
+                // Clear corrected file path and before fix path when column types change
                 setCorrectedFilePath("");
+                setBeforeFixFilePath("");
 
                 // Clear target column if it's no longer categorical or if it changed type
                 if (targetColumn && !newCatSet.has(targetColumn)) {
@@ -427,7 +537,7 @@ export default function Dashboard() {
 
         {/* Step 5: Bias Detection */}
         {currentStep === 5 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
             <BiasDetection
               filePath={workingFilePath}
               categorical={categorical}
@@ -512,7 +622,11 @@ export default function Dashboard() {
 
         {/* Step 6: Bias Fix */}
         {currentStep === 6 && (
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
+            {console.log("[Dashboard Step 6] Rendering UnifiedBiasFix with:", {
+              initialBiasFixResult: biasFixResult,
+              initialSkewnessFixResult: skewnessFixResult,
+            })}
             <UnifiedBiasFix
               filePath={workingFilePath}
               categorical={categorical}
@@ -523,6 +637,12 @@ export default function Dashboard() {
               selectedBiasColumns={selectedBiasColumns}
               selectedSkewnessColumns={selectedSkewnessColumns}
               onApplyingChange={setIsApplyingFixes} // Track applying state
+              initialBiasFixResult={biasFixResult} // Pass persisted results
+              initialSkewnessFixResult={skewnessFixResult} // Pass persisted results
+              initialBiasSelectedColumns={persistedBiasSelectedColumns} // Pass persisted selections
+              initialSkewnessSelectedColumns={persistedSkewnessSelectedColumns} // Pass persisted selections
+              onSelectedColumnsChange={handleSelectedColumnsChange}
+              onResultsChange={handleResultsChange}
               onFixComplete={(
                 correctedPath,
                 fixedCategorical,
@@ -532,14 +652,19 @@ export default function Dashboard() {
                   correctedPath,
                   fixedCategorical,
                   fixedContinuous,
+                  currentWorkingFilePath: workingFilePath,
                 });
+                // Save the current working file path as the "before fix" state
+                setBeforeFixFilePath(workingFilePath);
                 setCorrectedFilePath(correctedPath);
                 setFixedCategoricalColumns(fixedCategorical || []);
                 setFixedContinuousColumns(fixedContinuous || []);
                 setVisualizationKey((prev) => prev + 1);
                 console.log(
                   "[Dashboard] State updated - correctedFilePath:",
-                  correctedPath
+                  correctedPath,
+                  "beforeFixFilePath:",
+                  workingFilePath
                 );
               }}
             />
@@ -567,22 +692,35 @@ export default function Dashboard() {
 
         {/* Step 7: Visualization */}
         {currentStep === 7 && (
-          <section className="space-y-6">
+          <section className="space-y-6 animate-fadeInUp">
             {(() => {
               console.log("[Dashboard Step 7] Current state:", {
                 correctedFilePath,
                 fixedCategoricalColumns,
                 fixedContinuousColumns,
                 workingFilePath,
+                beforeFixFilePath,
+                cleanedFilePath,
+                selectedFilePath,
+                filePath,
+                actualBeforePath: beforeFixFilePath || workingFilePath,
               });
               return null;
             })()}
 
             {!correctedFilePath && (
-              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
-                  Please apply bias correction in the previous step before
-                  viewing visualization.
+              <div className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl">
+                <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-yellow-50 to-amber-50 p-6 text-amber-900 border-2 border-amber-200 shadow-lg">
+                  <div className="text-5xl animate-bounce-slow">⚠️</div>
+                  <div>
+                    <h3 className="text-lg font-bold mb-1">
+                      No Visualizations Available
+                    </h3>
+                    <p className="text-sm">
+                      Please apply bias correction in the previous step before
+                      viewing visualizations.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -591,44 +729,68 @@ export default function Dashboard() {
               <>
                 {/* Categorical Visualizations */}
                 {fixedCategoricalColumns.length > 0 && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-                    <div className="mb-4">
-                      <h3 className="text-xl font-bold text-amber-900">
-                        Categorical Bias - Before & After
-                      </h3>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Visualizations for fixed categorical columns (
-                        {fixedCategoricalColumns.length} column
-                        {fixedCategoricalColumns.length !== 1 ? "s" : ""})
-                      </p>
+                  <div className="rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-8 shadow-2xl card-hover-lift">
+                    <div className="mb-6 flex items-center gap-4">
+                      <div className="text-4xl">📊</div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-amber-900">
+                          Categorical Bias - Before & After
+                        </h3>
+                        <p className="text-sm text-amber-700 mt-1 flex items-center gap-2">
+                          <span className="px-3 py-1 bg-amber-200 text-amber-900 rounded-full font-semibold">
+                            {fixedCategoricalColumns.length} column
+                            {fixedCategoricalColumns.length !== 1
+                              ? "s"
+                              : ""}{" "}
+                            fixed
+                          </span>
+                        </p>
+                      </div>
                     </div>
                     <Visualization
                       key={`viz-cat-${visualizationKey}`}
                       mode="categorical-multi"
-                      beforePath={workingFilePath}
+                      beforePath={beforeFixFilePath || workingFilePath}
                       afterPath={correctedFilePath}
                       targetColumns={fixedCategoricalColumns}
                     />
+                    {/* Debug info */}
+                    {(() => {
+                      console.log("[Visualization Categorical] Paths:", {
+                        beforeFixFilePath,
+                        workingFilePath,
+                        correctedFilePath,
+                        actualBeforePath: beforeFixFilePath || workingFilePath,
+                      });
+                      return null;
+                    })()}
                   </div>
                 )}
 
                 {/* Continuous Visualizations */}
                 {fixedContinuousColumns.length > 0 && (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-                    <div className="mb-4">
-                      <h3 className="text-xl font-bold text-blue-900">
-                        Continuous Skewness - Before & After
-                      </h3>
-                      <p className="text-sm text-blue-700 mt-1">
-                        Visualizations for fixed continuous columns (
-                        {fixedContinuousColumns.length} column
-                        {fixedContinuousColumns.length !== 1 ? "s" : ""})
-                      </p>
+                  <div className="rounded-3xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 shadow-2xl card-hover-lift">
+                    <div className="mb-6 flex items-center gap-4">
+                      <div className="text-4xl">📈</div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-blue-900">
+                          Continuous Skewness - Before & After
+                        </h3>
+                        <p className="text-sm text-blue-700 mt-1 flex items-center gap-2">
+                          <span className="px-3 py-1 bg-blue-200 text-blue-900 rounded-full font-semibold">
+                            {fixedContinuousColumns.length} column
+                            {fixedContinuousColumns.length !== 1
+                              ? "s"
+                              : ""}{" "}
+                            fixed
+                          </span>
+                        </p>
+                      </div>
                     </div>
                     <Visualization
                       key={`viz-cont-${visualizationKey}`}
                       mode="continuous"
-                      beforePath={workingFilePath}
+                      beforePath={beforeFixFilePath || workingFilePath}
                       afterPath={correctedFilePath}
                       continuous={fixedContinuousColumns}
                     />

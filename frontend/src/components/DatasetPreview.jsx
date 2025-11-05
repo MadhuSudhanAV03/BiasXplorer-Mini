@@ -67,76 +67,140 @@ export default function DatasetPreview({ filePath, onNext }) {
 
   return (
     <div className="w-full">
-      <h2 className="text-lg font-semibold mb-3">Dataset Preview</h2>
+      <div className="mb-6 flex items-center gap-3">
+        <div className="text-4xl animate-float">📂</div>
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Dataset Preview</h2>
+          <p className="text-sm text-slate-600 mt-1">
+            Review your data structure and content
+          </p>
+        </div>
+      </div>
 
       {!filePath && (
-        <div className="my-3 rounded-md bg-blue-50 p-3 text-sm text-blue-700 border border-blue-200">
-          No file path provided. Please upload a dataset first.
+        <div className="my-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-2 border-blue-200 shadow-lg flex items-center gap-3 animate-slideInLeft">
+          <span className="text-3xl">ℹ️</span>
+          <div>
+            <h3 className="font-bold text-blue-900 mb-1">No File Selected</h3>
+            <p className="text-sm text-blue-700">
+              Please upload a dataset to begin exploring your data.
+            </p>
+          </div>
         </div>
       )}
 
       {loading && (
-        <div className="my-4">
-          <Spinner text="Loading preview..." />
-        </div>
-      )}
-      {error && (
-        <div className="my-3 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
-          {error}
-        </div>
-      )}
-      {!loading && !error && hasData && (
-        <div>
-          <div className="mb-3 text-sm text-slate-600">
-            Showing {rows.length} rows × {columns.length} columns
-          </div>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 max-h-[600px] overflow-y-auto">
-            <table className="min-w-full table-auto">
-              <thead className="bg-slate-50 sticky top-0">
-                <tr>
-                  {columns.map((col) => (
-                    <th
-                      key={col}
-                      className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b"
-                    >
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {rows.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50">
-                    {columns.map((col) => (
-                      <td
-                        key={col}
-                        className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap"
-                      >
-                        {row?.[col] != null ? String(row[col]) : ""}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-      {!loading && !error && !hasData && filePath && (
-        <div className="my-3 rounded-md bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
-          No data available for preview. The file may be empty or in an
-          unexpected format.
+        <div className="my-8 flex flex-col items-center justify-center p-12 bg-gradient-to-br from-blue-50 to-purple-50 rounded-3xl border-2 border-blue-200 shadow-xl">
+          <Spinner text="Loading your dataset..." />
+          <p className="mt-4 text-sm text-slate-600 animate-pulse">
+            This may take a moment for larger files
+          </p>
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-end">
+      {error && (
+        <div className="my-4 rounded-2xl bg-gradient-to-r from-red-50 to-pink-50 p-6 border-2 border-red-200 shadow-lg flex items-center gap-3 animate-slideInLeft">
+          <span className="text-3xl">❌</span>
+          <div>
+            <h3 className="font-bold text-red-900 mb-1">Error Loading Data</h3>
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && hasData && (
+        <div className="animate-fadeInUp">
+          <div className="mb-4 flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">✅</span>
+              <div>
+                <h3 className="font-bold text-green-900">
+                  Data Loaded Successfully
+                </h3>
+                <p className="text-sm text-green-700">
+                  Showing{" "}
+                  <span className="font-semibold">{rows.length} rows</span> ×{" "}
+                  <span className="font-semibold">
+                    {columns.length} columns
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border-2 border-slate-200 shadow-2xl">
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+              <table className="min-w-full table-auto">
+                <thead className="bg-gradient-to-r from-slate-700 to-slate-800 sticky top-0 z-10">
+                  <tr>
+                    {columns.map((col, idx) => (
+                      <th
+                        key={col}
+                        className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-white border-b-2 border-slate-600 whitespace-nowrap animate-fadeInDown stagger-${Math.min(
+                          (idx % 6) + 1,
+                          6
+                        )}`}
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white">
+                  {rows.map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 ${
+                        idx % 2 === 0 ? "bg-white" : "bg-slate-50"
+                      }`}
+                    >
+                      {columns.map((col) => (
+                        <td
+                          key={col}
+                          className="px-6 py-3 text-sm text-slate-700 whitespace-nowrap"
+                        >
+                          {row?.[col] != null ? (
+                            String(row[col])
+                          ) : (
+                            <span className="text-slate-400 italic">null</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && !hasData && filePath && (
+        <div className="my-4 rounded-2xl bg-gradient-to-r from-yellow-50 to-amber-50 p-6 border-2 border-yellow-200 shadow-lg flex items-center gap-3 animate-slideInLeft">
+          <span className="text-3xl">⚠️</span>
+          <div>
+            <h3 className="font-bold text-yellow-900 mb-1">
+              No Data Available
+            </h3>
+            <p className="text-sm text-yellow-700">
+              The file appears to be empty or in an unexpected format. Please
+              check your file and try again.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex items-center justify-end">
         <button
           type="button"
-          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="group inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-white font-bold text-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transition-all duration-300 card-hover-lift"
           onClick={() => onNext?.({ filePath, columns })}
           disabled={!filePath || loading || !columns.length}
         >
-          Next
+          <span>Continue to Next Step</span>
+          <span className="group-hover:translate-x-1 transition-transform">
+            →
+          </span>
         </button>
       </div>
     </div>

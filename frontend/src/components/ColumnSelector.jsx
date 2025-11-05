@@ -89,60 +89,95 @@ export default function ColumnSelector({
 
   return (
     <div className="w-full">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Select Column Types</h2>
-        <div className="text-xs text-slate-500">
-          File: <span className="font-mono">{filePath || "(none)"}</span>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="text-3xl">🔤</div>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">
+              Classify Column Types
+            </h2>
+            <p className="text-sm text-slate-600 mt-1">
+              Select whether each column is categorical or continuous
+            </p>
+          </div>
+        </div>
+        <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-xl border border-blue-200">
+          <div className="text-xs font-semibold text-blue-900">
+            📁 {filePath?.split("/").pop() || filePath || "(none)"}
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
-          {error}
+        <div className="mb-4 rounded-2xl bg-gradient-to-r from-red-50 to-pink-50 p-4 text-red-800 border-2 border-red-200 shadow-lg flex items-center gap-3 animate-slideInLeft">
+          <span className="text-2xl">❌</span>
+          <span className="font-semibold">{error}</span>
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <div className="overflow-hidden rounded-2xl border-2 border-slate-200 shadow-xl">
         <table className="min-w-full table-auto">
-          <thead className="bg-slate-50">
+          <thead className="bg-gradient-to-r from-slate-100 to-slate-200">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                Column
+              <th className="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider text-slate-700 border-b-2 border-slate-300">
+                Column Name
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                Categorical
+              <th className="px-6 py-4 text-center text-sm font-bold uppercase tracking-wider text-slate-700 border-b-2 border-slate-300">
+                📊 Categorical
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-slate-600 border-b">
-                Continuous
+              <th className="px-6 py-4 text-center text-sm font-bold uppercase tracking-wider text-slate-700 border-b-2 border-slate-300">
+                📈 Continuous
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
-            {(columns || []).map((col) => (
-              <tr key={col} className="hover:bg-slate-50">
-                <td className="px-4 py-2 text-sm text-slate-700 whitespace-nowrap">
+          <tbody className="divide-y divide-slate-200 bg-white">
+            {(columns || []).map((col, idx) => (
+              <tr
+                key={col}
+                className={`hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 animate-fadeInUp stagger-${Math.min(
+                  (idx % 6) + 1,
+                  6
+                )}`}
+              >
+                <td className="px-6 py-4 text-sm font-semibold text-slate-800 whitespace-nowrap">
                   {col}
                 </td>
-                <td className="px-4 py-2 text-sm">
-                  <label className="inline-flex items-center gap-2">
+                <td className="px-6 py-4 text-center">
+                  <label className="inline-flex items-center justify-center gap-2 cursor-pointer group">
                     <input
                       type="checkbox"
-                      className="h-4 w-4"
+                      className="h-5 w-5 rounded border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500 cursor-pointer"
                       checked={selections[col] === "categorical"}
                       onChange={() => toggle(col, "categorical")}
                     />
-                    <span>Cat.</span>
+                    <span
+                      className={`font-medium transition-colors ${
+                        selections[col] === "categorical"
+                          ? "text-amber-700"
+                          : "text-slate-500 group-hover:text-amber-600"
+                      }`}
+                    >
+                      {selections[col] === "categorical" && "✓"}
+                    </span>
                   </label>
                 </td>
-                <td className="px-4 py-2 text-sm">
-                  <label className="inline-flex items-center gap-2">
+                <td className="px-6 py-4 text-center">
+                  <label className="inline-flex items-center justify-center gap-2 cursor-pointer group">
                     <input
                       type="checkbox"
-                      className="h-4 w-4"
+                      className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
                       checked={selections[col] === "continuous"}
                       onChange={() => toggle(col, "continuous")}
                     />
-                    <span>Cont.</span>
+                    <span
+                      className={`font-medium transition-colors ${
+                        selections[col] === "continuous"
+                          ? "text-blue-700"
+                          : "text-slate-500 group-hover:text-blue-600"
+                      }`}
+                    >
+                      {selections[col] === "continuous" && "✓"}
+                    </span>
                   </label>
                 </td>
               </tr>
@@ -151,22 +186,37 @@ export default function ColumnSelector({
         </table>
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <div className="text-xs text-slate-500">
-          Selected — Cat: {categorical.length} · Cont: {continuous.length}
+      <div className="mt-6 flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl border border-slate-200">
+        <div className="flex items-center gap-4 text-sm font-semibold">
+          <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-xl">
+            📊 Categorical: {categorical.length}
+          </div>
+          <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-xl">
+            📈 Continuous: {continuous.length}
+          </div>
         </div>
         <button
           type="button"
-          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-3 text-white font-bold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
           onClick={handleSubmit}
           disabled={submitting || !filePath}
         >
-          {submitting ? "Saving..." : "Save & Continue"}
+          {submitting ? (
+            <>
+              <Spinner className="h-5 w-5" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            <>
+              <span>✓</span>
+              <span>Save & Continue</span>
+            </>
+          )}
         </button>
       </div>
 
       {submitting && (
-        <div className="mt-3">
+        <div className="mt-4 text-center">
           <Spinner text="Saving selections..." />
         </div>
       )}
@@ -174,11 +224,16 @@ export default function ColumnSelector({
       {/* Toast */}
       {toast.visible && (
         <div
-          className={`fixed bottom-4 right-4 z-50 rounded-md px-4 py-3 shadow-lg ${
-            toast.type === "success" ? "bg-green-600" : "bg-red-600"
-          } text-white`}
+          className={`fixed bottom-6 right-6 z-50 rounded-2xl px-6 py-4 shadow-2xl animate-slideInRight flex items-center gap-3 ${
+            toast.type === "success"
+              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+              : "bg-gradient-to-r from-red-500 to-pink-500 text-white"
+          }`}
         >
-          {toast.message}
+          <span className="text-2xl">
+            {toast.type === "success" ? "✅" : "❌"}
+          </span>
+          <span className="font-bold">{toast.message}</span>
         </div>
       )}
     </div>

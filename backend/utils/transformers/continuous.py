@@ -32,7 +32,8 @@ class ContinuousTransformer:
     def apply_yeo_johnson(df: pd.DataFrame, col: str) -> pd.DataFrame:
         """Apply Yeo-Johnson transformation (for severe skew)."""
         pt = PowerTransformer(method='yeo-johnson')
-        df[col] = pt.fit_transform(df[[col]])
+        transformed = pt.fit_transform(df[[col]]).flatten()
+        df[col] = transformed
         return df
 
     @staticmethod
@@ -40,7 +41,8 @@ class ContinuousTransformer:
         """Apply Quantile Transformer (for extreme skew)."""
         qt = QuantileTransformer(
             output_distribution=output_distribution, random_state=random_state)
-        df[col] = qt.fit_transform(df[[col]])
+        transformed = qt.fit_transform(df[[col]]).flatten()
+        df[col] = transformed
         return df
 
     @staticmethod

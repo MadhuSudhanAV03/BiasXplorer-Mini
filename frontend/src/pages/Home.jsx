@@ -27,72 +27,122 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100">
-      <header className="border-b border-slate-200 bg-white/70 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 animate-gradient">
+      <header className="border-b border-white/30 glass-effect sticky top-0 z-50 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-5">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-blue-600 tracking-tight">
-                BiasXplorer
-              </h1>
-              <p className="text-sm text-slate-600 mt-1">
-                Upload your dataset to get started
-              </p>
+            <div className="animate-fadeInDown">
+              <div className="flex items-center gap-3">
+                <div className="text-4xl animate-float">🔍</div>
+                <div>
+                  <h1 className="text-3xl md:text-4xl font-extrabold text-gradient-blue tracking-tight">
+                    BiasXplorer
+                  </h1>
+                  <p className="text-sm text-slate-600 mt-0.5 font-medium">
+                    Discover & Fix Dataset Bias with AI
+                  </p>
+                </div>
+              </div>
             </div>
-            <nav className="flex items-center gap-4">
+            <nav className="flex items-center gap-3 animate-fadeInDown">
               <Link
                 to="/dashboard"
-                className="text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors"
+                className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
               >
-                Dashboard
+                📊 Dashboard
               </Link>
               <Link
                 to="/report"
-                className="text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors"
+                className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
               >
-                Reports
+                📄 Reports
               </Link>
             </nav>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-10">
+      <main className="max-w-6xl mx-auto px-4 py-12">
+        {/* Hero Section */}
+        <div className="text-center mb-12 animate-fadeInUp">
+          <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4">
+            Transform Your Data with
+            <span className="text-gradient-blue"> Confidence</span>
+          </h2>
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+            Detect and correct bias in your datasets using advanced machine
+            learning techniques. Upload your data and let us handle the rest.
+          </p>
+        </div>
+
+        {/* Features Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 animate-fadeInUp stagger-2">
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-blue-100 card-hover-lift">
+            <div className="text-4xl mb-3">🎯</div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
+              Detect Bias
+            </h3>
+            <p className="text-sm text-slate-600">
+              Automatically identify class imbalance and skewness in your
+              datasets
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-purple-100 card-hover-lift stagger-1">
+            <div className="text-4xl mb-3">⚡</div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
+              Fix Issues
+            </h3>
+            <p className="text-sm text-slate-600">
+              Apply SMOTE, reweighting, and other techniques to balance your
+              data
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-pink-100 card-hover-lift stagger-2">
+            <div className="text-4xl mb-3">📊</div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
+              Visualize Results
+            </h3>
+            <p className="text-sm text-slate-600">
+              Generate comprehensive reports with beautiful charts and insights
+            </p>
+          </div>
+        </div>
+
+        {/* Upload Section */}
         <div className="grid grid-cols-1 gap-6">
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
+          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp stagger-3">
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-slate-800 mb-1">
-                  Upload Dataset
-                </h2>
-                <p className="text-sm text-slate-600">
-                  Accepted formats: CSV, XLS, XLSX. We'll validate and store it
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-3xl">📁</span>
+                  <h2 className="text-2xl font-bold text-slate-800">
+                    Upload Your Dataset
+                  </h2>
+                </div>
+                <p className="text-sm text-slate-600 ml-12">
+                  Supported formats:{" "}
+                  <span className="font-semibold">CSV, XLS, XLSX</span> •
+                  Maximum size: 50MB
                 </p>
               </div>
               <button
-                onClick={() => {
-                  // Clear all dashboard related localStorage items
-                  localStorage.removeItem("dashboard_currentStep");
-                  localStorage.removeItem("dashboard_columns");
-                  localStorage.removeItem("dashboard_selectedColumns");
-                  localStorage.removeItem("dashboard_categorical");
-                  localStorage.removeItem("dashboard_continuous");
-                  localStorage.removeItem("dashboard_selectedFilePath");
-                  localStorage.removeItem("dashboard_biasSummary");
-                  localStorage.removeItem("dashboard_skewnessResults");
-                  localStorage.removeItem("dashboard_targetColumn");
-                  localStorage.removeItem("dashboard_fixMode");
-                  localStorage.removeItem("dashboard_previousColumns");
-                  localStorage.removeItem("dashboard_filePath");
-                  alert("Application data has been cleared!");
-                }}
-                className="px-4 py-2 text-sm bg-red-50 text-red-600 hover:bg-red-100 rounded-md border border-red-200 transition-colors"
+                onClick={clearAllData}
+                className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
               >
-                Clear Saved Data
+                <span>🗑️</span>
+                <span>Clear All Data</span>
               </button>
             </div>
             <FileUpload onUploadSuccess={handleUploadSuccess} />
           </section>
+        </div>
+
+        {/* Footer Info */}
+        <div className="mt-12 text-center animate-fadeInUp stagger-4">
+          <p className="text-sm text-slate-500">
+            🔒 Your data is processed securely and never shared with third
+            parties
+          </p>
         </div>
       </main>
     </div>

@@ -48,7 +48,8 @@ class SkewnessCorrectionService:
             if abs(original_skewness) <= 0.5:
                 new_skewness = original_skewness
             else:
-                df = ContinuousTransformer.apply_transformation(
+                # Apply transformation - this modifies df in place and returns it
+                ContinuousTransformer.apply_transformation(
                     df, column, original_skewness)
                 new_skewness = compute_skewness(df[column])
 

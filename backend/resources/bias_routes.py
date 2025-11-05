@@ -217,6 +217,30 @@ class VisualizeBias(MethodView):
             df_before = FileService.read_dataset(before_abs)
             df_after = FileService.read_dataset(after_abs)
 
+            # Debug logging
+            print(f"\n{'='*80}")
+            print(f"[VISUALIZATION DEBUG] Column: {target_col}")
+            print(f"Before path (received): {before_path}")
+            print(f"Before path (absolute): {before_abs}")
+            print(f"After path (received): {after_path}")
+            print(f"After path (absolute): {after_abs}")
+            print(f"Are paths same? {before_abs == after_abs}")
+            print(f"Before dataset shape: {df_before.shape}")
+            print(f"After dataset shape: {df_after.shape}")
+
+            # Get distributions for debugging
+            before_dist = df_before[target_col].value_counts(
+                normalize=True).sort_index()
+            after_dist = df_after[target_col].value_counts(
+                normalize=True).sort_index()
+            print(f"Before distribution for '{target_col}':")
+            for cls, prop in before_dist.items():
+                print(f"  {cls}: {prop:.4f}")
+            print(f"After distribution for '{target_col}':")
+            for cls, prop in after_dist.items():
+                print(f"  {cls}: {prop:.4f}")
+            print(f"{'='*80}\n")
+
             # Validate target column exists
             if target_col not in df_before.columns:
                 return jsonify({"error": f"Target column '{target_col}' not found in before dataset."}), 400
@@ -269,21 +293,26 @@ class DetectSkew(MethodView):
             if not filename or not column:
                 abort(400, message="Both 'filename' and 'column' are required")
 
-            # Validate filename
-            from utils.validators import FileValidator
-            secured, error = FileValidator.validate_filename(filename)
-            if error:
-                abort(400, message=error)
-
-            # Build and validate path
-            file_path = os.path.join(UPLOAD_DIR, secured)
-            if not os.path.abspath(file_path).startswith(os.path.abspath(UPLOAD_DIR)):
-                abort(400, message="Invalid file path")
-            if not os.path.exists(file_path):
-                abort(404, message=f"File '{secured}' not found")
+            # Support both full paths (uploads/file.csv, corrected/file.csv) and just filenames
+            if filename.startswith("uploads/") or filename.startswith("corrected/"):
+                # Full path provided
+                abs_path, error = PathValidator.validate_any_path(
+                    filename, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
+                if error:
+                    abort(400, message=error)
+            else:
+                # Just filename provided, assume it's in uploads
+                from utils.validators import FileValidator
+                secured, error = FileValidator.validate_filename(filename)
+                if error:
+                    abort(400, message=error)
+                abs_path = os.path.join(UPLOAD_DIR, secured)
+                if not os.path.exists(abs_path):
+                    abort(
+                        404, message=f"File '{secured}' not found in uploads")
 
             # Read dataset
-            df = FileService.read_dataset(file_path)
+            df = FileService.read_dataset(abs_path)
 
             # Detect skewness
             result = SkewnessDetectionService.detect_skewness(df, column)
@@ -326,34 +355,56 @@ class FixSkew(MethodView):
             if not columns or not isinstance(columns, list):
                 abort(400, message="'columns' must be a non-empty list")
 
-            # Validate filename
-            from utils.validators import FileValidator
-            secured, error = FileValidator.validate_filename(filename)
-            if error:
-                abort(400, message=error)
-
-            # Build and validate path
-            file_path = os.path.join(UPLOAD_DIR, secured)
-            if not os.path.abspath(file_path).startswith(os.path.abspath(UPLOAD_DIR)):
-                abort(400, message="Invalid file path")
-            if not os.path.exists(file_path):
-                abort(404, message=f"File '{secured}' not found")
+            # Support both full paths (uploads/file.csv, corrected/file.csv) and just filenames
+            if filename.startswith("uploads/") or filename.startswith("corrected/"):
+                # Full path provided
+                abs_path, error = PathValidator.validate_any_path(
+                    filename, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
+                if error:
+                    abort(400, message=error)
+            else:
+                # Just filename provided, assume it's in uploads
+                from utils.validators import FileValidator
+                secured, error = FileValidator.validate_filename(filename)
+                if error:
+                    abort(400, message=error)
+                abs_path = os.path.join(UPLOAD_DIR, secured)
+                if not os.path.exists(abs_path):
+                    abort(
+                        404, message=f"File '{secured}' not found in uploads")
 
             # Read dataset
-            df = FileService.read_dataset(file_path)
+            df = FileService.read_dataset(abs_path)
 
             # Apply skewness corrections
             df_corrected, transformations = SkewnessCorrectionService.correct_multiple_columns(
                 df, columns)
 
-            # Save corrected dataset
-            corrected_filename = "corrected_dataset.csv"
+            # Save corrected dataset with unique filename based on input
+            # Extract base filename from input path
+            if filename.startswith("corrected/"):
+                # Already a corrected file, extract the filename part
+                input_base = filename.replace(
+                    "corrected/", "").replace('.csv', '')
+            elif filename.startswith("uploads/"):
+                # Uploads file, extract the filename part
+                input_base = filename.replace(
+                    "uploads/", "").replace('.csv', '')
+            else:
+                # Just a filename
+                input_base = filename.replace('.csv', '')
+
+            import time
+            timestamp = int(time.time() * 1000)  # milliseconds
+            corrected_filename = f"corrected_{input_base}_skewness_{timestamp}.csv"
             corrected_path = os.path.join(CORRECTED_DIR, corrected_filename)
             FileService.save_dataset(
                 df_corrected, corrected_path, ensure_dir=True)
 
             return jsonify({
                 "message": "Skewness correction applied successfully",
+                "corrected_file_path": f"corrected/{corrected_filename}",
+                # For backward compatibility
                 "corrected_file": f"corrected/{corrected_filename}",
                 "transformations": transformations
             }), 200
