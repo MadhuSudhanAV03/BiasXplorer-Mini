@@ -23,6 +23,11 @@ export default function Home() {
     localStorage.removeItem("dashboard_fixMode");
     localStorage.removeItem("dashboard_previousColumns");
     localStorage.removeItem("dashboard_filePath");
+    // Also clear report-related persisted data so the Report page refreshes
+    localStorage.removeItem("dashboard_reportBiasSummary");
+    localStorage.removeItem("dashboard_reportCorrectionSummary");
+    localStorage.removeItem("bx_lastReportPath");
+    localStorage.removeItem("dashboard_correctedFilePath");
     alert("Application data has been cleared!");
   };
 

@@ -24,11 +24,11 @@ export default function Dashboard() {
   const initialFilePath = location.state?.filePath || "";
 
   // Initialize all state variables first - order matters!
-  const [previousColumns, setPreviousColumns] = usePersistedState(
+  const [, setPreviousColumns] = usePersistedState(
     "dashboard_previousColumns",
     []
   );
-  const [analyzedColumns, setAnalyzedColumns] = usePersistedState(
+  const [, setAnalyzedColumns] = usePersistedState(
     "dashboard_analyzedColumns",
     []
   );
@@ -36,7 +36,7 @@ export default function Dashboard() {
     "dashboard_currentStep",
     1
   );
-  const [filePath, setFilePath] = usePersistedState(
+  const [filePath] = usePersistedState(
     "dashboard_filePath",
     initialFilePath
   );
@@ -104,6 +104,18 @@ export default function Dashboard() {
     "dashboard_skewnessFixResult",
     null
   );
+
+  // Persisted report summaries for the Report page
+  const [reportBiasSummary, setReportBiasSummary] = usePersistedState(
+    "dashboard_reportBiasSummary",
+    null
+  );
+  const [reportCorrectionSummary, setReportCorrectionSummary] = usePersistedState(
+    "dashboard_reportCorrectionSummary",
+    null
+  );
+
+  
 
   // Store the file path that was used as input to bias fixing (for visualization "before" state)
   const [beforeFixFilePath, setBeforeFixFilePath] = usePersistedState(
@@ -178,8 +190,154 @@ export default function Dashboard() {
         console.log("[Dashboard] Setting skewnessFixResult to:", newSkewResult);
         setSkewnessFixResult(newSkewResult);
       }
+
+      // Compute and persist report summaries whenever results change
+      try {
+        // Helper: compute severity from a distribution object
+        const computeSeverity = (distributionObj) => {
+          if (!distributionObj) return "N/A";
+          const values = Object.entries(distributionObj)
+            .filter(([k]) => k !== "severity" && k !== "note")
+            .map(([, v]) => Number(v))
+            .filter((v) => !Number.isNaN(v));
+          if (values.length <= 0) return "N/A";
+          if (values.length === 1) return "Severe";
+          const maxV = Math.max(...values);
+          const minV = Math.min(...values);
+          const ratio = maxV > 0 ? minV / maxV : 0;
+          if (ratio >= 0.5) return "Low";
+          if (ratio >= 0.2) return "Moderate";
+          return "Severe";
+        };
+
+        // Build updated bias summary using latest detection + post-fix distributions
+        const baseBias = { ...(biasResults || {}) };
+        const biasCols = newBiasResult?.columns || {};
+        Object.entries(biasCols).forEach(([col, data]) => {
+          const afterDist = data?.after?.distribution || {};
+          const severity = computeSeverity(afterDist);
+          const entry = { ...afterDist, severity };
+          baseBias[col] = entry;
+        });
+
+        const newReportBias = Object.keys(baseBias).length > 0 ? baseBias : null;
+
+        // Build correction summary combining categorical and continuous
+        const categoricalSummary = {};
+        Object.entries(biasCols).forEach(([col, data]) => {
+          categoricalSummary[col] = {
+            method: data?.method || null,
+            threshold: data?.threshold || null,
+            before: data?.before || null,
+            after: data?.after || null,
+          };
+        });
+
+        const continuousSummary = {};
+        const trans = newSkewResult?.transformations || {};
+        Object.entries(trans).forEach(([col, info]) => {
+          continuousSummary[col] = {
+            method: info?.method || null,
+            original_skewness: info?.original_skewness ?? null,
+            new_skewness: info?.new_skewness ?? null,
+            error: info?.error || null,
+          };
+        });
+
+        // Compute dashboard-level counts for summary meta
+        // Total selected should reflect Target Column Selection (Step 3)
+        const totalSelectedBias = (selectedColumns || []).filter((col) =>
+          (categorical || []).includes(col)
+        ).length;
+        const totalSelectedSkew = (selectedColumns || []).filter((col) =>
+          (continuous || []).includes(col)
+        ).length;
+
+        const needingFixBiasCount = (categorical || []).filter((col) => {
+          const sev = biasResults?.[col]?.severity;
+          return sev === "Moderate" || sev === "Severe";
+        }).length;
+
+        const needingFixSkewCount = (continuous || []).filter((col) => {
+          const sk = skewnessResults?.[col]?.skewness;
+          return sk !== null && sk !== undefined && Math.abs(sk) > 0.5;
+        }).length;
+
+  // fixed counts will be recomputed after merging with previous history
+
+        // Merge new corrections into a versioned history per column.
+        // Each run appends an entry with a timestamp; previous runs are preserved.
+        const correctedPathCandidate =
+          newSkewResult?.corrected_file_path ||
+          newSkewResult?.corrected_file ||
+          newBiasResult?.corrected_file_path ||
+          "";
+
+        if (newReportBias !== undefined) setReportBiasSummary(newReportBias);
+
+        // Only keep the most recent run in storage: overwrite with latest entries and timestamp
+        if (
+          Object.keys(categoricalSummary).length > 0 ||
+          Object.keys(continuousSummary).length > 0
+        ) {
+          const ts = Date.now();
+
+          // Build latest-only objects (no history arrays)
+          const latestCategorical = {};
+          Object.entries(categoricalSummary).forEach(([col, data]) => {
+            latestCategorical[col] = {
+              ...data,
+              ts,
+              corrected_file_path: correctedPathCandidate || null,
+            };
+          });
+
+          const latestContinuous = {};
+          Object.entries(continuousSummary).forEach(([col, data]) => {
+            latestContinuous[col] = {
+              ...data,
+              ts,
+              corrected_file_path: correctedPathCandidate || null,
+            };
+          });
+
+          const latestReport = {
+            corrected_file_path: correctedPathCandidate || "",
+            categorical: latestCategorical,
+            continuous: latestContinuous,
+            meta: {
+              categorical: {
+                total_selected: totalSelectedBias,
+                needing_fix: needingFixBiasCount,
+                fixed: Object.keys(latestCategorical).length,
+              },
+              continuous: {
+                total_selected: totalSelectedSkew,
+                needing_fix: needingFixSkewCount,
+                fixed: Object.keys(latestContinuous).length,
+              },
+            },
+          };
+
+          setReportCorrectionSummary(latestReport);
+        }
+      } catch (e) {
+        console.warn("[Dashboard] Failed to compute report summaries:", e);
+      }
     },
-    [biasFixResult, skewnessFixResult, setBiasFixResult, setSkewnessFixResult]
+    [
+      biasResults,
+      skewnessResults,
+      categorical,
+      continuous,
+      selectedColumns,
+      biasFixResult,
+      skewnessFixResult,
+      setBiasFixResult,
+      setSkewnessFixResult,
+      setReportBiasSummary,
+      setReportCorrectionSummary,
+    ]
   );
 
   if (!workingFilePath && currentStep > 1) {
@@ -238,6 +396,11 @@ export default function Dashboard() {
             </Link>
             <Link
               to="/report"
+              state={{
+                biasSummary: reportBiasSummary || biasSummary || {},
+                correctionSummary: reportCorrectionSummary || null,
+                correctedPath: correctedFilePath || "",
+              }}
               className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
             >
               📊 Reports
@@ -254,6 +417,7 @@ export default function Dashboard() {
             >
               <div className="absolute inset-0 animate-shimmer"></div>
             </div>
+                
           </div>
           <div className="mt-3 grid grid-cols-7 gap-1 text-[10px]">
             {STEPS.map((label, i) => {
@@ -344,6 +508,18 @@ export default function Dashboard() {
                 setCleanedFilePath(""); // Clear cleaned file path
                 setCorrectedFilePath(""); // Clear corrected file path
                 setBeforeFixFilePath(""); // Clear before fix file path
+                // Clear report summaries and any previous report path
+                setReportBiasSummary(null);
+                setReportCorrectionSummary(null);
+                try {
+                  window.localStorage.removeItem("dashboard_reportBiasSummary");
+                  window.localStorage.removeItem("dashboard_reportCorrectionSummary");
+                  window.localStorage.removeItem("bx_lastReportPath");
+                  window.localStorage.removeItem("dashboard_correctedFilePath");
+                } catch (e) {
+                  // ignore storage cleanup failures
+                  console.warn("[Dashboard] Failed clearing report storage:", e);
+                }
                 // Clear persisted fix selections and results
                 setPersistedBiasSelectedColumns([]);
                 setPersistedSkewnessSelectedColumns([]);
@@ -398,7 +574,6 @@ export default function Dashboard() {
               columns={columns}
               initialSelected={selectedColumns}
               onSelect={({ features }) => {
-                const oldSelected = new Set(selectedColumns || []);
                 const newSelected = new Set(features);
 
                 // Keep existing results for all currently selected columns
@@ -660,6 +835,13 @@ export default function Dashboard() {
                 setFixedCategoricalColumns(fixedCategorical || []);
                 setFixedContinuousColumns(fixedContinuous || []);
                 setVisualizationKey((prev) => prev + 1);
+
+                // Also update persisted correction summary with corrected path if already prepared
+                setReportCorrectionSummary((prev) =>
+                  prev
+                    ? { ...prev, corrected_file_path: correctedPath }
+                    : prev
+                );
                 console.log(
                   "[Dashboard] State updated - correctedFilePath:",
                   correctedPath,
