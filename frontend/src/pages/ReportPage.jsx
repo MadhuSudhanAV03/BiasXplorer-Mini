@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import axios from "axios";
+import Plot from "react-plotly.js";
 import Spinner from "../components/Spinner";
 
 export default function ReportPage() {
@@ -8,7 +9,11 @@ export default function ReportPage() {
   const [reportPath, setReportPath] = useState("");
   const [correctedPath, setCorrectedPath] = useState("");
   const [correctionSummary, setCorrectionSummary] = useState({});
-  const [visualizations, setVisualizations] = useState({});
+  // Note: previously accepted visualizations via navigation state; now fetched on-demand
+  const [vizLoading, setVizLoading] = useState(false);
+  const [vizError, setVizError] = useState("");
+  const [vizCategorical, setVizCategorical] = useState({}); // { col: { before_chart, after_chart } }
+  const [vizContinuous, setVizContinuous] = useState({}); // { col: { before_chart, after_chart, before_skewness, after_skewness } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [storageTick, setStorageTick] = useState(0);
@@ -51,12 +56,19 @@ export default function ReportPage() {
         console.warn("Failed to parse stored correction summary:", e);
       }
     }
-    if (state.visualizations) setVisualizations(state.visualizations);
+  // Visualizations will be fetched on-demand below; no longer pulled from navigation state
 
     // Try to pick corrected dataset path from navigation state first, then localStorage persisted by Dashboard
     const cpFromState =
       state.correctedPath || state?.correctionSummary?.corrected_file_path;
-    const cpFromStorage = window.localStorage.getItem("dashboard_correctedFilePath");
+    // Parse persisted value which may be JSON-serialized
+    let cpFromStorage = "";
+    try {
+      const raw = window.localStorage.getItem("dashboard_correctedFilePath");
+      cpFromStorage = raw ? JSON.parse(raw) : "";
+    } catch {
+      cpFromStorage = window.localStorage.getItem("dashboard_correctedFilePath") || "";
+    }
     setCorrectedPath(cpFromState || cpFromStorage || "");
   }, [location.state]);
 
@@ -278,9 +290,104 @@ export default function ReportPage() {
       console.warn("Failed to compute fallback counts:", e);
     }
   }, [metaCounts, categoricalCorrections, continuousCorrections]);
-  const hasCharts = Boolean(
-    visualizations?.before_chart && visualizations?.after_chart
-  );
+  // legacy indicator (unused now that we render fetched charts)
+  // const hasCharts = Boolean(
+  //   visualizations?.before_chart && visualizations?.after_chart
+  // );
+
+  // Auto-build visualizations for the latest fixed columns using persisted paths
+  useEffect(() => {
+    const getLS = (k) => {
+      try {
+        const v = window.localStorage.getItem(k);
+        if (v == null) return "";
+        // Attempt JSON.parse; if fails, return raw
+        try { return JSON.parse(v); } catch { return v; }
+      } catch { return ""; }
+    };
+    // Determine paths from storage (same precedence as Dashboard)
+    const beforePath =
+      getLS("dashboard_beforeFixFilePath") ||
+      getLS("dashboard_cleanedFilePath") ||
+      getLS("dashboard_selectedFilePath") ||
+      getLS("dashboard_filePath") ||
+      "";
+    const afterPath = correctedPath;
+    const catCols = Object.keys(latestCategorical || {});
+    const contCols = Object.keys(latestContinuous || {});
+
+    if (!afterPath || (!catCols.length && !contCols.length)) {
+      setVizCategorical({});
+      setVizContinuous({});
+      return;
+    }
+
+    let cancelled = false;
+    async function run() {
+      try {
+        setVizLoading(true);
+        setVizError("");
+
+        // Fetch categorical charts for each column (parallel)
+        if (catCols.length) {
+          const requests = catCols.map((col) =>
+            axios
+              .post(
+                "http://localhost:5000/api/bias/visualize",
+                {
+                  before_path: beforePath,
+                  after_path: afterPath,
+                  target_column: col,
+                },
+                { headers: { "Content-Type": "application/json" } }
+              )
+              .then((res) => ({ col, data: res.data }))
+              .catch((err) => ({ col, error: err }))
+          );
+          const results = await Promise.all(requests);
+          if (!cancelled) {
+            const out = {};
+            results.forEach((r) => {
+              if (r.error) {
+                out[r.col] = { error: r.error?.response?.data?.error || r.error.message || "Failed" };
+              } else {
+                out[r.col] = {
+                  before_chart: r.data?.before_chart || "",
+                  after_chart: r.data?.after_chart || "",
+                };
+              }
+            });
+            setVizCategorical(out);
+          }
+        } else {
+          setVizCategorical({});
+        }
+
+        // Fetch continuous charts (single request supports multiple columns)
+        if (contCols.length) {
+          const res = await axios.post(
+            "http://localhost:5000/api/skewness/visualize",
+            { before_path: beforePath, after_path: afterPath, columns: contCols },
+            { headers: { "Content-Type": "application/json" } }
+          );
+          if (!cancelled) {
+            setVizContinuous(res?.data?.charts || {});
+          }
+        } else {
+          setVizContinuous({});
+        }
+      } catch (e) {
+        if (!cancelled) setVizError(e?.response?.data?.error || e.message || "Failed to load visualizations");
+      } finally {
+        if (!cancelled) setVizLoading(false);
+      }
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [correctedPath, latestCategorical, latestContinuous]);
 
   const downloadReport = async () => {
     setError("");
@@ -381,8 +488,8 @@ export default function ReportPage() {
           </div>
         )}
 
-        {/* Summary grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+  {/* Summary grid: Bias + Correction only */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="font-medium text-slate-700 mb-2">Bias Summary</h3>
             <div className="text-sm text-slate-700 mb-1">Columns fixed: {totalFixedCount}</div>
@@ -428,13 +535,141 @@ export default function ReportPage() {
               </div>
             )}
           </div>
+          
+        </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-medium text-slate-700 mb-2">Visualizations</h3>
-            <div className="text-sm text-slate-700">
-              Included: {hasCharts ? "Yes" : "No"}
+        {/* Visualizations Section - full width, placed below summaries */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
+          <h3 className="text-lg font-semibold text-slate-800 mb-2">Visualizations</h3>
+          {vizError && (
+            <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">{vizError}</div>
+          )}
+          {vizLoading && (
+            <div className="my-2">
+              <Spinner text="Loading visualizations..." />
             </div>
-          </div>
+          )}
+          {!vizLoading && !vizError && (
+            <>
+              {Object.keys(vizCategorical).length === 0 && Object.keys(vizContinuous).length === 0 ? (
+                <div className="text-sm text-slate-700">No visualizations available. Generate corrections first.</div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Categorical */}
+                  {Object.keys(vizCategorical).length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-slate-800 mb-3">Categorical Bias</h4>
+                      <div className="grid grid-cols-1 gap-4">
+                        {Object.entries(vizCategorical).map(([col, data]) => (
+                          <div key={`cat-${col}`} className="rounded-md border border-slate-200 bg-white p-3">
+                            <div className="mb-2 text-sm font-semibold text-slate-700">{col}</div>
+                            {data.error ? (
+                              <div className="text-sm text-red-700">{data.error}</div>
+                            ) : (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                <div className="min-w-0 overflow-hidden">
+                                  <div className="text-xs text-slate-600 mb-1">Before</div>
+                                  {data.before_chart && (
+                                    <Plot
+                                      className="w-full overflow-hidden"
+                                      data={JSON.parse(data.before_chart).data}
+                                      layout={{
+                                        ...JSON.parse(data.before_chart).layout,
+                                        autosize: true,
+                                        height: 360,
+                                        width: undefined,
+                                      }}
+                                      config={{ responsive: true, displayModeBar: true }}
+                                      style={{ width: "100%", height: 360 }}
+                                      useResizeHandler
+                                    />
+                                  )}
+                                </div>
+                                <div className="min-w-0 overflow-hidden">
+                                  <div className="text-xs text-slate-600 mb-1">After</div>
+                                  {data.after_chart && (
+                                    <Plot
+                                      className="w-full overflow-hidden"
+                                      data={JSON.parse(data.after_chart).data}
+                                      layout={{
+                                        ...JSON.parse(data.after_chart).layout,
+                                        autosize: true,
+                                        height: 360,
+                                        width: undefined,
+                                      }}
+                                      config={{ responsive: true, displayModeBar: true }}
+                                      style={{ width: "100%", height: 360 }}
+                                      useResizeHandler
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Continuous */}
+                  {Object.keys(vizContinuous).length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-slate-800 mb-3">Continuous Skewness</h4>
+                      <div className="grid grid-cols-1 gap-4">
+                        {Object.entries(vizContinuous).map(([col, data]) => (
+                          <div key={`cont-${col}`} className="rounded-md border border-slate-200 bg-white p-3">
+                            <div className="mb-2 text-sm font-semibold text-slate-700">{col}</div>
+                            {data.error ? (
+                              <div className="text-sm text-red-700">{data.error}</div>
+                            ) : (
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                <div className="min-w-0 overflow-hidden">
+                                  <div className="text-xs text-slate-600 mb-1">Before</div>
+                                  {data.before_chart && (
+                                    <Plot
+                                      className="w-full overflow-hidden"
+                                      data={JSON.parse(data.before_chart).data}
+                                      layout={{
+                                        ...JSON.parse(data.before_chart).layout,
+                                        autosize: true,
+                                        height: 360,
+                                        width: undefined,
+                                      }}
+                                      config={{ responsive: true, displayModeBar: true }}
+                                      style={{ width: "100%", height: 360 }}
+                                      useResizeHandler
+                                    />
+                                  )}
+                                </div>
+                                <div className="min-w-0 overflow-hidden">
+                                  <div className="text-xs text-slate-600 mb-1">After</div>
+                                  {data.after_chart && (
+                                    <Plot
+                                      className="w-full overflow-hidden"
+                                      data={JSON.parse(data.after_chart).data}
+                                      layout={{
+                                        ...JSON.parse(data.after_chart).layout,
+                                        autosize: true,
+                                        height: 360,
+                                        width: undefined,
+                                      }}
+                                      config={{ responsive: true, displayModeBar: true }}
+                                      style={{ width: "100%", height: 360 }}
+                                      useResizeHandler
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

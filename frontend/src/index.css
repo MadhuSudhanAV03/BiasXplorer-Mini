@@ -294,3 +294,13 @@ html {
 .text-glow {
   text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
 }
+
+/* Ensure Plotly charts respect their container and don't overflow */
+.js-plotly-plot,
+.js-plotly-plot .plot-container,
+.js-plotly-plot .svg-container {
+  max-width: 100% !important;
+}
+.js-plotly-plot {
+  overflow: hidden; /* keep modebar and SVG within card */
+}
