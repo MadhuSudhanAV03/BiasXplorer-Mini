@@ -138,17 +138,45 @@ export default function ReportPage() {
       const selectedInScope = uniqSelected.filter(
         (c) => catColsArr.includes(c) || contColsArr.includes(c)
       );
-      const counts = { totalSelectedAll: selectedInScope.length, Low: 0, Moderate: 0, Severe: 0, NotTested: 0 };
+      const counts = { 
+        totalSelectedAll: selectedInScope.length, 
+        Low: 0, 
+        Moderate: 0, 
+        Severe: 0, 
+        NotTested: 0,
+        LowCols: [],
+        ModerateCols: [],
+        SevereCols: [],
+        NotTestedCols: []
+      };
       // Categorical severities only for categorical selections
       for (const col of selectedInScope.filter((c) => catColsArr.includes(c))) {
         const sev = biasDetObj?.[col]?.severity;
-        if (sev === "Low") counts.Low++;
-        else if (sev === "Moderate") counts.Moderate++;
-        else if (sev === "Severe") counts.Severe++;
-        else counts.NotTested++;
+        if (sev === "Low") {
+          counts.Low++;
+          counts.LowCols.push(col);
+        } else if (sev === "Moderate") {
+          counts.Moderate++;
+          counts.ModerateCols.push(col);
+        } else if (sev === "Severe") {
+          counts.Severe++;
+          counts.SevereCols.push(col);
+        } else {
+          counts.NotTested++;
+          counts.NotTestedCols.push(col);
+        }
       }
       // Continuous skewness classes
-      const contCounts = { right: 0, left: 0, normal: 0, notTested: 0 };
+      const contCounts = { 
+        right: 0, 
+        left: 0, 
+        normal: 0, 
+        notTested: 0,
+        rightCols: [],
+        leftCols: [],
+        normalCols: [],
+        notTestedCols: []
+      };
       const classify = (v) => {
         if (v === null || v === undefined || Number.isNaN(Number(v))) return "notTested";
         const sk = Number(v);
@@ -158,11 +186,32 @@ export default function ReportPage() {
       for (const col of selectedInScope.filter((c) => contColsArr.includes(c))) {
         const cat = classify(skewDetObj?.[col]?.skewness);
         contCounts[cat]++;
+        contCounts[cat + 'Cols'].push(col);
       }
 
       return { ...counts, continuous: contCounts };
     } catch {
-      return { totalSelectedAll: 0, Low: 0, Moderate: 0, Severe: 0, NotTested: 0, continuous: { right: 0, left: 0, normal: 0, notTested: 0 } };
+      return { 
+        totalSelectedAll: 0, 
+        Low: 0, 
+        Moderate: 0, 
+        Severe: 0, 
+        NotTested: 0,
+        LowCols: [],
+        ModerateCols: [],
+        SevereCols: [],
+        NotTestedCols: [],
+        continuous: { 
+          right: 0, 
+          left: 0, 
+          normal: 0, 
+          notTested: 0,
+          rightCols: [],
+          leftCols: [],
+          normalCols: [],
+          notTestedCols: []
+        } 
+      };
     }
   }, [storageTick]);
 
@@ -250,6 +299,60 @@ export default function ReportPage() {
   const legacyBeforeTotal = correctionSummary?.before?.total ?? null;
   const legacyAfterTotal = correctionSummary?.after?.total ?? null;
   const legacyMethod = correctionSummary?.method ?? null;
+
+  // Compute column details for Correction Summary display
+  const correctionColumnDetails = useMemo(() => {
+    try {
+      const selected = getStorageValue("dashboard_selectedColumns", []);
+      const biasResultsStored = getStorageValue("dashboard_biasResults", {});
+      const skewnessResultsStored = getStorageValue("dashboard_skewnessResults", {});
+      const categoricalCols = getStorageValue("dashboard_categorical", []);
+      const continuousCols = getStorageValue("dashboard_continuous", []);
+
+      const selectedArr = Array.isArray(selected) ? selected : [];
+      const catColsArr = Array.isArray(categoricalCols) ? categoricalCols : [];
+      const contColsArr = Array.isArray(continuousCols) ? continuousCols : [];
+      const biasResultsObj = typeof biasResultsStored === 'object' && biasResultsStored !== null ? biasResultsStored : {};
+      const skewnessResultsObj = typeof skewnessResultsStored === 'object' && skewnessResultsStored !== null ? skewnessResultsStored : {};
+
+      const uniqSelected = Array.from(new Set(selectedArr));
+
+      // Get categorical columns needing fix
+      const catNeedingFix = catColsArr.filter((col) => {
+        const sev = biasResultsObj?.[col]?.severity;
+        return sev === "Moderate" || sev === "Severe";
+      });
+
+      // Get continuous columns needing fix
+      const contNeedingFix = contColsArr.filter((col) => {
+        const sk = skewnessResultsObj?.[col]?.skewness;
+        return sk !== null && sk !== undefined && Math.abs(sk) > 0.5;
+      });
+
+      // Get selected columns for each type
+      const catSelected = uniqSelected.filter((c) => catColsArr.includes(c));
+      const contSelected = uniqSelected.filter((c) => contColsArr.includes(c));
+
+      return {
+        categorical: {
+          selected: catSelected,
+          needingFix: catNeedingFix,
+          fixed: Object.keys(latestCategorical)
+        },
+        continuous: {
+          selected: contSelected,
+          needingFix: contNeedingFix,
+          fixed: Object.keys(latestContinuous)
+        }
+      };
+    } catch (e) {
+      console.warn("Failed to compute correction column details:", e);
+      return {
+        categorical: { selected: [], needingFix: [], fixed: [] },
+        continuous: { selected: [], needingFix: [], fixed: [] }
+      };
+    }
+  }, [latestCategorical, latestContinuous]);
 
   // Fallbacks to compute counts if meta is not available
   const [fallbackCounts, setFallbackCounts] = useState({
@@ -543,6 +646,12 @@ export default function ReportPage() {
     }
   };
 
+  // Helper function to format column names display
+  const formatColumns = (cols) => {
+    if (!cols || cols.length === 0) return "";
+    return ` (${cols.join(", ")})`;
+  };
+
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100">
       <header className="border-b border-slate-200 bg-white/70 backdrop-blur sticky top-0 z-10">
@@ -580,18 +689,38 @@ export default function ReportPage() {
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="font-medium text-slate-700 mb-2">Bias Summary</h3>
-            <div className="text-sm text-slate-700 mb-1">Columns fixed: {totalFixedCount}</div>
-            <div className="text-sm text-slate-700 mb-2">Total columns selected: {biasSeverityCounts.totalSelectedAll}</div>
+            <div className="text-sm text-slate-700 mb-1">
+              Columns fixed: {totalFixedCount}{formatColumns(Object.keys(latestCategorical).concat(Object.keys(latestContinuous)))}
+            </div>
+            <div className="text-sm text-slate-700 mb-2">
+              Total columns selected: {biasSeverityCounts.totalSelectedAll}
+            </div>
             <div className="mt-1 text-xs font-semibold text-slate-700">Categorical</div>
-            <div className="text-xs text-green-700">Low: {biasSeverityCounts.Low}</div>
-            <div className="text-xs text-amber-900">Moderate: {biasSeverityCounts.Moderate}</div>
-            <div className="text-xs text-red-900">Severe: {biasSeverityCounts.Severe}</div>
-            <div className="text-xs text-slate-500 mb-2">Not tested: {biasSeverityCounts.NotTested}</div>
+            <div className="text-xs text-green-700">
+              Low: {biasSeverityCounts.Low}{formatColumns(biasSeverityCounts.LowCols)}
+            </div>
+            <div className="text-xs text-amber-900">
+              Moderate: {biasSeverityCounts.Moderate}{formatColumns(biasSeverityCounts.ModerateCols)}
+            </div>
+            <div className="text-xs text-red-900">
+              Severe: {biasSeverityCounts.Severe}{formatColumns(biasSeverityCounts.SevereCols)}
+            </div>
+            <div className="text-xs text-slate-500 mb-2">
+              Not tested: {biasSeverityCounts.NotTested}{formatColumns(biasSeverityCounts.NotTestedCols)}
+            </div>
             <div className="mt-1 text-xs font-semibold text-slate-700">Continuous</div>
-            <div className="text-xs text-blue-900">Right skew: {biasSeverityCounts.continuous?.right ?? 0}</div>
-            <div className="text-xs text-indigo-900">Left skew: {biasSeverityCounts.continuous?.left ?? 0}</div>
-            <div className="text-xs text-emerald-800">Approximately normal: {biasSeverityCounts.continuous?.normal ?? 0}</div>
-            <div className="text-xs text-slate-500">Not tested: {biasSeverityCounts.continuous?.notTested ?? 0}</div>
+            <div className="text-xs text-blue-900">
+              Right skew: {biasSeverityCounts.continuous?.right ?? 0}{formatColumns(biasSeverityCounts.continuous?.rightCols)}
+            </div>
+            <div className="text-xs text-indigo-900">
+              Left skew: {biasSeverityCounts.continuous?.left ?? 0}{formatColumns(biasSeverityCounts.continuous?.leftCols)}
+            </div>
+            <div className="text-xs text-emerald-800">
+              Approximately normal: {biasSeverityCounts.continuous?.normal ?? 0}{formatColumns(biasSeverityCounts.continuous?.normalCols)}
+            </div>
+            <div className="text-xs text-slate-500">
+              Not tested: {biasSeverityCounts.continuous?.notTested ?? 0}{formatColumns(biasSeverityCounts.continuous?.notTestedCols)}
+            </div>
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -604,17 +733,35 @@ export default function ReportPage() {
                 <div className="text-sm font-semibold text-amber-900 mb-1">
                   Categorical
                 </div>
-                <div className="text-xs text-amber-900">Total selected: {metaCounts?.categorical?.total_selected ?? fallbackCounts.categorical.total_selected ?? "-"}</div>
-                <div className="text-xs text-amber-900">Needing fix: {metaCounts?.categorical?.needing_fix ?? fallbackCounts.categorical.needing_fix ?? "-"}</div>
-                <div className="text-xs text-amber-900">Fixed: {Object.keys(latestCategorical).length}</div>
+                <div className="text-xs text-amber-900">
+                  Total selected: {metaCounts?.categorical?.total_selected ?? fallbackCounts.categorical.total_selected ?? "-"}
+                  {formatColumns(correctionColumnDetails.categorical.selected)}
+                </div>
+                <div className="text-xs text-amber-900">
+                  Needing fix: {metaCounts?.categorical?.needing_fix ?? fallbackCounts.categorical.needing_fix ?? "-"}
+                  {formatColumns(correctionColumnDetails.categorical.needingFix)}
+                </div>
+                <div className="text-xs text-amber-900">
+                  Fixed: {Object.keys(latestCategorical).length}
+                  {formatColumns(correctionColumnDetails.categorical.fixed)}
+                </div>
               </div>
               <div className="rounded border border-blue-200 bg-blue-50 p-3">
                 <div className="text-sm font-semibold text-blue-900 mb-1">
                   Continuous
                 </div>
-                <div className="text-xs text-blue-900">Total selected: {metaCounts?.continuous?.total_selected ?? fallbackCounts.continuous.total_selected ?? "-"}</div>
-                <div className="text-xs text-blue-900">Needing fix: {metaCounts?.continuous?.needing_fix ?? fallbackCounts.continuous.needing_fix ?? "-"}</div>
-                <div className="text-xs text-blue-900">Fixed: {Object.keys(latestContinuous).length}</div>
+                <div className="text-xs text-blue-900">
+                  Total selected: {metaCounts?.continuous?.total_selected ?? fallbackCounts.continuous.total_selected ?? "-"}
+                  {formatColumns(correctionColumnDetails.continuous.selected)}
+                </div>
+                <div className="text-xs text-blue-900">
+                  Needing fix: {metaCounts?.continuous?.needing_fix ?? fallbackCounts.continuous.needing_fix ?? "-"}
+                  {formatColumns(correctionColumnDetails.continuous.needingFix)}
+                </div>
+                <div className="text-xs text-blue-900">
+                  Fixed: {Object.keys(latestContinuous).length}
+                  {formatColumns(correctionColumnDetails.continuous.fixed)}
+                </div>
               </div>
             </div>
             {(legacyMethod || legacyBeforeTotal || legacyAfterTotal) && (
