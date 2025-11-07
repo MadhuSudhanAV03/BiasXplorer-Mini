@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import axios from "axios";
 import Plot from "react-plotly.js";
+import Plotly from "plotly.js-dist";
 import Spinner from "../components/Spinner";
 import html2pdf from "html2pdf.js";
 
@@ -398,25 +399,111 @@ export default function ReportPage() {
     if (!node) return;
     try {
       setLoading(true);
-      // Temporarily apply an export-safe class to avoid gradient/oklch issues
+      
+      // Convert all Plotly charts to static images first
+      const plotlyDivs = node.querySelectorAll('.js-plotly-plot');
+      const plotlyImages = new Map();
+      
+      for (const plotDiv of plotlyDivs) {
+        try {
+          // Convert Plotly chart to high-quality PNG
+          const imgData = await Plotly.toImage(plotDiv, {
+            format: 'png',
+            width: 800,
+            height: 500,
+            scale: 3
+          });
+          
+          // Store the image data
+          plotlyImages.set(plotDiv, imgData);
+          
+          // Replace the Plotly div with an img tag temporarily
+          const img = document.createElement('img');
+          img.src = imgData;
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.className = 'plotly-static-image';
+          plotDiv.style.display = 'none';
+          plotDiv.parentNode.insertBefore(img, plotDiv);
+        } catch (err) {
+          console.warn('Failed to convert chart to image:', err);
+        }
+      }
+      
+      // Apply export class
       node.classList.add("exporting");
+      
+      // Force compute all styles and replace oklch with rgb
+      const elementsWithStyle = node.querySelectorAll('*');
+      const originalStyles = new Map();
+      
+      elementsWithStyle.forEach(el => {
+        const computed = window.getComputedStyle(el);
+        const bgcolor = computed.backgroundColor;
+        const color = computed.color;
+        const borderColor = computed.borderColor;
+        
+        // Store original inline styles
+        originalStyles.set(el, {
+          backgroundColor: el.style.backgroundColor,
+          color: el.style.color,
+          borderColor: el.style.borderColor,
+        });
+        
+        // If oklch detected, force RGB override
+        if (bgcolor && bgcolor.includes('oklch')) {
+          el.style.backgroundColor = '#ffffff';
+        }
+        if (color && color.includes('oklch')) {
+          el.style.color = '#0f172a';
+        }
+        if (borderColor && borderColor.includes('oklch')) {
+          el.style.borderColor = '#e2e8f0';
+        }
+      });
+      
       const opt = {
         margin: [10, 10],
         filename: "biasxplorer_report.pdf",
-        image: { type: "jpeg", quality: 0.96 },
+        image: { type: "jpeg", quality: 0.98 },
         html2canvas: {
           scale: 2,
           useCORS: true,
           backgroundColor: "#ffffff",
-          windowWidth: node.scrollWidth,
+          windowWidth: 1200,
           logging: false,
-          foreignObjectRendering: false,
+          allowTaint: true,
         },
-        pagebreak: { mode: ["css", "legacy"], avoid: ["table", ".avoid-break"] },
+        pagebreak: { 
+          mode: ['avoid-all', 'css', 'legacy'], 
+          before: '.avoid-break-before',
+          after: '.avoid-break-after',
+          avoid: ['table', 'tr', '.avoid-break', '.plotly-static-image'] 
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       };
+      
       await html2pdf().set(opt).from(node).save();
+      
+      // Restore original styles
+      elementsWithStyle.forEach(el => {
+        const original = originalStyles.get(el);
+        if (original) {
+          el.style.backgroundColor = original.backgroundColor;
+          el.style.color = original.color;
+          el.style.borderColor = original.borderColor;
+        }
+      });
+      
+      // Remove static images and restore Plotly charts
+      const staticImages = node.querySelectorAll('.plotly-static-image');
+      staticImages.forEach(img => img.remove());
+      plotlyDivs.forEach(plotDiv => {
+        plotDiv.style.display = '';
+      });
+      
     } catch (err) {
+      console.error('PDF generation error:', err);
       setError(err?.message || "Failed to generate PDF");
     } finally {
       node.classList.remove("exporting");
@@ -558,17 +645,17 @@ export default function ReportPage() {
                 <div className="space-y-8">
                   {/* Categorical */}
                   {Object.keys(vizCategorical).length > 0 && (
-                    <div>
+                    <div className="avoid-break">
                       <h4 className="font-semibold text-slate-800 mb-3">Categorical Bias</h4>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(vizCategorical).map(([col, data]) => (
-                          <div key={`cat-${col}`} className="rounded-md border border-slate-200 bg-white p-3">
+                          <div key={`cat-${col}`} className="rounded-md border border-slate-200 bg-white p-3 avoid-break">
                             <div className="mb-2 text-sm font-semibold text-slate-700">{col}</div>
                             {data.error ? (
                               <div className="text-sm text-red-700">{data.error}</div>
                             ) : (
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                                <div className="min-w-0 overflow-hidden">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 avoid-break">
+                                <div className="min-w-0 overflow-hidden avoid-break">
                                   <div className="text-xs text-slate-600 mb-1">Before</div>
                                   {data.before_chart && (
                                     <Plot
@@ -577,16 +664,17 @@ export default function ReportPage() {
                                       layout={{
                                         ...JSON.parse(data.before_chart).layout,
                                         autosize: true,
-                                        height: 360,
+                                        height: 400,
                                         width: undefined,
+                                        margin: { l: 50, r: 30, t: 30, b: 50 },
                                       }}
-                                      config={{ responsive: true, displayModeBar: true }}
-                                      style={{ width: "100%", height: 360 }}
+                                      config={{ responsive: true, displayModeBar: false }}
+                                      style={{ width: "100%", height: 400 }}
                                       useResizeHandler
                                     />
                                   )}
                                 </div>
-                                <div className="min-w-0 overflow-hidden">
+                                <div className="min-w-0 overflow-hidden avoid-break">
                                   <div className="text-xs text-slate-600 mb-1">After</div>
                                   {data.after_chart && (
                                     <Plot
@@ -595,11 +683,12 @@ export default function ReportPage() {
                                       layout={{
                                         ...JSON.parse(data.after_chart).layout,
                                         autosize: true,
-                                        height: 360,
+                                        height: 400,
                                         width: undefined,
+                                        margin: { l: 50, r: 30, t: 30, b: 50 },
                                       }}
-                                      config={{ responsive: true, displayModeBar: true }}
-                                      style={{ width: "100%", height: 360 }}
+                                      config={{ responsive: true, displayModeBar: false }}
+                                      style={{ width: "100%", height: 400 }}
                                       useResizeHandler
                                     />
                                   )}
@@ -614,17 +703,17 @@ export default function ReportPage() {
 
                   {/* Continuous */}
                   {Object.keys(vizContinuous).length > 0 && (
-                    <div>
+                    <div className="avoid-break">
                       <h4 className="font-semibold text-slate-800 mb-3">Continuous Skewness</h4>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(vizContinuous).map(([col, data]) => (
-                          <div key={`cont-${col}`} className="rounded-md border border-slate-200 bg-white p-3">
+                          <div key={`cont-${col}`} className="rounded-md border border-slate-200 bg-white p-3 avoid-break">
                             <div className="mb-2 text-sm font-semibold text-slate-700">{col}</div>
                             {data.error ? (
                               <div className="text-sm text-red-700">{data.error}</div>
                             ) : (
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                                <div className="min-w-0 overflow-hidden">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 avoid-break">
+                                <div className="min-w-0 overflow-hidden avoid-break">
                                   <div className="text-xs text-slate-600 mb-1">Before</div>
                                   {data.before_chart && (
                                     <Plot
@@ -633,16 +722,17 @@ export default function ReportPage() {
                                       layout={{
                                         ...JSON.parse(data.before_chart).layout,
                                         autosize: true,
-                                        height: 360,
+                                        height: 400,
                                         width: undefined,
+                                        margin: { l: 50, r: 30, t: 30, b: 50 },
                                       }}
-                                      config={{ responsive: true, displayModeBar: true }}
-                                      style={{ width: "100%", height: 360 }}
+                                      config={{ responsive: true, displayModeBar: false }}
+                                      style={{ width: "100%", height: 400 }}
                                       useResizeHandler
                                     />
                                   )}
                                 </div>
-                                <div className="min-w-0 overflow-hidden">
+                                <div className="min-w-0 overflow-hidden avoid-break">
                                   <div className="text-xs text-slate-600 mb-1">After</div>
                                   {data.after_chart && (
                                     <Plot
@@ -651,11 +741,12 @@ export default function ReportPage() {
                                       layout={{
                                         ...JSON.parse(data.after_chart).layout,
                                         autosize: true,
-                                        height: 360,
+                                        height: 400,
                                         width: undefined,
+                                        margin: { l: 50, r: 30, t: 30, b: 50 },
                                       }}
-                                      config={{ responsive: true, displayModeBar: true }}
-                                      style={{ width: "100%", height: 360 }}
+                                      config={{ responsive: true, displayModeBar: false }}
+                                      style={{ width: "100%", height: 400 }}
                                       useResizeHandler
                                     />
                                   )}
@@ -673,7 +764,8 @@ export default function ReportPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        {/* Download Report - Hidden in PDF export */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hide-in-pdf">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-800">
@@ -711,16 +803,10 @@ export default function ReportPage() {
               )}
             </div>
           </div>
-
-          {loading && (
-            <div className="mt-4">
-              <Spinner text="Fetching report..." />
-            </div>
-          )}
         </div>
 
-  {/* Download Corrected Dataset */}
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+  {/* Download Corrected Dataset - Hidden in PDF export */}
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm hide-in-pdf">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-800">
@@ -751,12 +837,12 @@ export default function ReportPage() {
           Object.keys(continuousCorrections).length > 0) && (
           <div className="mt-6 grid grid-cols-1 gap-6">
             {Object.keys(latestCategorical).length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 avoid-break">
                 <h3 className="text-lg font-semibold text-amber-900 mb-4">
                   Categorical Corrections
                 </h3>
-                <div className="overflow-x-auto rounded-lg border border-amber-200 bg-white">
-                  <table className="min-w-full table-auto">
+                <div className="overflow-x-auto rounded-lg border border-amber-200 bg-white avoid-break">
+                  <table className="min-w-full table-auto avoid-break">
                     <thead className="bg-amber-100 text-amber-900 text-xs uppercase">
                       <tr>
                         <th className="px-4 py-3 text-left">Column</th>
@@ -791,12 +877,12 @@ export default function ReportPage() {
             )}
 
             {Object.keys(latestContinuous).length > 0 && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 avoid-break">
                 <h3 className="text-lg font-semibold text-blue-900 mb-4">
                   Continuous Corrections
                 </h3>
-                <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white">
-                  <table className="min-w-full table-auto">
+                <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white avoid-break">
+                  <table className="min-w-full table-auto avoid-break">
                     <thead className="bg-blue-100 text-blue-900 text-xs uppercase">
                       <tr>
                         <th className="px-4 py-3 text-left">Column</th>

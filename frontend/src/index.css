@@ -444,8 +444,81 @@ html {
 .exporting table { 
   border-color: #e2e8f0 !important;
   border-collapse: collapse !important;
+  page-break-inside: auto !important;
+  width: 100% !important;
 }
 .exporting th, .exporting td { 
-  page-break-inside: avoid;
+  page-break-inside: avoid !important;
+  page-break-after: auto !important;
   border-color: #e2e8f0 !important;
+  padding: 8px !important;
+  font-size: 11px !important;
 }
+.exporting tr {
+  page-break-inside: avoid !important;
+  page-break-after: auto !important;
+}
+.exporting thead {
+  display: table-header-group !important;
+}
+.exporting tbody {
+  display: table-row-group !important;
+}
+
+/* Plotly chart optimizations for PDF */
+.exporting .js-plotly-plot {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 400px !important;
+  page-break-inside: avoid !important;
+}
+
+.exporting .plotly {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.exporting .plot-container {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* Chart containers should not break across pages */
+.exporting .grid.grid-cols-1.lg\:grid-cols-2 {
+  display: block !important;
+  page-break-inside: avoid !important;
+}
+
+.exporting .grid.grid-cols-1.lg\:grid-cols-2 > div {
+  display: block !important;
+  width: 100% !important;
+  margin-bottom: 20px !important;
+  page-break-inside: avoid !important;
+}
+
+/* Ensure visualization sections have proper spacing */
+.exporting .rounded-md.border {
+  page-break-inside: avoid !important;
+  margin-bottom: 20px !important;
+}
+
+/* Static images from Plotly conversion */
+.exporting .plotly-static-image {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 0 auto !important;
+  page-break-inside: avoid !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+  padding: 8px !important;
+  background: white !important;
+}
+
+/* Hide download sections in PDF export */
+.exporting .hide-in-pdf {
+  display: none !important;
+}
+
