@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import axios from "axios";
 import Plot from "react-plotly.js";
 import Spinner from "../components/Spinner";
+import html2pdf from "html2pdf.js";
 
 export default function ReportPage() {
   const location = useLocation();
+  const mainRef = useRef(null);
   const [reportPath, setReportPath] = useState("");
   const [correctedPath, setCorrectedPath] = useState("");
   const [correctionSummary, setCorrectionSummary] = useState({});
@@ -18,7 +20,22 @@ export default function ReportPage() {
   const [error, setError] = useState("");
   const [storageTick, setStorageTick] = useState(0);
 
-  // Helpers
+  // Helpers: Safe localStorage getter with JSON.parse fallback
+  const getStorageValue = (key, defaultValue = "") => {
+    try {
+      const value = window.localStorage.getItem(key);
+      if (value == null) return defaultValue;
+      // Attempt JSON.parse; if it fails, return raw string
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
+    } catch {
+      return defaultValue;
+    }
+  };
+
   const computeRatio = (distributionObj) => {
     try {
       if (!distributionObj || typeof distributionObj !== "object") return null;
@@ -41,16 +58,16 @@ export default function ReportPage() {
     const state = location.state || {};
     const rp =
       state.reportPath ||
-      window.localStorage.getItem("bx_lastReportPath") ||
+      getStorageValue("bx_lastReportPath") ||
       "";
     setReportPath(rp);
     if (state.correctionSummary) setCorrectionSummary(state.correctionSummary);
     if (!state.correctionSummary) {
       try {
-        const storedCorr = window.localStorage.getItem(
-          "dashboard_reportCorrectionSummary"
-        );
-        if (storedCorr) setCorrectionSummary(JSON.parse(storedCorr));
+        const storedCorr = getStorageValue("dashboard_reportCorrectionSummary");
+        if (storedCorr && typeof storedCorr === 'object') {
+          setCorrectionSummary(storedCorr);
+        }
       } catch (e) {
         // ignore malformed JSON
         console.warn("Failed to parse stored correction summary:", e);
@@ -61,14 +78,8 @@ export default function ReportPage() {
     // Try to pick corrected dataset path from navigation state first, then localStorage persisted by Dashboard
     const cpFromState =
       state.correctedPath || state?.correctionSummary?.corrected_file_path;
-    // Parse persisted value which may be JSON-serialized
-    let cpFromStorage = "";
-    try {
-      const raw = window.localStorage.getItem("dashboard_correctedFilePath");
-      cpFromStorage = raw ? JSON.parse(raw) : "";
-    } catch {
-      cpFromStorage = window.localStorage.getItem("dashboard_correctedFilePath") || "";
-    }
+    // Use safe getter for persisted value which may be JSON-serialized
+    const cpFromStorage = getStorageValue("dashboard_correctedFilePath");
     setCorrectedPath(cpFromState || cpFromStorage || "");
   }, [location.state]);
 
@@ -77,10 +88,14 @@ export default function ReportPage() {
     const onStorage = (e) => {
       try {
         if (e.key === "dashboard_reportCorrectionSummary" && e.newValue) {
-          setCorrectionSummary(JSON.parse(e.newValue));
+          const parsed = getStorageValue(e.key);
+          if (parsed && typeof parsed === 'object') {
+            setCorrectionSummary(parsed);
+          }
         }
         if (e.key === "dashboard_correctedFilePath") {
-          setCorrectedPath(e.newValue || "");
+          const parsed = getStorageValue(e.key);
+          setCorrectedPath(parsed || "");
         }
         // Recompute severity counts when selection or detection results change
         if (
@@ -104,30 +119,28 @@ export default function ReportPage() {
     // reference storageTick to satisfy exhaustive-deps while serving as an invalidation key
     void storageTick;
     try {
-      const selected = JSON.parse(
-        window.localStorage.getItem("dashboard_selectedColumns") || "[]"
-      );
-      const categoricalCols = JSON.parse(
-        window.localStorage.getItem("dashboard_categorical") || "[]"
-      );
-      const continuousCols = JSON.parse(
-        window.localStorage.getItem("dashboard_continuous") || "[]"
-      );
-      const biasDet = JSON.parse(
-        window.localStorage.getItem("dashboard_biasResults") || "{}"
-      );
-      const skewDet = JSON.parse(
-        window.localStorage.getItem("dashboard_skewnessResults") || "{}"
-      );
+      const selected = getStorageValue("dashboard_selectedColumns", []);
+      const categoricalCols = getStorageValue("dashboard_categorical", []);
+      const continuousCols = getStorageValue("dashboard_continuous", []);
+      const biasDet = getStorageValue("dashboard_biasResults", {});
+      const skewDet = getStorageValue("dashboard_skewnessResults", {});
+      
+      // Ensure arrays
+      const selectedArr = Array.isArray(selected) ? selected : [];
+      const catColsArr = Array.isArray(categoricalCols) ? categoricalCols : [];
+      const contColsArr = Array.isArray(continuousCols) ? continuousCols : [];
+      const biasDetObj = typeof biasDet === 'object' && biasDet !== null ? biasDet : {};
+      const skewDetObj = typeof skewDet === 'object' && skewDet !== null ? skewDet : {};
+      
       // Use unique selections and only count those that belong to either categorical or continuous targets
-      const uniqSelected = Array.from(new Set(selected || []));
+      const uniqSelected = Array.from(new Set(selectedArr));
       const selectedInScope = uniqSelected.filter(
-        (c) => (categoricalCols || []).includes(c) || (continuousCols || []).includes(c)
+        (c) => catColsArr.includes(c) || contColsArr.includes(c)
       );
       const counts = { totalSelectedAll: selectedInScope.length, Low: 0, Moderate: 0, Severe: 0, NotTested: 0 };
       // Categorical severities only for categorical selections
-      for (const col of selectedInScope.filter((c) => (categoricalCols || []).includes(c))) {
-        const sev = biasDet?.[col]?.severity;
+      for (const col of selectedInScope.filter((c) => catColsArr.includes(c))) {
+        const sev = biasDetObj?.[col]?.severity;
         if (sev === "Low") counts.Low++;
         else if (sev === "Moderate") counts.Moderate++;
         else if (sev === "Severe") counts.Severe++;
@@ -141,8 +154,8 @@ export default function ReportPage() {
         if (Math.abs(sk) <= 0.1) return "normal"; // tolerance band for near-normal
         return sk > 0 ? "right" : "left";
       };
-      for (const col of selectedInScope.filter((c) => (continuousCols || []).includes(c))) {
-        const cat = classify(skewDet?.[col]?.skewness);
+      for (const col of selectedInScope.filter((c) => contColsArr.includes(c))) {
+        const cat = classify(skewDetObj?.[col]?.skewness);
         contCounts[cat]++;
       }
 
@@ -248,35 +261,33 @@ export default function ReportPage() {
 
     try {
       // Total selected should reflect Target Column Selection (Step 3)
-      const selected = JSON.parse(
-        window.localStorage.getItem("dashboard_selectedColumns") || "[]"
-      );
-      const uniqSelected = Array.from(new Set(selected || []));
-      const biasResultsStored = JSON.parse(
-        window.localStorage.getItem("dashboard_biasResults") || "{}"
-      );
-      const skewnessResultsStored = JSON.parse(
-        window.localStorage.getItem("dashboard_skewnessResults") || "{}"
-      );
-      const categoricalCols = JSON.parse(
-        window.localStorage.getItem("dashboard_categorical") || "[]"
-      );
-      const continuousCols = JSON.parse(
-        window.localStorage.getItem("dashboard_continuous") || "[]"
-      );
+      const selected = getStorageValue("dashboard_selectedColumns", []);
+      const biasResultsStored = getStorageValue("dashboard_biasResults", {});
+      const skewnessResultsStored = getStorageValue("dashboard_skewnessResults", {});
+      const categoricalCols = getStorageValue("dashboard_categorical", []);
+      const continuousCols = getStorageValue("dashboard_continuous", []);
 
-      const catNeeding = (categoricalCols || []).filter((col) => {
-        const sev = biasResultsStored?.[col]?.severity;
+      // Ensure arrays and objects
+      const selectedArr = Array.isArray(selected) ? selected : [];
+      const catColsArr = Array.isArray(categoricalCols) ? categoricalCols : [];
+      const contColsArr = Array.isArray(continuousCols) ? continuousCols : [];
+      const biasResultsObj = typeof biasResultsStored === 'object' && biasResultsStored !== null ? biasResultsStored : {};
+      const skewnessResultsObj = typeof skewnessResultsStored === 'object' && skewnessResultsStored !== null ? skewnessResultsStored : {};
+
+      const uniqSelected = Array.from(new Set(selectedArr));
+
+      const catNeeding = catColsArr.filter((col) => {
+        const sev = biasResultsObj?.[col]?.severity;
         return sev === "Moderate" || sev === "Severe";
       }).length;
-      const contNeeding = (continuousCols || []).filter((col) => {
-        const sk = skewnessResultsStored?.[col]?.skewness;
+      const contNeeding = contColsArr.filter((col) => {
+        const sk = skewnessResultsObj?.[col]?.skewness;
         return sk !== null && sk !== undefined && Math.abs(sk) > 0.5;
       }).length;
 
       setFallbackCounts({
         categorical: {
-          total_selected: uniqSelected.filter((c) => (categoricalCols || []).includes(c)).length,
+          total_selected: uniqSelected.filter((c) => catColsArr.includes(c)).length,
           needing_fix: catNeeding,
           fixed: Object.keys(categoricalCorrections).length,
         },
@@ -297,20 +308,12 @@ export default function ReportPage() {
 
   // Auto-build visualizations for the latest fixed columns using persisted paths
   useEffect(() => {
-    const getLS = (k) => {
-      try {
-        const v = window.localStorage.getItem(k);
-        if (v == null) return "";
-        // Attempt JSON.parse; if fails, return raw
-        try { return JSON.parse(v); } catch { return v; }
-      } catch { return ""; }
-    };
     // Determine paths from storage (same precedence as Dashboard)
     const beforePath =
-      getLS("dashboard_beforeFixFilePath") ||
-      getLS("dashboard_cleanedFilePath") ||
-      getLS("dashboard_selectedFilePath") ||
-      getLS("dashboard_filePath") ||
+      getStorageValue("dashboard_beforeFixFilePath", "") ||
+      getStorageValue("dashboard_cleanedFilePath", "") ||
+      getStorageValue("dashboard_selectedFilePath", "") ||
+      getStorageValue("dashboard_filePath", "") ||
       "";
     const afterPath = correctedPath;
     const catCols = Object.keys(latestCategorical || {});
@@ -391,34 +394,32 @@ export default function ReportPage() {
 
   const downloadReport = async () => {
     setError("");
-    if (!reportPath) {
-      setError("No report available. Generate one from the Dashboard.");
-      return;
-    }
+    const node = mainRef.current;
+    if (!node) return;
     try {
       setLoading(true);
-      const relative = reportPath.startsWith("/")
-        ? reportPath.substring(1)
-        : reportPath;
-      const url = `http://localhost:5000/${relative}`;
-      const res = await axios.get(url, { responseType: "blob" });
-      const blob = new Blob([res.data], { type: "application/pdf" });
-      const a = document.createElement("a");
-      const blobUrl = URL.createObjectURL(blob);
-      a.href = blobUrl;
-      const fileName = relative.split("/").pop() || "biasxplorer_report.pdf";
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(blobUrl);
+      // Temporarily apply an export-safe class to avoid gradient/oklch issues
+      node.classList.add("exporting");
+      const opt = {
+        margin: [10, 10],
+        filename: "biasxplorer_report.pdf",
+        image: { type: "jpeg", quality: 0.96 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          windowWidth: node.scrollWidth,
+          logging: false,
+          foreignObjectRendering: false,
+        },
+        pagebreak: { mode: ["css", "legacy"], avoid: ["table", ".avoid-break"] },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      };
+      await html2pdf().set(opt).from(node).save();
     } catch (err) {
-      const msg =
-        err?.response?.data?.error ||
-        err.message ||
-        "Failed to download report";
-      setError(msg);
+      setError(err?.message || "Failed to generate PDF");
     } finally {
+      node.classList.remove("exporting");
       setLoading(false);
     }
   };
@@ -481,7 +482,7 @@ export default function ReportPage() {
         </div>
       </header>
 
-  <main className="max-w-6xl mx-auto px-4 py-8">
+  <main ref={mainRef} className="max-w-6xl mx-auto px-4 py-8">
         {error && (
           <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
             {error}
@@ -690,7 +691,7 @@ export default function ReportPage() {
                 type="button"
                 className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                 onClick={downloadReport}
-                disabled={!reportPath || loading}
+                disabled={loading}
               >
                 {loading ? "Preparing..." : "Download PDF"}
               </button>
