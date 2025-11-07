@@ -98,9 +98,7 @@ export default function FileUpload({ onUploadSuccess, className = "" }) {
         <div className="flex flex-col items-center gap-5">
           {/* Icon */}
           <div
-            className={`text-7xl transition-all duration-300 ${
-              isDragging ? "animate-bounce-slow" : "animate-float"
-            }`}
+            className="text-7xl transition-all duration-300"
           >
             {isDragging ? "📥" : "📂"}
           </div>
