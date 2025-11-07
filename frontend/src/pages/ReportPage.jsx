@@ -688,77 +688,89 @@ export default function ReportPage() {
   {/* Summary grid: Bias + Correction only */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-medium text-slate-700 mb-2">Bias Summary</h3>
-            <div className="text-sm text-slate-700 mb-1">
-              Columns fixed: {totalFixedCount}{formatColumns(Object.keys(latestCategorical).concat(Object.keys(latestContinuous)))}
+            <h3 className="font-medium text-slate-700 mb-3">Bias Summary</h3>
+            
+            {/* Overview Section */}
+            <div className="bg-slate-50 rounded-lg p-3 mb-3 border border-slate-100">
+              <div className="text-base text-slate-700 mb-1">
+                Columns fixed: {totalFixedCount}{formatColumns(Object.keys(latestCategorical).concat(Object.keys(latestContinuous)))}
+              </div>
+              <div className="text-base text-slate-700">
+                Total columns selected: {biasSeverityCounts.totalSelectedAll}
+              </div>
             </div>
-            <div className="text-sm text-slate-700 mb-2">
-              Total columns selected: {biasSeverityCounts.totalSelectedAll}
+
+            {/* Categorical Section */}
+            <div className="bg-amber-50 rounded-lg p-3 mb-3 border border-amber-100">
+              <div className="text-sm font-semibold text-amber-900 mb-2">Categorical</div>
+              <div className="text-sm text-green-700">
+                Low: {biasSeverityCounts.Low}{formatColumns(biasSeverityCounts.LowCols)}
+              </div>
+              <div className="text-sm text-amber-900">
+                Moderate: {biasSeverityCounts.Moderate}{formatColumns(biasSeverityCounts.ModerateCols)}
+              </div>
+              <div className="text-sm text-red-900">
+                Severe: {biasSeverityCounts.Severe}{formatColumns(biasSeverityCounts.SevereCols)}
+              </div>
+              <div className="text-sm text-slate-500">
+                Not tested: {biasSeverityCounts.NotTested}{formatColumns(biasSeverityCounts.NotTestedCols)}
+              </div>
             </div>
-            <div className="mt-1 text-xs font-semibold text-slate-700">Categorical</div>
-            <div className="text-xs text-green-700">
-              Low: {biasSeverityCounts.Low}{formatColumns(biasSeverityCounts.LowCols)}
-            </div>
-            <div className="text-xs text-amber-900">
-              Moderate: {biasSeverityCounts.Moderate}{formatColumns(biasSeverityCounts.ModerateCols)}
-            </div>
-            <div className="text-xs text-red-900">
-              Severe: {biasSeverityCounts.Severe}{formatColumns(biasSeverityCounts.SevereCols)}
-            </div>
-            <div className="text-xs text-slate-500 mb-2">
-              Not tested: {biasSeverityCounts.NotTested}{formatColumns(biasSeverityCounts.NotTestedCols)}
-            </div>
-            <div className="mt-1 text-xs font-semibold text-slate-700">Continuous</div>
-            <div className="text-xs text-blue-900">
-              Right skew: {biasSeverityCounts.continuous?.right ?? 0}{formatColumns(biasSeverityCounts.continuous?.rightCols)}
-            </div>
-            <div className="text-xs text-indigo-900">
-              Left skew: {biasSeverityCounts.continuous?.left ?? 0}{formatColumns(biasSeverityCounts.continuous?.leftCols)}
-            </div>
-            <div className="text-xs text-emerald-800">
-              Approximately normal: {biasSeverityCounts.continuous?.normal ?? 0}{formatColumns(biasSeverityCounts.continuous?.normalCols)}
-            </div>
-            <div className="text-xs text-slate-500">
-              Not tested: {biasSeverityCounts.continuous?.notTested ?? 0}{formatColumns(biasSeverityCounts.continuous?.notTestedCols)}
+
+            {/* Continuous Section */}
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+              <div className="text-sm font-semibold text-blue-900 mb-2">Continuous</div>
+              <div className="text-sm text-blue-900">
+                Right skew: {biasSeverityCounts.continuous?.right ?? 0}{formatColumns(biasSeverityCounts.continuous?.rightCols)}
+              </div>
+              <div className="text-sm text-indigo-900">
+                Left skew: {biasSeverityCounts.continuous?.left ?? 0}{formatColumns(biasSeverityCounts.continuous?.leftCols)}
+              </div>
+              <div className="text-sm text-emerald-800">
+                Approximately normal: {biasSeverityCounts.continuous?.normal ?? 0}{formatColumns(biasSeverityCounts.continuous?.normalCols)}
+              </div>
+              <div className="text-sm text-slate-500">
+                Not tested: {biasSeverityCounts.continuous?.notTested ?? 0}{formatColumns(biasSeverityCounts.continuous?.notTestedCols)}
+              </div>
             </div>
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-medium text-slate-700 mb-2">
+            <h3 className="font-medium text-slate-700 mb-3">
               Correction Summary
             </h3>
             {/* Corrected file path intentionally hidden as requested */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-              <div className="rounded border border-amber-200 bg-amber-50 p-3">
-                <div className="text-sm font-semibold text-amber-900 mb-1">
+            <div className="space-y-3">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="text-sm font-semibold text-amber-900 mb-2">
                   Categorical
                 </div>
-                <div className="text-xs text-amber-900">
+                <div className="text-sm text-amber-900">
                   Total selected: {metaCounts?.categorical?.total_selected ?? fallbackCounts.categorical.total_selected ?? "-"}
                   {formatColumns(correctionColumnDetails.categorical.selected)}
                 </div>
-                <div className="text-xs text-amber-900">
+                <div className="text-sm text-amber-900">
                   Needing fix: {metaCounts?.categorical?.needing_fix ?? fallbackCounts.categorical.needing_fix ?? "-"}
                   {formatColumns(correctionColumnDetails.categorical.needingFix)}
                 </div>
-                <div className="text-xs text-amber-900">
+                <div className="text-sm text-amber-900">
                   Fixed: {Object.keys(latestCategorical).length}
                   {formatColumns(correctionColumnDetails.categorical.fixed)}
                 </div>
               </div>
-              <div className="rounded border border-blue-200 bg-blue-50 p-3">
-                <div className="text-sm font-semibold text-blue-900 mb-1">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="text-sm font-semibold text-blue-900 mb-2">
                   Continuous
                 </div>
-                <div className="text-xs text-blue-900">
+                <div className="text-sm text-blue-900">
                   Total selected: {metaCounts?.continuous?.total_selected ?? fallbackCounts.continuous.total_selected ?? "-"}
                   {formatColumns(correctionColumnDetails.continuous.selected)}
                 </div>
-                <div className="text-xs text-blue-900">
+                <div className="text-sm text-blue-900">
                   Needing fix: {metaCounts?.continuous?.needing_fix ?? fallbackCounts.continuous.needing_fix ?? "-"}
                   {formatColumns(correctionColumnDetails.continuous.needingFix)}
                 </div>
-                <div className="text-xs text-blue-900">
+                <div className="text-sm text-blue-900">
                   Fixed: {Object.keys(latestContinuous).length}
                   {formatColumns(correctionColumnDetails.continuous.fixed)}
                 </div>
@@ -772,6 +784,86 @@ export default function ReportPage() {
           </div>
           
         </div>
+
+        {/* Correction Details */}
+        {(Object.keys(categoricalCorrections).length > 0 ||
+          Object.keys(continuousCorrections).length > 0) && (
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            {Object.keys(latestCategorical).length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 avoid-break">
+                <h3 className="text-lg font-semibold text-amber-900 mb-4">
+                  Categorical Corrections
+                </h3>
+                <div className="overflow-x-auto rounded-lg border border-amber-200 bg-white avoid-break">
+                  <table className="min-w-full table-auto avoid-break">
+                    <thead className="bg-amber-100 text-amber-900 text-xs uppercase">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Column</th>
+                        <th className="px-4 py-3 text-left">Method</th>
+                        <th className="px-4 py-3 text-left">Threshold</th>
+                        <th className="px-4 py-3 text-left">Before Total</th>
+                        <th className="px-4 py-3 text-left">After Total</th>
+                        <th className="px-4 py-3 text-left">Before Ratio</th>
+                        <th className="px-4 py-3 text-left">After Ratio</th>
+                        <th className="px-4 py-3 text-left">Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-amber-100 text-sm">
+                      {Object.entries(latestCategorical).map(([col, entry]) => {
+                        return (
+                          <tr key={`${col}-latest`} className="hover:bg-amber-50/60">
+                            <td className="px-4 py-3 font-semibold">{col}</td>
+                            <td className="px-4 py-3">{entry?.method || "-"}</td>
+                            <td className="px-4 py-3">{entry?.threshold ?? "-"}</td>
+                            <td className="px-4 py-3">{entry?.before?.total ?? "-"}</td>
+                            <td className="px-4 py-3">{entry?.after?.total ?? "-"}</td>
+                            <td className="px-4 py-3">{(() => { const r = computeRatio(entry?.before?.distribution || entry?.before); return r === null ? "-" : r; })()}</td>
+                            <td className="px-4 py-3">{(() => { const r = computeRatio(entry?.after?.distribution || entry?.after); return r === null ? "-" : r; })()}</td>
+                            <td className="px-4 py-3">{entry?.ts ? new Date(entry.ts).toLocaleString() : "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {Object.keys(latestContinuous).length > 0 && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 avoid-break">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">
+                  Continuous Corrections
+                </h3>
+                <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white avoid-break">
+                  <table className="min-w-full table-auto avoid-break">
+                    <thead className="bg-blue-100 text-blue-900 text-xs uppercase">
+                      <tr>
+                        <th className="px-4 py-3 text-left">Column</th>
+                        <th className="px-4 py-3 text-left">Before Skewness</th>
+                        <th className="px-4 py-3 text-left">After Skewness</th>
+                        <th className="px-4 py-3 text-left">Method</th>
+                        <th className="px-4 py-3 text-left">Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-blue-100 text-sm">
+                      {Object.entries(latestContinuous).map(([col, entry]) => {
+                        return (
+                          <tr key={`${col}-latest`} className="hover:bg-blue-50/60">
+                            <td className="px-4 py-3 font-semibold">{col}</td>
+                            <td className="px-4 py-3">{entry?.original_skewness ?? "-"}</td>
+                            <td className="px-4 py-3">{entry?.new_skewness ?? "-"}</td>
+                            <td className="px-4 py-3">{entry?.method || "-"}</td>
+                            <td className="px-4 py-3">{entry?.ts ? new Date(entry.ts).toLocaleString() : "-"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Visualizations Section - full width, placed below summaries */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
@@ -977,87 +1069,6 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {/* Visualization Previews (none on Report page; summary only) */}
-
-        {/* Correction Details */}
-        {(Object.keys(categoricalCorrections).length > 0 ||
-          Object.keys(continuousCorrections).length > 0) && (
-          <div className="mt-6 grid grid-cols-1 gap-6">
-            {Object.keys(latestCategorical).length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 avoid-break">
-                <h3 className="text-lg font-semibold text-amber-900 mb-4">
-                  Categorical Corrections
-                </h3>
-                <div className="overflow-x-auto rounded-lg border border-amber-200 bg-white avoid-break">
-                  <table className="min-w-full table-auto avoid-break">
-                    <thead className="bg-amber-100 text-amber-900 text-xs uppercase">
-                      <tr>
-                        <th className="px-4 py-3 text-left">Column</th>
-                        <th className="px-4 py-3 text-left">Method</th>
-                        <th className="px-4 py-3 text-left">Threshold</th>
-                        <th className="px-4 py-3 text-left">Before Total</th>
-                        <th className="px-4 py-3 text-left">After Total</th>
-                        <th className="px-4 py-3 text-left">Before Ratio</th>
-                        <th className="px-4 py-3 text-left">After Ratio</th>
-                        <th className="px-4 py-3 text-left">Updated</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-amber-100 text-sm">
-                      {Object.entries(latestCategorical).map(([col, entry]) => {
-                        return (
-                          <tr key={`${col}-latest`} className="hover:bg-amber-50/60">
-                            <td className="px-4 py-3 font-semibold">{col}</td>
-                            <td className="px-4 py-3">{entry?.method || "-"}</td>
-                            <td className="px-4 py-3">{entry?.threshold ?? "-"}</td>
-                            <td className="px-4 py-3">{entry?.before?.total ?? "-"}</td>
-                            <td className="px-4 py-3">{entry?.after?.total ?? "-"}</td>
-                            <td className="px-4 py-3">{(() => { const r = computeRatio(entry?.before?.distribution || entry?.before); return r === null ? "-" : r; })()}</td>
-                            <td className="px-4 py-3">{(() => { const r = computeRatio(entry?.after?.distribution || entry?.after); return r === null ? "-" : r; })()}</td>
-                            <td className="px-4 py-3">{entry?.ts ? new Date(entry.ts).toLocaleString() : "-"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {Object.keys(latestContinuous).length > 0 && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 avoid-break">
-                <h3 className="text-lg font-semibold text-blue-900 mb-4">
-                  Continuous Corrections
-                </h3>
-                <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white avoid-break">
-                  <table className="min-w-full table-auto avoid-break">
-                    <thead className="bg-blue-100 text-blue-900 text-xs uppercase">
-                      <tr>
-                        <th className="px-4 py-3 text-left">Column</th>
-                        <th className="px-4 py-3 text-left">Before Skewness</th>
-                        <th className="px-4 py-3 text-left">After Skewness</th>
-                        <th className="px-4 py-3 text-left">Method</th>
-                        <th className="px-4 py-3 text-left">Updated</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-blue-100 text-sm">
-                      {Object.entries(latestContinuous).map(([col, entry]) => {
-                        return (
-                          <tr key={`${col}-latest`} className="hover:bg-blue-50/60">
-                            <td className="px-4 py-3 font-semibold">{col}</td>
-                            <td className="px-4 py-3">{entry?.original_skewness ?? "-"}</td>
-                            <td className="px-4 py-3">{entry?.new_skewness ?? "-"}</td>
-                            <td className="px-4 py-3">{entry?.method || "-"}</td>
-                            <td className="px-4 py-3">{entry?.ts ? new Date(entry.ts).toLocaleString() : "-"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </main>
     </div>
   );

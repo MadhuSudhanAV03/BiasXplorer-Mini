@@ -346,7 +346,7 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 flex items-center justify-center">
         <div className="max-w-2xl mx-auto px-4">
           <div className="rounded-3xl border-2 border-white/50 glass-effect p-12 shadow-2xl text-center animate-scaleIn">
-            <div className="text-8xl mb-6 animate-bounce-slow">⚠️</div>
+            <div className="text-8xl mb-6">⚠️</div>
             <h2 className="text-3xl font-bold text-slate-800 mb-4">
               No Dataset Found
             </h2>
@@ -415,7 +415,6 @@ export default function Dashboard() {
               className="absolute h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transition-all duration-700 ease-out shadow-lg"
               style={{ width: `${pct}%` }}
             >
-              <div className="absolute inset-0 animate-shimmer"></div>
             </div>
                 
           </div>
@@ -893,7 +892,7 @@ export default function Dashboard() {
             {!correctedFilePath && (
               <div className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl">
                 <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-yellow-50 to-amber-50 p-6 text-amber-900 border-2 border-amber-200 shadow-lg">
-                  <div className="text-5xl animate-bounce-slow">⚠️</div>
+                  <div className="text-5xl">⚠️</div>
                   <div>
                     <h3 className="text-lg font-bold mb-1">
                       No Visualizations Available
