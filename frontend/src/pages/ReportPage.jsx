@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import axios from "axios";
 import Plot from "react-plotly.js";
-import Plotly from "plotly.js-dist";
+import Plotly from "plotly.js-dist-min";
 import Spinner from "../components/Spinner";
 import html2pdf from "html2pdf.js";
 

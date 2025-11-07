@@ -14,4 +14,13 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: ['plotly.js-dist-min', 'react-plotly.js'],
+    exclude: ['plotly.js-dist'] // Exclude the full version, use minified
+  },
+  build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+    },
+  },
 });
