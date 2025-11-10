@@ -10,19 +10,8 @@ export default function Home() {
   };
 
   const clearAllData = () => {
-    // Clear all dashboard related localStorage items
-    localStorage.removeItem("dashboard_currentStep");
-    localStorage.removeItem("dashboard_columns");
-    localStorage.removeItem("dashboard_selectedColumns");
-    localStorage.removeItem("dashboard_categorical");
-    localStorage.removeItem("dashboard_continuous");
-    localStorage.removeItem("dashboard_selectedFilePath");
-    localStorage.removeItem("dashboard_biasSummary");
-    localStorage.removeItem("dashboard_skewnessResults");
-    localStorage.removeItem("dashboard_targetColumn");
-    localStorage.removeItem("dashboard_fixMode");
-    localStorage.removeItem("dashboard_previousColumns");
-    localStorage.removeItem("dashboard_filePath");
+    // Clear all localStorage data
+    localStorage.clear();
     alert("Application data has been cleared!");
   };
 

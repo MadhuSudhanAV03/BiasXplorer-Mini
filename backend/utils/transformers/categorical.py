@@ -1,6 +1,7 @@
 """Categorical bias correction methods."""
 from typing import Union, List, Optional
 import pandas as pd
+import numpy as np
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.over_sampling import RandomOverSampler, SMOTE, SMOTENC
 from sklearn.utils.class_weight import compute_class_weight
@@ -181,7 +182,7 @@ class CategoricalTransformer:
             Dictionary mapping class labels to weights
         """
         y_str = y.astype(str)
-        classes = sorted(y_str.unique().tolist())
+        classes = np.array(sorted(y_str.unique().tolist()))
         weights = compute_class_weight(
             class_weight="balanced", classes=classes, y=y_str)
         return {str(c): float(w) for c, w in zip(classes, weights)}
