@@ -660,17 +660,19 @@ export default function ReportPage() {
             <h1 className="text-2xl md:text-3xl font-extrabold text-blue-600 tracking-tight">
               Report
             </h1>
-            <nav className="flex items-center gap-4">
+            <nav className="flex items-center gap-2">
               <Link
                 to="/"
-                className="text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:from-purple-700 hover:to-purple-800 transition-all duration-200"
               >
+                <span className="text-base">🏠</span>
                 Home
               </Link>
               <Link
                 to="/dashboard"
-                className="text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-pink-600 to-pink-700 px-4 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:from-pink-700 hover:to-pink-800 transition-all duration-200"
               >
+                <span className="text-base">🎛️</span>
                 Dashboard
               </Link>
             </nav>
@@ -679,6 +681,13 @@ export default function ReportPage() {
       </header>
 
   <main ref={mainRef} className="max-w-6xl mx-auto px-4 py-8">
+        {/* PDF Title - Visible only in PDF export */}
+        <div className="text-center mb-8 hide-in-screen">
+          <h1 className="text-2xl font-bold text-slate-900">
+            Detailed Report on Bias Detection and Correction
+          </h1>
+        </div>
+
         {error && (
           <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
             {error}

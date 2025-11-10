@@ -522,3 +522,11 @@ html {
   display: none !important;
 }
 
+/* Hide title on screen, show only in PDF */
+.hide-in-screen {
+  display: none !important;
+}
+
+.exporting .hide-in-screen {
+  display: block !important;
+}
