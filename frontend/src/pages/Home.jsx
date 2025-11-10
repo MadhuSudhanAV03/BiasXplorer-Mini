@@ -18,16 +18,23 @@ export default function Home() {
     localStorage.removeItem("dashboard_continuous");
     localStorage.removeItem("dashboard_selectedFilePath");
     localStorage.removeItem("dashboard_biasSummary");
+    localStorage.removeItem("dashboard_biasResults");
     localStorage.removeItem("dashboard_skewnessResults");
     localStorage.removeItem("dashboard_targetColumn");
-    localStorage.removeItem("dashboard_fixMode");
-    localStorage.removeItem("dashboard_previousColumns");
     localStorage.removeItem("dashboard_filePath");
+    localStorage.removeItem("dashboard_cleanedFilePath");
+    localStorage.removeItem("dashboard_correctedFilePath");
+    localStorage.removeItem("dashboard_beforeFixFilePath");
+    localStorage.removeItem("dashboard_visualizationKey");
+    localStorage.removeItem("dashboard_fixedCategoricalColumns");
+    localStorage.removeItem("dashboard_fixedContinuousColumns");
+    localStorage.removeItem("dashboard_biasFixResult");
+    localStorage.removeItem("dashboard_skewnessFixResult");
+    localStorage.removeItem("dashboard_biasSelectedColumns");
+    localStorage.removeItem("dashboard_skewnessSelectedColumns");
     // Also clear report-related persisted data so the Report page refreshes
     localStorage.removeItem("dashboard_reportBiasSummary");
     localStorage.removeItem("dashboard_reportCorrectionSummary");
-    localStorage.removeItem("bx_lastReportPath");
-    localStorage.removeItem("dashboard_correctedFilePath");
     alert("Application data has been cleared!");
   };
 
