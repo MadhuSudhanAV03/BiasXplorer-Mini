@@ -22,7 +22,6 @@ export default function BiasFixSandbox({
   hideApplyButton = false,
   hideResults = false, // New prop to hide results
   initialResult = null, // New prop to restore previous results
-  onApplyFix,
   onStateChange,
 }) {
   const [selectedColumns, setSelectedColumns] = useState(

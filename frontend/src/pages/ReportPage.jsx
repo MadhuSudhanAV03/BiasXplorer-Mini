@@ -654,6 +654,17 @@ export default function ReportPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100">
+      {/* PDF Generation Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-2xl p-8 flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
+            <p className="text-xl font-semibold text-slate-700">Loading report...</p>
+            <p className="text-sm text-slate-500">Please wait while we generate your PDF</p>
+          </div>
+        </div>
+      )}
+
       <header className="border-b border-slate-200 bg-white/70 backdrop-blur sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
