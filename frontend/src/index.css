@@ -294,3 +294,239 @@ html {
 .text-glow {
   text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
 }
+
+/* ===== Plotly Chart Overflow Prevention ===== */
+/* Ensure all Plotly components stay within their containers */
+.js-plotly-plot,
+.js-plotly-plot .plot-container,
+.js-plotly-plot .svg-container,
+.js-plotly-plot .main-svg {
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.js-plotly-plot {
+  overflow: hidden !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Prevent Plotly modebar from causing overflow */
+.js-plotly-plot .modebar-container {
+  max-width: 100% !important;
+}
+
+/* Ensure chart containers have proper constraints */
+.js-plotly-plot .user-select-none {
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Additional safety for deeply nested Plotly elements */
+.js-plotly-plot * {
+  box-sizing: border-box;
+}
+
+/* Export-only overrides for DOM-to-PDF to avoid gradients/oklch parsing issues */
+/* Comprehensive RGB fallbacks for all Tailwind v4 OKLCH colors */
+.exporting, .exporting * {
+  background-image: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+.exporting {
+  /* Base colors */
+  --color-slate-50: #f8fafc !important;
+  --color-slate-100: #f1f5f9 !important;
+  --color-slate-200: #e2e8f0 !important;
+  --color-slate-300: #cbd5e1 !important;
+  --color-slate-400: #94a3b8 !important;
+  --color-slate-500: #64748b !important;
+  --color-slate-600: #475569 !important;
+  --color-slate-700: #334155 !important;
+  --color-slate-800: #1e293b !important;
+  --color-slate-900: #0f172a !important;
+  
+  --color-blue-50: #eff6ff !important;
+  --color-blue-100: #dbeafe !important;
+  --color-blue-200: #bfdbfe !important;
+  --color-blue-300: #93c5fd !important;
+  --color-blue-500: #3b82f6 !important;
+  --color-blue-600: #2563eb !important;
+  --color-blue-700: #1d4ed8 !important;
+  --color-blue-800: #1e40af !important;
+  --color-blue-900: #1e3a8a !important;
+  
+  --color-indigo-50: #eef2ff !important;
+  --color-indigo-100: #e0e7ff !important;
+  --color-indigo-500: #6366f1 !important;
+  --color-indigo-600: #4f46e5 !important;
+  
+  --color-amber-50: #fffbeb !important;
+  --color-amber-100: #fef3c7 !important;
+  --color-amber-200: #fde68a !important;
+  --color-amber-600: #d97706 !important;
+  --color-amber-700: #b45309 !important;
+  --color-amber-800: #92400e !important;
+  --color-amber-900: #78350f !important;
+  
+  --color-emerald-50: #ecfdf5 !important;
+  --color-emerald-500: #10b981 !important;
+  --color-emerald-600: #059669 !important;
+  
+  --color-green-50: #f0fdf4 !important;
+  --color-green-100: #dcfce7 !important;
+  --color-green-500: #22c55e !important;
+  --color-green-600: #16a34a !important;
+  --color-green-700: #15803d !important;
+  --color-green-800: #166534 !important;
+  --color-green-900: #14532d !important;
+  
+  --color-red-50: #fef2f2 !important;
+  --color-red-100: #fee2e2 !important;
+  --color-red-200: #fecaca !important;
+  --color-red-600: #dc2626 !important;
+  --color-red-700: #b91c1c !important;
+  --color-red-800: #991b1b !important;
+  --color-red-900: #7f1d1d !important;
+  
+  --color-orange-50: #fff7ed !important;
+  --color-orange-100: #ffedd5 !important;
+  
+  --color-purple-50: #faf5ff !important;
+  --color-purple-100: #f3e8ff !important;
+  --color-purple-200: #e9d5ff !important;
+  
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Apply RGB colors to common elements */
+.exporting .bg-white { background-color: #ffffff !important; }
+.exporting .bg-slate-50 { background-color: #f8fafc !important; }
+.exporting .bg-slate-100 { background-color: #f1f5f9 !important; }
+.exporting .bg-slate-200 { background-color: #e2e8f0 !important; }
+.exporting .bg-blue-50 { background-color: #eff6ff !important; }
+.exporting .bg-blue-100 { background-color: #dbeafe !important; }
+.exporting .bg-amber-50 { background-color: #fffbeb !important; }
+.exporting .bg-amber-100 { background-color: #fef3c7 !important; }
+.exporting .bg-green-50 { background-color: #f0fdf4 !important; }
+.exporting .bg-green-100 { background-color: #dcfce7 !important; }
+.exporting .bg-red-50 { background-color: #fef2f2 !important; }
+
+/* Text colors */
+.exporting .text-slate-600 { color: #475569 !important; }
+.exporting .text-slate-700 { color: #334155 !important; }
+.exporting .text-slate-800 { color: #1e293b !important; }
+.exporting .text-slate-900 { color: #0f172a !important; }
+.exporting .text-blue-600 { color: #2563eb !important; }
+.exporting .text-blue-700 { color: #1d4ed8 !important; }
+.exporting .text-blue-800 { color: #1e40af !important; }
+.exporting .text-blue-900 { color: #1e3a8a !important; }
+.exporting .text-amber-700 { color: #b45309 !important; }
+.exporting .text-amber-800 { color: #92400e !important; }
+.exporting .text-amber-900 { color: #78350f !important; }
+.exporting .text-green-600 { color: #16a34a !important; }
+.exporting .text-green-700 { color: #15803d !important; }
+.exporting .text-green-800 { color: #166534 !important; }
+.exporting .text-red-700 { color: #b91c1c !important; }
+.exporting .text-red-800 { color: #991b1b !important; }
+
+/* Border colors */
+.exporting .border-slate-200 { border-color: #e2e8f0 !important; }
+.exporting .border-blue-200 { border-color: #bfdbfe !important; }
+.exporting .border-amber-200 { border-color: #fde68a !important; }
+.exporting .border-green-200 { border-color: #86efac !important; }
+.exporting .border-red-200 { border-color: #fecaca !important; }
+
+/* Table specific */
+.exporting table { 
+  border-color: #e2e8f0 !important;
+  border-collapse: collapse !important;
+  page-break-inside: auto !important;
+  width: 100% !important;
+}
+.exporting th, .exporting td { 
+  page-break-inside: avoid !important;
+  page-break-after: auto !important;
+  border-color: #e2e8f0 !important;
+  padding: 8px !important;
+  font-size: 11px !important;
+}
+.exporting tr {
+  page-break-inside: avoid !important;
+  page-break-after: auto !important;
+}
+.exporting thead {
+  display: table-header-group !important;
+}
+.exporting tbody {
+  display: table-row-group !important;
+}
+
+/* Plotly chart optimizations for PDF */
+.exporting .js-plotly-plot {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 400px !important;
+  page-break-inside: avoid !important;
+}
+
+.exporting .plotly {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.exporting .plot-container {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* Chart containers should not break across pages */
+.exporting .grid.grid-cols-1.lg\:grid-cols-2 {
+  display: block !important;
+  page-break-inside: avoid !important;
+}
+
+.exporting .grid.grid-cols-1.lg\:grid-cols-2 > div {
+  display: block !important;
+  width: 100% !important;
+  margin-bottom: 20px !important;
+  page-break-inside: avoid !important;
+}
+
+/* Ensure visualization sections have proper spacing */
+.exporting .rounded-md.border {
+  page-break-inside: avoid !important;
+  margin-bottom: 20px !important;
+}
+
+/* Static images from Plotly conversion */
+.exporting .plotly-static-image {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 0 auto !important;
+  page-break-inside: avoid !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 4px !important;
+  padding: 8px !important;
+  background: white !important;
+}
+
+/* Hide download sections in PDF export */
+.exporting .hide-in-pdf {
+  display: none !important;
+}
+
+/* Hide title on screen, show only in PDF */
+.hide-in-screen {
+  display: none !important;
+}
+
+.exporting .hide-in-screen {
+  display: block !important;
+}

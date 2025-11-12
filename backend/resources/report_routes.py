@@ -15,6 +15,7 @@ ALLOWED_EXTENSIONS = {"csv", "xls", "xlsx"}
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
+CORRECTED_DIR = os.path.join(BASE_DIR, "corrected")
 blp = Blueprint("Reports", __name__, url_prefix="/api",
                 description="Report endpoints")
 
@@ -162,5 +163,21 @@ class ServeReport(MethodView):
             os.makedirs(REPORTS_DIR, exist_ok=True)
             # send_from_directory safely joins and serves files under REPORTS_DIR
             return send_from_directory(REPORTS_DIR, filename, as_attachment=True)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+
+
+@blp.route("/corrected/download/<path:filename>")
+class ServeCorrected(MethodView):
+    def get(self, filename):
+        """Serve corrected CSV files from the corrected directory.
+
+        The frontend typically has a path like 'corrected/<file>.csv'. Pass just
+        the filename portion to this route.
+        """
+        try:
+            os.makedirs(CORRECTED_DIR, exist_ok=True)
+            # Security: ensure we only serve inside CORRECTED_DIR
+            return send_from_directory(CORRECTED_DIR, filename, as_attachment=True)
         except Exception as e:
             return jsonify({"error": str(e)}), 400

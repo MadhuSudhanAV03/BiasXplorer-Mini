@@ -22,7 +22,6 @@ export default function BiasFixSandbox({
   hideApplyButton = false,
   hideResults = false, // New prop to hide results
   initialResult = null, // New prop to restore previous results
-  onApplyFix,
   onStateChange,
 }) {
   const [selectedColumns, setSelectedColumns] = useState(
@@ -272,7 +271,7 @@ export default function BiasFixSandbox({
       <div className="mb-6 p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm animate-fadeInUp">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="text-2xl animate-bounce-slow">🎯</span>
+            <span className="text-2xl">🎯</span>
             <h3 className="text-base font-bold text-slate-800">
               Select Columns to Fix
             </h3>
@@ -458,7 +457,7 @@ export default function BiasFixSandbox({
                   {selectedColumns.size !== 1 ? "s" : ""}
                 </span>
                 {selectedColumns.size > 0 && (
-                  <span className="absolute -top-2 -right-2 w-8 h-8 bg-blue-500 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-lg animate-bounce-slow">
+                  <span className="absolute -top-2 -right-2 w-8 h-8 bg-blue-500 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-lg">
                     {selectedColumns.size}
                   </span>
                 )}
@@ -509,7 +508,7 @@ export default function BiasFixSandbox({
       {!loading && result && !hideResults && (
         <div className="mt-6 rounded-2xl border-2 border-green-300 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-6 shadow-xl animate-fadeInUp">
           <div className="flex items-center gap-3 mb-6">
-            <span className="text-4xl animate-bounce-slow">✨</span>
+            <span className="text-4xl">✨</span>
             <div>
               <h3 className="text-2xl font-bold text-green-800 flex items-center gap-2">
                 Bias Correction Applied Successfully!

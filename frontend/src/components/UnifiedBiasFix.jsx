@@ -371,7 +371,7 @@ export default function UnifiedBiasFix({
       {!hasCategoricalIssues && !hasSkewnessIssues && (
         <div className="rounded-3xl bg-gradient-to-r from-green-50 to-emerald-50 p-8 border-2 border-green-300 shadow-xl">
           <div className="flex items-center gap-4">
-            <div className="text-6xl animate-bounce-slow">✅</div>
+            <div className="text-6xl">✅</div>
             <div>
               <h3 className="text-2xl font-bold text-green-900 mb-2">
                 No Issues Detected!

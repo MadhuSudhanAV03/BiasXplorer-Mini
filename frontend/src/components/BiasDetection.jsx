@@ -464,7 +464,7 @@ export default function BiasDetection({
                       </label>
                     </div>
                     {info && (
-                      <div className="text-3xl ml-2 animate-bounce-slow">
+                      <div className="text-3xl ml-2">
                         {emoji}
                       </div>
                     )}
@@ -658,7 +658,7 @@ export default function BiasDetection({
                       </label>
                     </div>
                     {info && (
-                      <div className="text-3xl ml-2 animate-bounce-slow">
+                      <div className="text-3xl ml-2">
                         {emoji}
                       </div>
                     )}

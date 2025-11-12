@@ -24,19 +24,11 @@ export default function Dashboard() {
   const initialFilePath = location.state?.filePath || "";
 
   // Initialize all state variables first - order matters!
-  const [previousColumns, setPreviousColumns] = usePersistedState(
-    "dashboard_previousColumns",
-    []
-  );
-  const [analyzedColumns, setAnalyzedColumns] = usePersistedState(
-    "dashboard_analyzedColumns",
-    []
-  );
   const [currentStep, setCurrentStep] = usePersistedState(
     "dashboard_currentStep",
     1
   );
-  const [filePath, setFilePath] = usePersistedState(
+  const [filePath] = usePersistedState(
     "dashboard_filePath",
     initialFilePath
   );
@@ -105,6 +97,18 @@ export default function Dashboard() {
     null
   );
 
+  // Persisted report summaries for the Report page
+  const [reportBiasSummary, setReportBiasSummary] = usePersistedState(
+    "dashboard_reportBiasSummary",
+    null
+  );
+  const [reportCorrectionSummary, setReportCorrectionSummary] = usePersistedState(
+    "dashboard_reportCorrectionSummary",
+    null
+  );
+
+  
+
   // Store the file path that was used as input to bias fixing (for visualization "before" state)
   const [beforeFixFilePath, setBeforeFixFilePath] = usePersistedState(
     "dashboard_beforeFixFilePath",
@@ -163,7 +167,7 @@ export default function Dashboard() {
   );
 
   const handleResultsChange = useCallback(
-    ({ biasFixResult: newBiasResult, skewnessFixResult: newSkewResult }) => {
+    async ({ biasFixResult: newBiasResult, skewnessFixResult: newSkewResult }) => {
       console.log("[Dashboard] onResultsChange called:", {
         newBiasResult,
         newSkewResult,
@@ -178,8 +182,57 @@ export default function Dashboard() {
         console.log("[Dashboard] Setting skewnessFixResult to:", newSkewResult);
         setSkewnessFixResult(newSkewResult);
       }
+
+      // Call backend to compute report summaries instead of calculating locally
+      try {
+        const response = await fetch("http://localhost:5000/api/bias/compute-summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bias_results: biasResults,
+            skewness_results: skewnessResults,
+            bias_fix_result: newBiasResult,
+            skewness_fix_result: newSkewResult,
+            selected_columns: selectedColumns,
+            categorical: categorical,
+            continuous: continuous
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Backend summary computation failed: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log("[Dashboard] Backend computed summaries:", data);
+
+        // Update state with backend-computed summaries
+        if (data.bias_summary !== undefined) {
+          setReportBiasSummary(data.bias_summary);
+        }
+        
+        if (data.correction_summary !== undefined) {
+          setReportCorrectionSummary(data.correction_summary);
+        }
+
+      } catch (e) {
+        console.warn("[Dashboard] Failed to compute report summaries via backend:", e);
+        // Fall back to not updating summaries if backend fails
+      }
     },
-    [biasFixResult, skewnessFixResult, setBiasFixResult, setSkewnessFixResult]
+    [
+      biasResults,
+      skewnessResults,
+      categorical,
+      continuous,
+      selectedColumns,
+      biasFixResult,
+      skewnessFixResult,
+      setBiasFixResult,
+      setSkewnessFixResult,
+      setReportBiasSummary,
+      setReportCorrectionSummary,
+    ]
   );
 
   if (!workingFilePath && currentStep > 1) {
@@ -188,7 +241,7 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 flex items-center justify-center">
         <div className="max-w-2xl mx-auto px-4">
           <div className="rounded-3xl border-2 border-white/50 glass-effect p-12 shadow-2xl text-center animate-scaleIn">
-            <div className="text-8xl mb-6 animate-bounce-slow">⚠️</div>
+            <div className="text-8xl mb-6">⚠️</div>
             <h2 className="text-3xl font-bold text-slate-800 mb-4">
               No Dataset Found
             </h2>
@@ -238,6 +291,11 @@ export default function Dashboard() {
             </Link>
             <Link
               to="/report"
+              state={{
+                biasSummary: reportBiasSummary || biasSummary || {},
+                correctionSummary: reportCorrectionSummary || null,
+                correctedPath: correctedFilePath || "",
+              }}
               className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
             >
               📊 Reports
@@ -252,8 +310,8 @@ export default function Dashboard() {
               className="absolute h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transition-all duration-700 ease-out shadow-lg"
               style={{ width: `${pct}%` }}
             >
-              <div className="absolute inset-0 animate-shimmer"></div>
             </div>
+                
           </div>
           <div className="mt-3 grid grid-cols-7 gap-1 text-[10px]">
             {STEPS.map((label, i) => {
@@ -337,13 +395,15 @@ export default function Dashboard() {
                 setSelectedColumns([]);
                 setCategorical([]);
                 setContinuous([]);
-                setPreviousColumns([]);
                 setBiasSummary(null);
                 setBiasResults({});
                 setSkewnessResults(null);
                 setCleanedFilePath(""); // Clear cleaned file path
                 setCorrectedFilePath(""); // Clear corrected file path
                 setBeforeFixFilePath(""); // Clear before fix file path
+                // Clear report summaries
+                setReportBiasSummary(null);
+                setReportCorrectionSummary(null);
                 // Clear persisted fix selections and results
                 setPersistedBiasSelectedColumns([]);
                 setPersistedSkewnessSelectedColumns([]);
@@ -398,7 +458,6 @@ export default function Dashboard() {
               columns={columns}
               initialSelected={selectedColumns}
               onSelect={({ features }) => {
-                const oldSelected = new Set(selectedColumns || []);
                 const newSelected = new Set(features);
 
                 // Keep existing results for all currently selected columns
@@ -557,13 +616,6 @@ export default function Dashboard() {
                   ...results,
                 }));
 
-                // Add newly analyzed columns to analyzedColumns
-                const newlyAnalyzed = Object.keys(results);
-                setAnalyzedColumns((prev) => {
-                  const newSet = new Set([...prev, ...newlyAnalyzed]);
-                  return Array.from(newSet);
-                });
-
                 // Store selected columns for auto-selection in BiasFixSandbox
                 if (targetColumns && targetColumns.length > 0) {
                   setSelectedBiasColumns(targetColumns);
@@ -598,13 +650,6 @@ export default function Dashboard() {
                 } else {
                   setSelectedSkewnessColumns([]);
                 }
-
-                // Add newly analyzed columns to analyzedColumns
-                const newlyAnalyzed = Object.keys(skewResults);
-                setAnalyzedColumns((prev) => {
-                  const newSet = new Set([...prev, ...newlyAnalyzed]);
-                  return Array.from(newSet);
-                });
 
                 // Only navigate when explicitly clicking the Fix button
                 if (fromButton) {
@@ -660,6 +705,13 @@ export default function Dashboard() {
                 setFixedCategoricalColumns(fixedCategorical || []);
                 setFixedContinuousColumns(fixedContinuous || []);
                 setVisualizationKey((prev) => prev + 1);
+
+                // Also update persisted correction summary with corrected path if already prepared
+                setReportCorrectionSummary((prev) =>
+                  prev
+                    ? { ...prev, corrected_file_path: correctedPath }
+                    : prev
+                );
                 console.log(
                   "[Dashboard] State updated - correctedFilePath:",
                   correctedPath,
@@ -711,7 +763,7 @@ export default function Dashboard() {
             {!correctedFilePath && (
               <div className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl">
                 <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-yellow-50 to-amber-50 p-6 text-amber-900 border-2 border-amber-200 shadow-lg">
-                  <div className="text-5xl animate-bounce-slow">⚠️</div>
+                  <div className="text-5xl">⚠️</div>
                   <div>
                     <h3 className="text-lg font-bold mb-1">
                       No Visualizations Available

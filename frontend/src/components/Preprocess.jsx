@@ -135,7 +135,7 @@ export default function Preprocess({ filePath, onComplete }) {
         <div className="space-y-6 animate-fadeInUp">
           {/* Success message */}
           <div className="rounded-2xl border-2 border-green-300 bg-gradient-to-r from-green-50 to-emerald-50 p-6 shadow-lg flex items-center gap-4">
-            <div className="text-5xl animate-bounce-slow">✨</div>
+            <div className="text-5xl">✨</div>
             <div>
               <h3 className="text-xl font-bold text-green-900 mb-1">
                 Preprocessing Complete!
