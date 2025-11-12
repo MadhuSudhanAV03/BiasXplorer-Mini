@@ -656,11 +656,39 @@ export default function ReportPage() {
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100">
       {/* PDF Generation Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-2xl p-8 flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
-            <p className="text-xl font-semibold text-slate-700">Loading report...</p>
-            <p className="text-sm text-slate-500">Please wait while we generate your PDF</p>
+        <div className="fixed inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 z-50 flex items-center justify-center">
+          <div className="relative">
+            {/* Animated background circles */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute w-32 h-32 bg-blue-400/20 rounded-full animate-ping"></div>
+              <div className="absolute w-24 h-24 bg-purple-400/20 rounded-full animate-pulse"></div>
+            </div>
+            
+            {/* Main content card */}
+            <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-10 flex flex-col items-center gap-6 min-w-[320px]">
+              {/* Spinner with gradient */}
+              <div className="relative">
+                <div className="animate-spin rounded-full h-20 w-20 border-4 border-gray-200"></div>
+                <div className="animate-spin rounded-full h-20 w-20 border-4 border-transparent border-t-blue-600 border-r-purple-600 absolute top-0 left-0"></div>
+              </div>
+              
+              {/* Text content */}
+              <div className="text-center space-y-2">
+                <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Loading report...
+                </p>
+                <p className="text-sm text-slate-600">
+                  Please wait while we generate your PDF
+                </p>
+              </div>
+              
+              {/* Progress dots */}
+              <div className="flex gap-2">
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-pink-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              </div>
+            </div>
           </div>
         </div>
       )}

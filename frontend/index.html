@@ -4,10 +4,259 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>BiasXplorer - Detect, Analyze, Fix Bias</title>
+    <style>
+      /* Loading screen styles - scoped to #app-loader only */
+      #app-loader {
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      }
+      
+      #app-loader .loader-content {
+        text-align: center;
+        padding: 40px;
+      }
+      
+      /* Magnifying glass icon */
+      #app-loader .magnifier {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 40px;
+        position: relative;
+        animation: float 3s ease-in-out infinite;
+      }
+      
+      #app-loader .magnifier-circle {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #60a5fa 0%, #818cf8 100%);
+        box-shadow: 0 10px 40px rgba(96, 165, 250, 0.4);
+        position: relative;
+      }
+      
+      #app-loader .magnifier-circle::before {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        width: 20px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.4);
+        border-radius: 50%;
+      }
+      
+      #app-loader .magnifier-handle {
+        width: 8px;
+        height: 40px;
+        background: linear-gradient(180deg, #6366f1 0%, #7c3aed 100%);
+        border-radius: 4px;
+        position: absolute;
+        bottom: -25px;
+        right: -5px;
+        transform: rotate(45deg);
+      }
+      
+      @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-15px); }
+      }
+      
+      /* Title */
+      #app-loader .title {
+        font-size: 48px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 16px;
+        letter-spacing: -1px;
+      }
+      
+      /* Tagline */
+      #app-loader .tagline {
+        font-size: 18px;
+        color: #64748b;
+        font-weight: 500;
+        margin-bottom: 50px;
+      }
+      
+      /* Circular spinner */
+      #app-loader .spinner {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 20px;
+        border: 4px solid #e0e7ff;
+        border-top-color: #6366f1;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      /* Loading text */
+      #app-loader .loading-text {
+        font-size: 16px;
+        color: #8b5cf6;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+      
+      #app-loader .loading-subtext {
+        font-size: 14px;
+        color: #94a3b8;
+        margin-bottom: 30px;
+      }
+      
+      /* Bouncing dots */
+      #app-loader .dots {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+      
+      #app-loader .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: bounce 1.4s ease-in-out infinite;
+      }
+      
+      #app-loader .dot:nth-child(1) {
+        background: #6366f1;
+        animation-delay: 0s;
+      }
+      
+      #app-loader .dot:nth-child(2) {
+        background: #8b5cf6;
+        animation-delay: 0.2s;
+      }
+      
+      #app-loader .dot:nth-child(3) {
+        background: #d946ef;
+        animation-delay: 0.4s;
+      }
+      
+      @keyframes bounce {
+        0%, 80%, 100% {
+          transform: translateY(0);
+          opacity: 0.6;
+        }
+        40% {
+          transform: translateY(-15px);
+          opacity: 1;
+        }
+      }
+      
+      /* Progress bar */
+      #app-loader .progress-container {
+        width: 250px;
+        height: 4px;
+        background: rgba(99, 102, 241, 0.2);
+        border-radius: 2px;
+        margin: 30px auto 0;
+        overflow: hidden;
+      }
+      
+      #app-loader .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6, #d946ef);
+        border-radius: 2px;
+        animation: progress 2s ease-in-out infinite;
+      }
+      
+      @keyframes progress {
+        0% { width: 0%; }
+        100% { width: 100%; }
+      }
+      
+      /* Fade out animation */
+      .app-loaded #app-loader {
+        animation: fadeOut 0.6s ease forwards;
+      }
+      
+      @keyframes fadeOut {
+        to {
+          opacity: 0;
+          visibility: hidden;
+        }
+      }
+    </style>
   </head>
   <body>
+    <!-- Loading Screen -->
+    <div id="app-loader">
+      <div class="loader-content">
+        <!-- Magnifying glass icon -->
+        <div class="magnifier">
+          <div class="magnifier-circle"></div>
+          <div class="magnifier-handle"></div>
+        </div>
+        
+        <!-- Title -->
+        <h1 class="title">BiasXplorer</h1>
+        
+        <!-- Tagline -->
+        <p class="tagline">Detect • Analyze • Fix Bias</p>
+        
+        <!-- Spinner -->
+        <div class="spinner"></div>
+        
+        <!-- Loading text -->
+        <p class="loading-text">Loading Your Experience</p>
+        <p class="loading-subtext">Setting up your analytics workspace...</p>
+        
+        <!-- Bouncing dots -->
+        <div class="dots">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+        
+        <!-- Progress bar -->
+        <div class="progress-container">
+          <div class="progress-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- React App -->
     <div id="root"></div>
+    
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Only show loader on first page load
+      window.addEventListener('DOMContentLoaded', () => {
+        const isFirstLoad = !sessionStorage.getItem('appLoaded');
+        
+        if (!isFirstLoad) {
+          const loader = document.getElementById('app-loader');
+          if (loader) loader.remove();
+          return;
+        }
+        
+        const check = setInterval(() => {
+          const root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            sessionStorage.setItem('appLoaded', 'true');
+            document.body.classList.add('app-loaded');
+            setTimeout(() => {
+              const loader = document.getElementById('app-loader');
+              if (loader) loader.remove();
+            }, 600);
+            clearInterval(check);
+          }
+        }, 100);
+      });
+    </script>
   </body>
 </html>
