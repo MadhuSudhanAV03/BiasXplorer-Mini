@@ -720,11 +720,54 @@ export default function ReportPage() {
       </header>
 
   <main ref={mainRef} className="max-w-6xl mx-auto px-4 py-8">
-        {/* PDF Title - Visible only in PDF export */}
-        <div className="text-center mb-8 hide-in-screen">
-          <h1 className="text-2xl font-bold text-slate-900">
-            Detailed Report on Bias Detection and Correction
-          </h1>
+        {/* Official PDF Header - Visible only in PDF export */}
+        <div className="hide-in-screen official-report-header">
+          <div className="border-b-4 border-blue-600 pb-6 mb-8">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                  BiasXplorer
+                </h1>
+                <p className="text-lg text-slate-600">Dataset Bias Analysis Report</p>
+              </div>
+              <div className="text-right text-sm text-slate-600">
+                <div className="font-semibold text-blue-600">OFFICIAL REPORT</div>
+                <div>Report ID: {`BXR-${Date.now().toString().slice(-8)}`}</div>
+                <div>Generated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                <div>Time: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+              </div>
+            </div>
+            <div className="bg-blue-50 border-l-4 border-blue-600 p-4 mt-4">
+              <p className="text-sm text-slate-700">
+                <strong>Confidential:</strong> This report contains analysis results for dataset bias detection and correction. 
+                The information herein is intended for authorized personnel only.
+              </p>
+            </div>
+          </div>
+          
+          {/* Executive Summary */}
+          <div className="mb-8 bg-slate-50 border border-slate-200 rounded-lg p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">
+              Executive Summary
+            </h2>
+            <div className="space-y-2 text-sm text-slate-700">
+              <p>
+                <strong>Total Columns Analyzed:</strong> {biasSeverityCounts.totalSelectedAll}
+              </p>
+              <p>
+                <strong>Columns Corrected:</strong> {totalFixedCount}
+              </p>
+              <p>
+                <strong>Categorical Issues Identified:</strong> {biasSeverityCounts.Severe} Severe, {biasSeverityCounts.Moderate} Moderate, {biasSeverityCounts.Low} Low
+              </p>
+              <p>
+                <strong>Continuous Distribution Issues:</strong> {biasSeverityCounts.continuous?.right ?? 0} Right-skewed, {biasSeverityCounts.continuous?.left ?? 0} Left-skewed
+              </p>
+              <p className="pt-2 border-t border-slate-300 mt-3">
+                <strong>Analysis Status:</strong> <span className="text-green-700 font-semibold">Complete</span>
+              </p>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -734,12 +777,21 @@ export default function ReportPage() {
         )}
 
   {/* Summary grid: Bias + Correction only */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-medium text-slate-700 mb-3">Bias Summary</h3>
+  <div className="report-section page-break-before-analysis">
+    {/* Section number for PDF */}
+    <div className="hide-in-screen">
+      <h2 className="text-2xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">
+        1. ANALYSIS OVERVIEW
+      </h2>
+    </div>
+    
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm official-card">
+            <h3 className="font-semibold text-slate-800 mb-3 text-base hide-in-pdf">1.1 Bias Detection Summary</h3>
+            <h3 className="font-semibold text-slate-800 mb-4 text-base hide-in-screen" style={{borderBottom: '1px solid #cbd5e1', paddingBottom: '8px'}}>1.1 Bias Detection Summary</h3>
             
-            {/* Overview Section */}
-            <div className="bg-slate-50 rounded-lg p-3 mb-3 border border-slate-100">
+            {/* Overview Section - Web */}
+            <div className="bg-slate-50 rounded-lg p-3 mb-3 border border-slate-100 hide-in-pdf">
               <div className="text-base text-slate-700 mb-1">
                 Columns fixed: {totalFixedCount}{formatColumns(Object.keys(latestCategorical).concat(Object.keys(latestContinuous)))}
               </div>
@@ -747,9 +799,25 @@ export default function ReportPage() {
                 Total columns selected: {biasSeverityCounts.totalSelectedAll}
               </div>
             </div>
+            
+            {/* Overview Section - PDF only */}
+            <div className="hide-in-screen">
+              <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '12px', fontSize: '12px'}}>
+                <tbody>
+                  <tr>
+                    <td style={{padding: '8px', fontWeight: 600, width: '60%', borderBottom: '1px solid #e2e8f0'}}>Columns Fixed:</td>
+                    <td style={{padding: '8px', borderBottom: '1px solid #e2e8f0'}}>{totalFixedCount}</td>
+                  </tr>
+                  <tr>
+                    <td style={{padding: '8px', fontWeight: 600, borderBottom: '1px solid #e2e8f0'}}>Total Columns Selected:</td>
+                    <td style={{padding: '8px', borderBottom: '1px solid #e2e8f0'}}>{biasSeverityCounts.totalSelectedAll}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-            {/* Categorical Section */}
-            <div className="bg-amber-50 rounded-lg p-3 mb-3 border border-amber-100">
+            {/* Categorical Section - Web only */}
+            <div className="bg-amber-50 rounded-lg p-3 mb-3 border border-amber-100 hide-in-pdf">
               <div className="text-sm font-semibold text-amber-900 mb-2">Categorical</div>
               <div className="text-sm text-green-700">
                 Low: {biasSeverityCounts.Low}{formatColumns(biasSeverityCounts.LowCols)}
@@ -764,9 +832,40 @@ export default function ReportPage() {
                 Not tested: {biasSeverityCounts.NotTested}{formatColumns(biasSeverityCounts.NotTestedCols)}
               </div>
             </div>
+            
+            {/* Categorical Section - PDF only */}
+            <div className="hide-in-screen">
+              <p style={{fontWeight: 600, marginBottom: '6px', fontSize: '13px'}}>Categorical Bias Results:</p>
+              <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '10px', fontSize: '11px'}}>
+                <thead>
+                  <tr style={{backgroundColor: '#f8fafc'}}>
+                    <th style={{padding: '6px 8px', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #cbd5e1'}}>Severity Level</th>
+                    <th style={{padding: '6px 8px', textAlign: 'right', fontWeight: 600, borderBottom: '2px solid #cbd5e1'}}>Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
+                    <td style={{padding: '6px 8px'}}>Low</td>
+                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.Low}</td>
+                  </tr>
+                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
+                    <td style={{padding: '6px 8px'}}>Moderate</td>
+                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.Moderate}</td>
+                  </tr>
+                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
+                    <td style={{padding: '6px 8px'}}>Severe</td>
+                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.Severe}</td>
+                  </tr>
+                  <tr>
+                    <td style={{padding: '6px 8px', color: '#64748b'}}>Not Tested</td>
+                    <td style={{padding: '6px 8px', textAlign: 'right', color: '#64748b'}}>{biasSeverityCounts.NotTested}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-            {/* Continuous Section */}
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+            {/* Continuous Section - Web only */}
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 hide-in-pdf">
               <div className="text-sm font-semibold text-blue-900 mb-2">Continuous</div>
               <div className="text-sm text-blue-900">
                 Right skew: {biasSeverityCounts.continuous?.right ?? 0}{formatColumns(biasSeverityCounts.continuous?.rightCols)}
@@ -781,11 +880,42 @@ export default function ReportPage() {
                 Not tested: {biasSeverityCounts.continuous?.notTested ?? 0}{formatColumns(biasSeverityCounts.continuous?.notTestedCols)}
               </div>
             </div>
+            
+            {/* Continuous Section - PDF only */}
+            <div className="hide-in-screen">
+              <p style={{fontWeight: 600, marginBottom: '6px', fontSize: '13px'}}>Continuous Distribution Results:</p>
+              <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '11px'}}>
+                <thead>
+                  <tr style={{backgroundColor: '#f8fafc'}}>
+                    <th style={{padding: '6px 8px', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #cbd5e1'}}>Distribution Type</th>
+                    <th style={{padding: '6px 8px', textAlign: 'right', fontWeight: 600, borderBottom: '2px solid #cbd5e1'}}>Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
+                    <td style={{padding: '6px 8px'}}>Right Skewed</td>
+                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.continuous?.right ?? 0}</td>
+                  </tr>
+                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
+                    <td style={{padding: '6px 8px'}}>Left Skewed</td>
+                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.continuous?.left ?? 0}</td>
+                  </tr>
+                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
+                    <td style={{padding: '6px 8px'}}>Approximately Normal</td>
+                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.continuous?.normal ?? 0}</td>
+                  </tr>
+                  <tr>
+                    <td style={{padding: '6px 8px', color: '#64748b'}}>Not Tested</td>
+                    <td style={{padding: '6px 8px', textAlign: 'right', color: '#64748b'}}>{biasSeverityCounts.continuous?.notTested ?? 0}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 className="font-medium text-slate-700 mb-3">
-              Correction Summary
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm official-card">
+            <h3 className="font-semibold text-slate-800 mb-3 text-base">
+              1.2 Correction Implementation Summary
             </h3>
             {/* Corrected file path intentionally hidden as requested */}
             <div className="space-y-3">
@@ -832,16 +962,27 @@ export default function ReportPage() {
           </div>
           
         </div>
+  </div>
 
         {/* Correction Details */}
         {(Object.keys(categoricalCorrections).length > 0 ||
           Object.keys(continuousCorrections).length > 0) && (
-          <div className="grid grid-cols-1 gap-6 mb-6">
+          <div className="grid grid-cols-1 gap-6 mb-6 report-section">
+            {/* Section header for PDF */}
+            <div className="hide-in-screen">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">
+                2. DETAILED CORRECTION RESULTS
+              </h2>
+            </div>
+            
             {Object.keys(latestCategorical).length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 avoid-break">
-                <h3 className="text-lg font-semibold text-amber-900 mb-4">
-                  Categorical Corrections
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 avoid-break official-section">
+                <h3 className="text-lg font-bold text-amber-900 mb-4">
+                  2.1 Categorical Bias Corrections
                 </h3>
+                <p className="text-sm text-slate-600 mb-4 hide-in-screen-only">
+                  The following categorical columns were corrected using specified methods to balance class distributions:
+                </p>
                 <div className="overflow-x-auto rounded-lg border border-amber-200 bg-white avoid-break">
                   <table className="min-w-full table-auto avoid-break">
                     <thead className="bg-amber-100 text-amber-900 text-xs uppercase">
@@ -878,10 +1019,13 @@ export default function ReportPage() {
             )}
 
             {Object.keys(latestContinuous).length > 0 && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 avoid-break">
-                <h3 className="text-lg font-semibold text-blue-900 mb-4">
-                  Continuous Corrections
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 avoid-break official-section">
+                <h3 className="text-lg font-bold text-blue-900 mb-4">
+                  2.2 Continuous Distribution Corrections
                 </h3>
+                <p className="text-sm text-slate-600 mb-4 hide-in-screen-only">
+                  The following continuous columns were transformed to reduce skewness and normalize distributions:
+                </p>
                 <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white avoid-break">
                   <table className="min-w-full table-auto avoid-break">
                     <thead className="bg-blue-100 text-blue-900 text-xs uppercase">
@@ -914,8 +1058,15 @@ export default function ReportPage() {
         )}
 
         {/* Visualizations Section - full width, placed below summaries */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
-          <h3 className="text-lg font-semibold text-slate-800 mb-2">Visualizations</h3>
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm mb-6 report-section page-break-before">
+          {/* Section header for PDF */}
+          <div className="hide-in-screen" style={{marginBottom: '8px'}}>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2 border-b-2 border-slate-300 pb-2">
+              3. VISUAL ANALYSIS
+            </h2>
+          </div>
+          
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 hide-in-pdf">Visualizations</h3>
           {vizError && (
             <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">{vizError}</div>
           )}
@@ -933,7 +1084,7 @@ export default function ReportPage() {
                   {/* Categorical */}
                   {Object.keys(vizCategorical).length > 0 && (
                     <div className="avoid-break">
-                      <h4 className="font-semibold text-slate-800 mb-3">Categorical Bias</h4>
+                      <h4 className="font-bold text-slate-800 mb-3 text-base">3.1 Categorical Distribution Comparisons</h4>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(vizCategorical).map(([col, data]) => (
                           <div key={`cat-${col}`} className="rounded-md border border-slate-200 bg-white p-3 avoid-break">
@@ -991,7 +1142,7 @@ export default function ReportPage() {
                   {/* Continuous */}
                   {Object.keys(vizContinuous).length > 0 && (
                     <div className="avoid-break">
-                      <h4 className="font-semibold text-slate-800 mb-3">Continuous Skewness</h4>
+                      <h4 className="font-bold text-slate-800 mb-3 text-base">3.2 Continuous Distribution Comparisons</h4>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(vizContinuous).map(([col, data]) => (
                           <div key={`cont-${col}`} className="rounded-md border border-slate-200 bg-white p-3 avoid-break">

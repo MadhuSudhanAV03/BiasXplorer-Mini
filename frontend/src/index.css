@@ -530,3 +530,320 @@ html {
 .exporting .hide-in-screen {
   display: block !important;
 }
+
+/* Hide elements only on screen but show in PDF */
+.hide-in-screen-only {
+  display: block !important;
+}
+
+.exporting .hide-in-screen-only {
+  display: none !important;
+}
+
+/* ===== Official Report Styling for PDF Export ===== */
+.exporting .official-report-header {
+  background: white !important;
+  padding: 30px 20px !important;
+  margin-bottom: 30px !important;
+  page-break-inside: avoid !important;
+}
+
+.exporting .official-report-header h1 {
+  font-size: 28px !important;
+  font-weight: bold !important;
+  color: #1e293b !important;
+  margin-bottom: 8px !important;
+}
+
+.exporting .official-report-header p {
+  font-size: 16px !important;
+  color: #475569 !important;
+}
+
+.exporting .official-card {
+  page-break-inside: avoid !important;
+  padding: 16px !important;
+  margin-bottom: 16px !important;
+}
+
+.exporting .official-section {
+  page-break-inside: avoid !important;
+  padding: 20px !important;
+  margin-bottom: 24px !important;
+}
+
+.exporting .report-section {
+  page-break-inside: avoid !important;
+  margin-bottom: 32px !important;
+}
+
+.exporting .official-report-footer {
+  background: #f8fafc !important;
+  padding: 24px 20px !important;
+  margin-top: 40px !important;
+  border-radius: 8px !important;
+  page-break-inside: avoid !important;
+  page-break-before: auto !important;
+}
+
+/* Professional typography for PDF */
+.exporting h2 {
+  font-size: 20px !important;
+  font-weight: bold !important;
+  color: #0f172a !important;
+  margin-bottom: 16px !important;
+  padding-bottom: 8px !important;
+}
+
+.exporting h3 {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  margin-bottom: 12px !important;
+}
+
+.exporting h4 {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  margin-bottom: 8px !important;
+}
+
+/* Professional table styling for official report */
+.exporting .official-section table {
+  border: 1px solid #cbd5e1 !important;
+  background: white !important;
+}
+
+.exporting .official-section thead {
+  background-color: #f1f5f9 !important;
+}
+
+.exporting .official-section th {
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  font-size: 10px !important;
+  letter-spacing: 0.5px !important;
+  color: #475569 !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+}
+
+.exporting .official-section td {
+  font-size: 11px !important;
+  color: #334155 !important;
+  vertical-align: middle !important;
+}
+
+.exporting .official-section tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+/* Ensure proper spacing in official report */
+.exporting main {
+  padding: 40px 30px !important;
+  background: white !important;
+}
+
+/* Professional color scheme for official documents */
+.exporting .bg-blue-50 {
+  background-color: #eff6ff !important;
+  border-color: #93c5fd !important;
+}
+
+.exporting .border-blue-600 {
+  border-color: #2563eb !important;
+}
+
+.exporting .text-blue-600 {
+  color: #2563eb !important;
+}
+
+/* Force page break before Visual Analysis section */
+.exporting .page-break-before {
+  page-break-before: always !important;
+  break-before: always !important;
+  margin-top: 0 !important;
+  padding-top: 40px !important;
+}
+
+/* Force page break before Analysis Overview section */
+.exporting .page-break-before-analysis {
+  page-break-before: always !important;
+  break-before: always !important;
+  margin-top: 0 !important;
+  padding-top: 20px !important;
+}
+
+/* Remove excessive spacing in Visual Analysis section */
+.exporting .page-break-before > .hide-in-screen {
+  margin-bottom: 6px !important;
+  padding-top: 0 !important;
+}
+
+.exporting .page-break-before > .hide-in-screen h2 {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  margin-bottom: 6px !important;
+}
+
+.exporting .page-break-before > .hide-in-screen p {
+  margin-bottom: 8px !important;
+}
+
+/* Reduce spacing for page break sections */
+.exporting .page-break-before-analysis {
+  padding-top: 10px !important;
+}
+
+.exporting .page-break-before {
+  padding-top: 15px !important;
+}
+
+/* Remove extra space after Visual Analysis heading */
+.exporting .page-break-before .space-y-8 {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.exporting .page-break-before .avoid-break:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* ===== Professional PDF Report Styling (Different from Web) ===== */
+
+/* Remove all colored backgrounds in PDF - use white/gray only */
+.exporting .bg-amber-50,
+.exporting .bg-blue-50,
+.exporting .bg-green-50,
+.exporting .bg-red-50,
+.exporting .bg-slate-50 {
+  background-color: #ffffff !important;
+}
+
+/* Remove border colors - use neutral gray */
+.exporting .border-amber-100,
+.exporting .border-amber-200,
+.exporting .border-blue-100,
+.exporting .border-blue-200,
+.exporting .rounded-lg,
+.exporting .rounded-xl {
+  border-color: #cbd5e1 !important;
+  border-radius: 0 !important;
+}
+
+/* Professional table styling - clean lines */
+.exporting table {
+  border: 1px solid #94a3b8 !important;
+  margin: 12px 0 !important;
+}
+
+.exporting th {
+  background-color: #f1f5f9 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  padding: 10px 12px !important;
+  border-bottom: 2px solid #64748b !important;
+}
+
+.exporting td {
+  padding: 8px 12px !important;
+  font-size: 11px !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+}
+
+.exporting tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+/* Section headers - professional style */
+.exporting h2 {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  color: #1e293b !important;
+  margin-top: 20px !important;
+  margin-bottom: 12px !important;
+  padding-bottom: 6px !important;
+  border-bottom: 3px solid #3b82f6 !important;
+}
+
+.exporting h3 {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  margin-bottom: 8px !important;
+  margin-top: 12px !important;
+}
+
+.exporting h4 {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #475569 !important;
+  margin-bottom: 8px !important;
+  margin-top: 8px !important;
+}
+
+/* Remove card-like appearance */
+.exporting .official-card,
+.exporting .official-section {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 16px !important;
+  margin-bottom: 16px !important;
+}
+
+/* Professional grid layout for PDF */
+.exporting .grid {
+  display: block !important;
+}
+
+.exporting .grid > div {
+  width: 100% !important;
+  margin-bottom: 20px !important;
+}
+
+/* Typography improvements */
+.exporting p {
+  line-height: 1.5 !important;
+  color: #334155 !important;
+  margin-bottom: 6px !important;
+}
+
+.exporting {
+  font-family: 'Times New Roman', Times, serif !important;
+  line-height: 1.4 !important;
+}
+
+/* Remove rounded corners everywhere */
+.exporting * {
+  border-radius: 0 !important;
+}
+
+/* Professional spacing */
+.exporting .report-section {
+  margin-bottom: 24px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* Chart containers - clean borders */
+.exporting .plotly-static-image {
+  border: 2px solid #cbd5e1 !important;
+  padding: 12px !important;
+  background: #ffffff !important;
+  margin: 16px 0 !important;
+}
+
+/* Remove all shadows */
+.exporting .shadow-sm,
+.exporting .shadow-md,
+.exporting .shadow-lg {
+  box-shadow: none !important;
+}
+
