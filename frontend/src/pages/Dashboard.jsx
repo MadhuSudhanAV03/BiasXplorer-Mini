@@ -862,11 +862,23 @@ export default function Dashboard() {
             )}
 
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <NavButtons
-                onPrev={() => setCurrentStep(6)}
-                onNext={() => setCurrentStep(7)}
-                nextDisabled
-              />
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(6)}
+                  className="inline-flex items-center gap-2 rounded-lg border-2 border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-md hover:bg-slate-50 hover:border-slate-400 transition-all duration-200"
+                >
+                  <span>←</span>
+                  Previous
+                </button>
+                <Link
+                  to="/report"
+                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
+                >
+                  <span>📊</span>
+                  View Report
+                </Link>
+              </div>
             </div>
           </section>
         )}
