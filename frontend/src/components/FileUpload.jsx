@@ -41,10 +41,19 @@ export default function FileUpload({ onUploadSuccess, className = "" }) {
         withCredentials: false,
       });
 
-      const filePath = res?.data?.file_path;
-      if (filePath) {
-        onUploadSuccess?.(filePath);
-        showToast("success", "File uploaded successfully.");
+      // Backend now returns: original_file_path, working_file_path, and file_path (working)
+      const uploadResult = {
+        originalFilePath: res?.data?.original_file_path,
+        workingFilePath: res?.data?.working_file_path || res?.data?.file_path,
+        filePath: res?.data?.file_path, // For backward compatibility
+      };
+
+      if (uploadResult.workingFilePath) {
+        onUploadSuccess?.(uploadResult);
+        showToast(
+          "success",
+          "File uploaded successfully. Working copy created."
+        );
       } else {
         showToast("error", "Upload succeeded but no file path returned.");
       }
@@ -97,9 +106,7 @@ export default function FileUpload({ onUploadSuccess, className = "" }) {
       >
         <div className="flex flex-col items-center gap-5">
           {/* Icon */}
-          <div
-            className="text-7xl transition-all duration-300"
-          >
+          <div className="text-7xl transition-all duration-300">
             {isDragging ? "📥" : "📂"}
           </div>
 
@@ -129,13 +136,13 @@ export default function FileUpload({ onUploadSuccess, className = "" }) {
           {/* Upload Button */}
           <button
             type="button"
-            className="relative inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-white font-bold text-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transition-all duration-300 card-hover-lift button-ripple"
+            className="relative inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-white font-bold text-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transition-all duration-300 button-ripple min-w-[220px]"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
           >
             {isUploading ? (
               <>
-                <Spinner className="h-5 w-5" />
+                <span>⏳</span>
                 <span>Uploading...</span>
               </>
             ) : (
@@ -163,17 +170,6 @@ export default function FileUpload({ onUploadSuccess, className = "" }) {
           </>
         )}
       </div>
-
-      {isUploading && (
-        <div className="mt-4 text-center animate-fadeInUp">
-          <div className="inline-flex items-center gap-3 bg-white rounded-xl px-6 py-3 shadow-lg">
-            <Spinner />
-            <span className="text-slate-700 font-medium">
-              Processing your file...
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Toast */}
       {toast.visible && (

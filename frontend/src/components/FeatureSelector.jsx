@@ -8,6 +8,7 @@ export default function FeatureSelector({
   filePath,
   columns = [],
   onSelect,
+  onPrevious,
   initialSelected = [],
 }) {
   const [selected, setSelected] = useState(() => new Set(initialSelected));
@@ -179,7 +180,19 @@ export default function FeatureSelector({
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-end">
+      <div className="mt-6 flex items-center justify-between">
+        {onPrevious && (
+          <button
+            type="button"
+            onClick={onPrevious}
+            className="group px-6 py-3 text-sm font-bold text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
+          >
+            <span className="group-hover:-translate-x-1 transition-transform">
+              ←
+            </span>
+            <span>Previous</span>
+          </button>
+        )}
         <button
           type="button"
           className="inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-4 text-white font-bold text-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transition-all duration-300 card-hover-lift"
@@ -188,7 +201,7 @@ export default function FeatureSelector({
         >
           {submitting ? (
             <>
-              <Spinner className="h-5 w-5" />
+              <span>⏳</span>
               <span>Confirming...</span>
             </>
           ) : (
@@ -199,12 +212,6 @@ export default function FeatureSelector({
           )}
         </button>
       </div>
-
-      {submitting && (
-        <div className="mt-4 text-center">
-          <Spinner text="Submitting your selection..." />
-        </div>
-      )}
 
       {/* Toast */}
       {toast.visible && (

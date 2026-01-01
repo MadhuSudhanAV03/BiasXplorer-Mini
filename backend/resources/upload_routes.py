@@ -16,7 +16,11 @@ blp = Blueprint("Uploads", __name__, url_prefix="/api",
 @blp.route("/upload")
 class UploadFile(MethodView):
     def post(self):
-        """Upload a dataset file (CSV or Excel) via multipart/form-data under key 'file'."""
+        """Upload a dataset file (CSV or Excel) via multipart/form-data under key 'file'.
+        Creates two copies:
+        1. original_<filename>.csv - Read-only original for reference
+        2. working_<filename>.csv - Working copy for all operations
+        """
         try:
             # Validate form-data key and file presence
             if "file" not in request.files:
@@ -33,15 +37,29 @@ class UploadFile(MethodView):
             if error:
                 return jsonify({"error": error}), 400
 
-            # Ensure uploads directory exists and save file
+            # Ensure uploads directory exists
             os.makedirs(UPLOAD_DIR, exist_ok=True)
-            save_path = os.path.join(UPLOAD_DIR, filename)
-            file.save(save_path)
 
-            # Return relative path for client usage
+            # Save original file with 'original_' prefix
+            base_name = os.path.splitext(filename)[0]
+            extension = os.path.splitext(filename)[1]
+            original_filename = f"original_{base_name}{extension}"
+            original_path = os.path.join(UPLOAD_DIR, original_filename)
+            file.save(original_path)
+
+            # Read the uploaded file and create working copy
+            df = FileService.read_dataset(original_path)
+            working_filename = f"working_{base_name}.csv"
+            working_path = os.path.join(UPLOAD_DIR, working_filename)
+            FileService.save_dataset(df, working_path, ensure_dir=True)
+
+            # Return both paths for client usage
             return jsonify({
-                "message": "File uploaded successfully",
-                "file_path": f"uploads/{filename}"
+                "message": "File uploaded successfully. Original and working copies created.",
+                "original_file_path": f"uploads/{original_filename}",
+                "working_file_path": f"uploads/{working_filename}",
+                # Backward compatibility
+                "file_path": f"uploads/{working_filename}"
             }), 200
 
         except Exception as e:
@@ -53,6 +71,7 @@ class UploadFile(MethodView):
 class PreviewDataset(MethodView):
     def post(self):
         """Preview the first 10 rows and column names of an uploaded dataset.
+        Also includes missing value counts for all columns.
         Expects JSON body: {"file_path": "uploads/filename.csv"}
         """
         try:
@@ -70,6 +89,11 @@ class PreviewDataset(MethodView):
             # Read dataset and get preview
             df = FileService.read_dataset(abs_path)
             preview_data = FileService.get_preview(df, rows=10)
+
+            # Add missing value counts for ALL rows (not just preview)
+            missing_values = df.isna().sum().to_dict()
+            preview_data['missing_values'] = {
+                k: int(v) for k, v in missing_values.items()}
 
             return jsonify(preview_data), 200
 

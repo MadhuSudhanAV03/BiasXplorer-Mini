@@ -17,8 +17,9 @@ const CategoricalColumnsModal = ({
 }) => {
   const [selectedColumns, setSelectedColumns] = useState([]);
 
-  // Filter out the target column from available columns
-  const availableColumns = allColumns.filter((col) => col !== targetColumn);
+  // Show all columns including target column
+  // User needs to select ALL categorical columns for SMOTE-NC (including target)
+  const availableColumns = allColumns;
 
   useEffect(() => {
     if (!isOpen) {
@@ -60,8 +61,9 @@ const CategoricalColumnsModal = ({
             Select Categorical Columns for SMOTE-NC
           </h2>
           <p className="text-sm text-gray-600 mt-1">
-            Choose which columns contain categorical data. SMOTE-NC will handle
-            these differently from numeric features.
+            Select ALL categorical columns in your dataset (including the target
+            column). SMOTE-NC needs to know which features are categorical to
+            handle them properly.
           </p>
         </div>
 

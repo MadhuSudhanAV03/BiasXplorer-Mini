@@ -15,8 +15,19 @@ export default function SkewnessFixSandbox({
   initialResult = null, // New prop to restore previous results
   onStateChange,
 }) {
+  // Auto-select all columns that need fixing
+  const columnsNeedingFix = continuous.filter((col) => {
+    const skew = skewnessResults[col]?.skewness;
+    return skew !== null && skew !== undefined && Math.abs(skew) > 0.5;
+  });
+
   const [selectedColumns, setSelectedColumns] = useState(
-    new Set(initialSelectedColumns)
+    () =>
+      new Set(
+        initialSelectedColumns.length > 0
+          ? initialSelectedColumns
+          : columnsNeedingFix
+      )
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -121,10 +132,10 @@ export default function SkewnessFixSandbox({
 
       const finalResult = res.data || {};
       setResult(finalResult);
-      const corrPath =
-        finalResult?.corrected_file_path || finalResult?.corrected_file;
+      // Backend now returns file_path (same as input since it modifies in-place)
+      const corrPath = finalResult?.file_path;
       console.log(
-        "[SkewnessFixSandbox] Fix completed, corrected path:",
+        "[SkewnessFixSandbox] Fix completed, working file path:",
         corrPath
       );
       if (corrPath) {
@@ -147,122 +158,73 @@ export default function SkewnessFixSandbox({
 
   return (
     <div className="w-full">
-      {/* Column Selection */}
-      <div className="mb-6 p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm animate-fadeInUp">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">📊</span>
-            <h3 className="text-base font-bold text-slate-800">
-              Select Columns to Fix
-            </h3>
-            {selectedColumns.size > 0 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-500 text-white text-xs font-bold animate-scaleIn">
-                {selectedColumns.size}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={selectAll}
-              className="text-xs px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+      {/* Column Fix Settings - directly show options without checkboxes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {Array.from(selectedColumns).map((col, index) => {
+          const skew = skewnessResults[col]?.skewness;
+          const method = getMethodForSkewness(skew);
+
+          // Skewness severity emoji
+          const skewEmoji =
+            skew === null || skew === undefined
+              ? "⚪"
+              : Math.abs(skew) <= 0.5
+              ? "🟢"
+              : Math.abs(skew) <= 1
+              ? "🟡"
+              : Math.abs(skew) <= 2
+              ? "🟠"
+              : "🔴";
+
+          return (
+            <div
+              key={col}
+              className="p-5 rounded-xl border-2 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-400 shadow-md transition-all duration-300 hover:shadow-lg animate-fadeInUp"
+              style={{ animationDelay: `${index * 0.05}s` }}
             >
-              Select All Skewed
-            </button>
-            <button
-              type="button"
-              onClick={clearAll}
-              className="text-xs px-4 py-2 rounded-lg bg-white text-slate-700 font-medium hover:bg-slate-100 border border-slate-300 shadow-sm hover:shadow-md transition-all duration-300"
-            >
-              Clear All
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {continuous.map((col, index) => {
-            const skew = skewnessResults[col]?.skewness;
-            const method = getMethodForSkewness(skew);
-            const isSkewed =
-              skew !== null && skew !== undefined && Math.abs(skew) > 0.5;
-
-            // Skewness severity emoji
-            const skewEmoji =
-              skew === null || skew === undefined
-                ? "⚪"
-                : Math.abs(skew) <= 0.5
-                ? "🟢"
-                : Math.abs(skew) <= 1
-                ? "🟡"
-                : Math.abs(skew) <= 2
-                ? "🟠"
-                : "🔴";
-
-            return (
-              <label
-                key={col}
-                className={`flex items-start gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-300 hover:shadow-lg animate-fadeInUp ${
-                  selectedColumns.has(col)
-                    ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-400 shadow-md scale-[1.02]"
-                    : isSkewed
-                    ? "bg-white border-slate-300 hover:border-blue-300"
-                    : "bg-slate-50 border-slate-200 opacity-60"
-                }`}
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedColumns.has(col)}
-                  onChange={() => toggleColumn(col)}
-                  disabled={!isSkewed}
-                  className="mt-1 w-5 h-5 rounded border-2 border-blue-400 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-base font-bold text-slate-900">
-                      {col}
-                    </span>
-                    <span className="text-lg">{skewEmoji}</span>
-                  </div>
-                  <div className="text-sm text-slate-600 mb-1 flex items-center gap-2">
-                    <span className="font-semibold">Skewness:</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-lg font-bold ${
-                        skew === null || skew === undefined
-                          ? "bg-slate-100 text-slate-600"
-                          : Math.abs(skew) <= 0.5
-                          ? "bg-green-100 text-green-700"
-                          : Math.abs(skew) <= 1
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {skew !== null && skew !== undefined
-                        ? skew.toFixed(3)
-                        : "N/A"}
-                    </span>
-                  </div>
-                  <div className="text-sm flex items-center gap-2">
-                    <span className="font-semibold text-slate-600">
-                      Method:
-                    </span>
-                    <span className="px-2 py-0.5 rounded-lg bg-blue-100 text-blue-700 text-xs font-medium">
-                      {method}
-                    </span>
-                  </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-base font-bold text-slate-900">
+                    {col}
+                  </span>
+                  <span className="text-lg">{skewEmoji}</span>
                 </div>
-              </label>
-            );
-          })}
-        </div>
-
-        {continuous.length === 0 && (
-          <div className="text-sm text-slate-500 text-center py-8 animate-fadeIn">
-            <span className="text-3xl mb-2 block">📭</span>
-            No continuous columns available
-          </div>
-        )}
+                <div className="text-sm text-slate-600 mb-1 flex items-center gap-2">
+                  <span className="font-semibold">Skewness:</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-lg font-bold ${
+                      skew === null || skew === undefined
+                        ? "bg-slate-100 text-slate-600"
+                        : Math.abs(skew) <= 0.5
+                        ? "bg-green-100 text-green-700"
+                        : Math.abs(skew) <= 1
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {skew !== null && skew !== undefined
+                      ? skew.toFixed(3)
+                      : "N/A"}
+                  </span>
+                </div>
+                <div className="text-sm flex items-center gap-2">
+                  <span className="font-semibold text-slate-600">Method:</span>
+                  <span className="px-2 py-0.5 rounded-lg bg-blue-100 text-blue-700 text-xs font-medium">
+                    {method}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
+
+      {selectedColumns.size === 0 && (
+        <div className="text-sm text-slate-500 text-center py-8 animate-fadeIn">
+          <span className="text-3xl mb-2 block">📭</span>
+          No continuous columns available
+        </div>
+      )}
 
       {/* Apply Button */}
       {!hideApplyButton && (
@@ -344,11 +306,11 @@ export default function SkewnessFixSandbox({
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">💾</span>
               <span className="font-bold text-slate-700">
-                Corrected File Saved:
+                Working File (Modified In-Place):
               </span>
             </div>
             <div className="font-mono text-blue-600 text-sm break-all bg-blue-50 p-3 rounded-lg border border-blue-200">
-              {result.corrected_file}
+              {result.file_path || "N/A"}
             </div>
           </div>
 

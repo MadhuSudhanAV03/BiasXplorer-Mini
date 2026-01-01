@@ -13,6 +13,7 @@ export default function Visualization({
   targetColumns = [], // For multiple categorical columns
   mode = "categorical", // "categorical", "categorical-multi", or "continuous"
   continuous = [], // array of continuous column names
+  fixResults = null, // NEW: Pre-computed fix results with before/after statistics
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,6 +26,62 @@ export default function Visualization({
     () => JSON.stringify(targetColumns),
     [targetColumns]
   );
+  const fixResultsStr = useMemo(() => JSON.stringify(fixResults), [fixResults]);
+
+  // Helper function to generate charts from fixResults (for categorical)
+  const generateCategoricalChartsFromResults = (fixResults, columns) => {
+    if (!fixResults || !fixResults.columns) return {};
+
+    const charts = {};
+    columns.forEach((col) => {
+      const colData = fixResults.columns[col];
+      if (!colData) return;
+
+      const beforeDist = colData.before?.distribution || colData.before || {};
+      const afterDist = colData.after?.distribution || colData.after || {};
+
+      // Remove non-distribution keys
+      const cleanBefore = { ...beforeDist };
+      const cleanAfter = { ...afterDist };
+      delete cleanBefore.severity;
+      delete cleanBefore.note;
+      delete cleanAfter.severity;
+      delete cleanAfter.note;
+
+      // Create chart data
+      const categories = Object.keys(cleanBefore);
+      const beforeValues = categories.map(
+        (cat) => (cleanBefore[cat] || 0) * 100
+      );
+      const afterValues = categories.map((cat) => (cleanAfter[cat] || 0) * 100);
+
+      charts[col] = {
+        beforeData: { categories, values: beforeValues },
+        afterData: { categories, values: afterValues },
+      };
+    });
+
+    return charts;
+  };
+
+  // Helper function to generate charts from fixResults (for continuous)
+  const generateContinuousChartsFromResults = (fixResults, columns) => {
+    if (!fixResults || !fixResults.columns) return {};
+
+    const charts = {};
+    columns.forEach((col) => {
+      const colData = fixResults.columns[col];
+      if (!colData) return;
+
+      charts[col] = {
+        before_skewness: colData.before?.skewness,
+        after_skewness: colData.after?.skewness,
+        method: colData.method,
+      };
+    });
+
+    return charts;
+  };
 
   const canRunCategorical = useMemo(
     () =>
@@ -58,6 +115,39 @@ export default function Visualization({
 
   useEffect(() => {
     let cancelled = false;
+
+    // NEW: If fixResults are provided, use them instead of calling backend
+    if (
+      fixResults &&
+      mode === "categorical-multi" &&
+      targetColumns.length > 0
+    ) {
+      console.log(
+        "[Visualization] Using fixResults instead of backend:",
+        fixResults
+      );
+      const charts = generateCategoricalChartsFromResults(
+        fixResults,
+        targetColumns
+      );
+      setCategoricalCharts(charts);
+      setLoading(false);
+      return;
+    }
+
+    if (fixResults && mode === "continuous" && continuous.length > 0) {
+      console.log(
+        "[Visualization] Using fixResults for continuous:",
+        fixResults
+      );
+      const charts = generateContinuousChartsFromResults(
+        fixResults,
+        continuous
+      );
+      setSkewCharts(charts);
+      setLoading(false);
+      return;
+    }
 
     async function runCategorical() {
       if (!canRunCategorical) return;
@@ -212,6 +302,7 @@ export default function Visualization({
     targetColumnsStr,
     continuousStr,
     mode,
+    fixResultsStr,
   ]);
 
   return (
@@ -288,16 +379,65 @@ export default function Visualization({
                         Before Correction
                       </h4>
                       <div className="rounded-md border border-slate-200 bg-white">
-                        <Plot
-                          data={JSON.parse(data.before_chart).data}
-                          layout={{
-                            ...JSON.parse(data.before_chart).layout,
-                            autosize: true,
-                          }}
-                          config={{ responsive: true, displayModeBar: true }}
-                          style={{ width: "100%", height: "100%" }}
-                          useResizeHandler={true}
-                        />
+                        {data.before_chart ? (
+                          // Backend-generated chart (base64)
+                          <Plot
+                            data={JSON.parse(data.before_chart).data}
+                            layout={{
+                              ...JSON.parse(data.before_chart).layout,
+                              autosize: true,
+                            }}
+                            config={{ responsive: true, displayModeBar: true }}
+                            style={{ width: "100%", height: "100%" }}
+                            useResizeHandler={true}
+                          />
+                        ) : data.beforeData ? (
+                          // Client-generated chart from fixResults
+                          <Plot
+                            data={[
+                              {
+                                x: data.beforeData.categories,
+                                y: data.beforeData.values.map((v) => v / 100),
+                                type: "bar",
+                                text: data.beforeData.values.map(
+                                  (v) => `${v.toFixed(2)}%`
+                                ),
+                                textposition: "outside",
+                                marker: {
+                                  color: "#4C78A8",
+                                  line: { color: "#2C5282", width: 1 },
+                                },
+                                hovertemplate:
+                                  "<b>%{x}</b><br>Proportion: %{y:.2%}<br><extra></extra>",
+                              },
+                            ]}
+                            layout={{
+                              title: {
+                                text: `Before: ${col}`,
+                                font: { size: 16, weight: "bold" },
+                                xref: "paper",
+                                x: 0,
+                                xanchor: "left",
+                                pad: { l: -2 },
+                              },
+                              xaxis_title: "Class",
+                              yaxis_title: "Proportion",
+                              yaxis: { range: [0, 1], tickformat: ".0%" },
+                              plot_bgcolor: "white",
+                              height: 400,
+                              margin: { l: 50, r: 50, t: 60, b: 50 },
+                              hovermode: "closest",
+                              xaxis: {
+                                showgrid: true,
+                                gridwidth: 1,
+                                gridcolor: "#E2E8F0",
+                              },
+                            }}
+                            config={{ responsive: true, displayModeBar: true }}
+                            style={{ width: "100%", height: "400px" }}
+                            useResizeHandler={true}
+                          />
+                        ) : null}
                       </div>
                     </div>
                     <div>
@@ -305,16 +445,65 @@ export default function Visualization({
                         After Correction
                       </h4>
                       <div className="rounded-md border border-slate-200 bg-white">
-                        <Plot
-                          data={JSON.parse(data.after_chart).data}
-                          layout={{
-                            ...JSON.parse(data.after_chart).layout,
-                            autosize: true,
-                          }}
-                          config={{ responsive: true, displayModeBar: true }}
-                          style={{ width: "100%", height: "100%" }}
-                          useResizeHandler={true}
-                        />
+                        {data.after_chart ? (
+                          // Backend-generated chart (base64)
+                          <Plot
+                            data={JSON.parse(data.after_chart).data}
+                            layout={{
+                              ...JSON.parse(data.after_chart).layout,
+                              autosize: true,
+                            }}
+                            config={{ responsive: true, displayModeBar: true }}
+                            style={{ width: "100%", height: "100%" }}
+                            useResizeHandler={true}
+                          />
+                        ) : data.afterData ? (
+                          // Client-generated chart from fixResults
+                          <Plot
+                            data={[
+                              {
+                                x: data.afterData.categories,
+                                y: data.afterData.values.map((v) => v / 100),
+                                type: "bar",
+                                text: data.afterData.values.map(
+                                  (v) => `${v.toFixed(2)}%`
+                                ),
+                                textposition: "outside",
+                                marker: {
+                                  color: "#4C78A8",
+                                  line: { color: "#2C5282", width: 1 },
+                                },
+                                hovertemplate:
+                                  "<b>%{x}</b><br>Proportion: %{y:.2%}<br><extra></extra>",
+                              },
+                            ]}
+                            layout={{
+                              title: {
+                                text: `After: ${col}`,
+                                font: { size: 16, weight: "bold" },
+                                xref: "paper",
+                                x: 0,
+                                xanchor: "left",
+                                pad: { l: -2 },
+                              },
+                              xaxis_title: "Class",
+                              yaxis_title: "Proportion",
+                              yaxis: { range: [0, 1], tickformat: ".0%" },
+                              plot_bgcolor: "white",
+                              height: 400,
+                              margin: { l: 50, r: 50, t: 60, b: 50 },
+                              hovermode: "closest",
+                              xaxis: {
+                                showgrid: true,
+                                gridwidth: 1,
+                                gridcolor: "#E2E8F0",
+                              },
+                            }}
+                            config={{ responsive: true, displayModeBar: true }}
+                            style={{ width: "100%", height: "400px" }}
+                            useResizeHandler={true}
+                          />
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -385,42 +574,58 @@ export default function Visualization({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-medium text-slate-700 mb-2 text-sm">
-                        Before Transformation
-                      </h4>
-                      <div className="rounded-md border border-slate-200 bg-white">
-                        <Plot
-                          data={JSON.parse(data.before_chart).data}
-                          layout={{
-                            ...JSON.parse(data.before_chart).layout,
-                            autosize: true,
-                          }}
-                          config={{ responsive: true, displayModeBar: true }}
-                          style={{ width: "100%", height: "100%" }}
-                          useResizeHandler={true}
-                        />
+                  {data.before_chart && data.after_chart ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium text-slate-700 mb-2 text-sm">
+                          Before Transformation
+                        </h4>
+                        <div className="rounded-md border border-slate-200 bg-white">
+                          <Plot
+                            data={JSON.parse(data.before_chart).data}
+                            layout={{
+                              ...JSON.parse(data.before_chart).layout,
+                              autosize: true,
+                            }}
+                            config={{ responsive: true, displayModeBar: true }}
+                            style={{ width: "100%", height: "100%" }}
+                            useResizeHandler={true}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-slate-700 mb-2 text-sm">
+                          After Transformation
+                        </h4>
+                        <div className="rounded-md border border-slate-200 bg-white">
+                          <Plot
+                            data={JSON.parse(data.after_chart).data}
+                            layout={{
+                              ...JSON.parse(data.after_chart).layout,
+                              autosize: true,
+                            }}
+                            config={{ responsive: true, displayModeBar: true }}
+                            style={{ width: "100%", height: "100%" }}
+                            useResizeHandler={true}
+                          />
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-slate-700 mb-2 text-sm">
-                        After Transformation
-                      </h4>
-                      <div className="rounded-md border border-slate-200 bg-white">
-                        <Plot
-                          data={JSON.parse(data.after_chart).data}
-                          layout={{
-                            ...JSON.parse(data.after_chart).layout,
-                            autosize: true,
-                          }}
-                          config={{ responsive: true, displayModeBar: true }}
-                          style={{ width: "100%", height: "100%" }}
-                          useResizeHandler={true}
-                        />
-                      </div>
+                  ) : (
+                    <div className="rounded-md bg-blue-50 p-4 text-sm text-blue-700 border border-blue-200">
+                      <p className="font-semibold mb-1">Skewness Values:</p>
+                      <p>
+                        The skewness has been reduced from{" "}
+                        <strong>{data.before_skewness?.toFixed(3)}</strong> to{" "}
+                        <strong>{data.after_skewness?.toFixed(3)}</strong> using
+                        the <strong>{data.method}</strong> method.
+                      </p>
+                      <p className="text-xs mt-2 text-blue-600">
+                        💡 Distribution histograms are computed from the actual
+                        files during backend processing.
+                      </p>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}

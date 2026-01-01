@@ -9,6 +9,7 @@ export default function BiasDetection({
   filePath,
   categorical = [],
   continuous = [],
+  allSelectedColumns = [], // Renamed from selectedColumns to avoid conflict with state
   onFix,
   onSkewFix,
   initialResults = null,
@@ -17,7 +18,7 @@ export default function BiasDetection({
 }) {
   const [loading, setLoading] = useState({});
   const [error, setError] = useState("");
-  const [selectedColumns, setSelectedColumns] = useState(new Set());
+  const [selectedColumns, setSelectedColumns] = useState(new Set()); // UI checkbox state
   const [categoricalResults, setCategoricalResults] = useState(() => {
     if (!initialResults) return {};
     const filtered = { ...initialResults };
@@ -163,7 +164,11 @@ export default function BiasDetection({
       if (type === "categorical") {
         const res = await axios.post(
           DETECT_BIAS_URL,
-          { file_path: filePath, categorical: [column] },
+          {
+            file_path: filePath,
+            categorical: [column],
+            selected_columns: allSelectedColumns,
+          },
           { headers: { "Content-Type": "application/json" } }
         );
         setCategoricalResults((prev) => ({
@@ -251,7 +256,11 @@ export default function BiasDetection({
       if (hasCategorical) {
         const catRes = await axios.post(
           DETECT_BIAS_URL,
-          { file_path: filePath, categorical: columnsToCheck.categorical },
+          {
+            file_path: filePath,
+            categorical: columnsToCheck.categorical,
+            selected_columns: allSelectedColumns,
+          },
           { headers: { "Content-Type": "application/json" } }
         );
         // Merge new results with existing ones
@@ -273,7 +282,11 @@ export default function BiasDetection({
           axios
             .post(
               DETECT_SKEW_URL,
-              { filename: filenameOnly, column },
+              {
+                filename: filenameOnly,
+                column,
+                selected_columns: allSelectedColumns,
+              },
               { headers: { "Content-Type": "application/json" } }
             )
             .then((res) => ({ column, data: res.data }))
@@ -463,11 +476,7 @@ export default function BiasDetection({
                         {col}
                       </label>
                     </div>
-                    {info && (
-                      <div className="text-3xl ml-2">
-                        {emoji}
-                      </div>
-                    )}
+                    {info && <div className="text-3xl ml-2">{emoji}</div>}
                   </div>
 
                   {/* Results Section */}
@@ -657,11 +666,7 @@ export default function BiasDetection({
                         {col}
                       </label>
                     </div>
-                    {info && (
-                      <div className="text-3xl ml-2">
-                        {emoji}
-                      </div>
-                    )}
+                    {info && <div className="text-3xl ml-2">{emoji}</div>}
                   </div>
 
                   {/* Results Section */}
@@ -726,7 +731,7 @@ export default function BiasDetection({
                   >
                     {isLoading ? (
                       <>
-                        <Spinner className="h-4 w-4" />
+                        <span>⏳</span>
                         <span>Analyzing...</span>
                       </>
                     ) : info ? (
@@ -768,91 +773,6 @@ export default function BiasDetection({
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Global Action Button */}
-      {(hasIssues || hasSkewnessIssues) && (
-        <div className="mt-8 flex justify-center">
-          <button
-            type="button"
-            className="group relative rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-4 text-white font-bold text-lg hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-3"
-            onClick={() => {
-              // Collect all categorical columns needing fix
-              const categoricalToFix = [];
-              if (hasIssues && categoricalResults) {
-                Object.entries(categoricalResults).forEach(([col, info]) => {
-                  if (["Moderate", "Severe"].includes(info?.severity)) {
-                    categoricalToFix.push(col);
-                  }
-                });
-              }
-
-              // Collect all continuous columns needing fix
-              const continuousToFix = [];
-              if (hasSkewnessIssues && skewnessResults) {
-                Object.entries(skewnessResults).forEach(([col, info]) => {
-                  const skewValue = info?.skewness;
-                  if (
-                    skewValue !== null &&
-                    skewValue !== undefined &&
-                    Math.abs(skewValue) > 0.5
-                  ) {
-                    continuousToFix.push(col);
-                  }
-                });
-              }
-
-              // Call both callbacks to pass data
-              if (categoricalToFix.length > 0) {
-                const resultsToFix = {};
-                categoricalToFix.forEach((col) => {
-                  resultsToFix[col] = categoricalResults[col];
-                });
-                onFix?.({
-                  results: resultsToFix,
-                  fromButton: true,
-                  targetColumns: categoricalToFix,
-                });
-              }
-
-              if (continuousToFix.length > 0) {
-                const skewResultsToFix = {};
-                continuousToFix.forEach((col) => {
-                  skewResultsToFix[col] = skewnessResults[col];
-                });
-                onSkewFix?.({
-                  skewnessResults: skewResultsToFix,
-                  fromButton: true,
-                  targetColumns: continuousToFix,
-                });
-              }
-            }}
-          >
-            <span className="text-2xl">🛠️</span>
-            <span>
-              Fix Detected Bias (
-              {(hasIssues
-                ? Object.values(categoricalResults).filter((v) =>
-                    ["Moderate", "Severe"].includes(v?.severity)
-                  ).length
-                : 0) +
-                (hasSkewnessIssues
-                  ? Object.values(skewnessResults || {}).filter((v) => {
-                      const skewValue = v?.skewness;
-                      return (
-                        skewValue !== null &&
-                        skewValue !== undefined &&
-                        Math.abs(skewValue) > 0.5
-                      );
-                    }).length
-                  : 0)}{" "}
-              columns)
-            </span>
-            <span className="absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              →
-            </span>
-          </button>
         </div>
       )}
     </div>

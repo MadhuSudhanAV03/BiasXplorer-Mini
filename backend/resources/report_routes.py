@@ -170,14 +170,18 @@ class ServeReport(MethodView):
 @blp.route("/corrected/download/<path:filename>")
 class ServeCorrected(MethodView):
     def get(self, filename):
-        """Serve corrected CSV files from the corrected directory.
+        """Serve fixing CSV files from the uploads directory.
 
-        The frontend typically has a path like 'corrected/<file>.csv'. Pass just
-        the filename portion to this route.
+        Now downloads fixing_<file>.csv (corrected data) instead of working files.
+        The frontend passes paths like 'uploads/fixing_file.csv', extract the filename.
         """
         try:
-            os.makedirs(CORRECTED_DIR, exist_ok=True)
-            # Security: ensure we only serve inside CORRECTED_DIR
-            return send_from_directory(CORRECTED_DIR, filename, as_attachment=True)
+            # Extract filename from path (e.g., 'uploads/fixing_file.csv' -> 'fixing_file.csv')
+            if filename.startswith('uploads/'):
+                filename = filename[len('uploads/'):]
+            
+            os.makedirs(UPLOAD_DIR, exist_ok=True)
+            # Security: ensure we only serve inside UPLOAD_DIR
+            return send_from_directory(UPLOAD_DIR, filename, as_attachment=True)
         except Exception as e:
             return jsonify({"error": str(e)}), 400

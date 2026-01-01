@@ -119,13 +119,18 @@ class CategoricalTransformer:
                     "None of the specified categorical columns found in the dataset"
                 )
 
+            # Store original categorical mappings to revert encoding later
+            categorical_mappings = {}
+
             # For SMOTE-NC, convert categorical columns to numeric codes if they're not already numeric
             X_processed = X.copy()
             for col in categorical_columns:
                 if col in X_processed.columns:
                     if X_processed[col].dtype == 'object':
-                        X_processed[col] = pd.Categorical(
-                            X_processed[col]).codes
+                        # Create categorical and store the mapping
+                        cat_data = pd.Categorical(X_processed[col])
+                        categorical_mappings[col] = cat_data.categories
+                        X_processed[col] = cat_data.codes
 
             # Fill NaN values for numerical columns
             numeric_cols = X_processed.select_dtypes(
@@ -167,6 +172,19 @@ class CategoricalTransformer:
         # Reconstruct DataFrame
         df_res = pd.DataFrame(X_res_num, columns=X.columns)
         df_res[target_col] = y_res.values
+
+        # Revert categorical columns back to their original string values (if SMOTE-NC was used)
+        if categorical_columns and categorical_mappings:
+            for col, categories in categorical_mappings.items():
+                if col in df_res.columns:
+                    # Convert codes back to original categorical values
+                    # Round the values to nearest integer (SMOTE-NC may generate float codes)
+                    df_res[col] = df_res[col].round().astype(int)
+                    # Map codes back to original categories
+                    df_res[col] = df_res[col].apply(
+                        lambda x: categories[x] if 0 <= x < len(
+                            categories) else categories[0]
+                    )
 
         return df_res
 

@@ -4,9 +4,10 @@ import FileUpload from "../components/FileUpload";
 export default function Home() {
   const navigate = useNavigate();
 
-  const handleUploadSuccess = (filePath) => {
-    // Navigate to dashboard with filePath in route state
-    navigate("/dashboard", { state: { filePath } });
+  const handleUploadSuccess = (uploadResult) => {
+    // uploadResult contains: { originalFilePath, workingFilePath, filePath }
+    // Navigate to dashboard with upload result in route state
+    navigate("/dashboard", { state: { uploadResult } });
   };
 
   const clearAllData = () => {

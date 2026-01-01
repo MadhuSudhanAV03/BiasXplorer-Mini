@@ -16,13 +16,14 @@ blp = Blueprint("Select and Categorize", __name__, url_prefix="/api",
 @blp.route('/features')
 class SelectFeatures(MethodView):
     def post(self):
-        """Select a subset of features from the dataset and save as a new CSV.
+        """Select a subset of features from the dataset - stores selection in memory only.
+        NO separate file is created. The working dataset will be used throughout.
         Input JSON:
         {
-          "file_path": "uploads/filename.csv",
+          "file_path": "uploads/working_filename.csv",
           "selected_features": ["age", "gender", "income"]
         }
-        Saves to uploads/selected_<original_basename>.csv
+        Returns success without creating a new file.
         """
         try:
             data = request.get_json(silent=True) or {}
@@ -46,7 +47,7 @@ class SelectFeatures(MethodView):
             if error:
                 return jsonify({"error": error}), 400
 
-            # Read dataset
+            # Read dataset to validate columns exist
             df = FileService.read_dataset(abs_path)
             df_columns = FileService.get_columns(df)
             df_col_set = set(df_columns)
@@ -69,18 +70,15 @@ class SelectFeatures(MethodView):
                     }
                 }), 400
 
-            # Filter and save
-            filtered_df = df[wanted]
-            original_base = os.path.splitext(os.path.basename(abs_path))[0]
-            selected_filename = f"selected_{original_base}.csv"
-            selected_path = os.path.join(UPLOAD_DIR, selected_filename)
-            FileService.save_dataset(
-                filtered_df, selected_path, ensure_dir=True)
+            # Store selected features in memory (no file creation)
+            store = current_app.config.get("SELECTED_FEATURES_STORE", {})
+            store[file_path] = wanted
+            current_app.config["SELECTED_FEATURES_STORE"] = store
 
             return jsonify({
-                "message": "Features selected successfully",
+                "message": "Features selected successfully (stored in memory, no file created)",
                 "selected_features": wanted,
-                "selected_file_path": f"uploads/{selected_filename}"
+                "file_path": file_path  # Return same file path - no new file
             }), 200
 
         except FileNotFoundError:

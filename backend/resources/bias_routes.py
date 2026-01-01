@@ -27,11 +27,13 @@ class DetectBias(MethodView):
     def post(self):
         """
         Detect class imbalance for given categorical columns.
+        Works with selected columns from the working file.
 
         Input JSON:
         {
-          "file_path": "uploads/selected_dataset.csv",
-          "categorical": ["gender", "region"]
+          "file_path": "uploads/working_dataset.csv",
+          "categorical": ["gender", "region"],
+          "selected_columns": ["age", "gender", "region", "income"]  (optional)
         }
 
         Returns:
@@ -41,6 +43,7 @@ class DetectBias(MethodView):
             data = request.get_json(silent=True) or {}
             file_path = data.get("file_path")
             categorical = data.get("categorical")
+            selected_columns = data.get("selected_columns", [])
 
             if not file_path:
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
@@ -51,8 +54,22 @@ class DetectBias(MethodView):
             if error:
                 return jsonify({"error": error}), 400
 
-            # Read dataset
+            # Read full dataset
             df = FileService.read_dataset(abs_path)
+
+            # Filter to selected columns if provided (from memory store)
+            if not selected_columns:
+                from flask import current_app
+                store = current_app.config.get("SELECTED_FEATURES_STORE", {})
+                selected_columns = store.get(file_path, [])
+
+            # If selected columns exist, use only those
+            if selected_columns:
+                available_cols = set(df.columns)
+                cols_to_use = [
+                    col for col in selected_columns if col in available_cols]
+                if cols_to_use:
+                    df = df[cols_to_use]
 
             # Use stored column types if categorical not provided
             if categorical is None:
@@ -65,7 +82,7 @@ class DetectBias(MethodView):
             if not isinstance(categorical, list):
                 return jsonify({"error": "'categorical' must be a list of column names if provided."}), 400
 
-            # Detect bias
+            # Detect bias only on categorical columns that exist in selected columns
             result = BiasDetectionService.detect_imbalance(df, categorical)
 
             return jsonify(result), 200
@@ -86,15 +103,15 @@ class FixBias(MethodView):
 
         Input JSON:
         {
-          "file_path": "uploads/selected_dataset.csv",
+          "file_path": "uploads/working_dataset.csv",
           "target_column": "gender",
           "method": "smote" | "oversample" | "undersample" | "reweight",
           "threshold": 0.3  (optional, desired minority/majority ratio for binary classes),
           "categorical_columns": ["col1", "col2"]  (optional, for SMOTE-NC)
         }
 
-        Saves corrected dataset to corrected/corrected_dataset.csv
-        Returns before/after class distributions and sample counts.
+        Creates fixing_<file>.csv from working file, applies corrections, returns fixing file path.
+        If fixing file exists, deletes it and creates fresh copy.
         """
         try:
             data = request.get_json(silent=True) or {}
@@ -103,6 +120,8 @@ class FixBias(MethodView):
             method = (data.get("method") or "").lower()
             threshold = data.get("threshold")
             categorical_columns = data.get("categorical_columns")
+            # Default to True for backwards compatibility
+            is_first_fix = data.get("is_first_fix", True)
 
             if not file_path:
                 return jsonify({"error": "'file_path' is required in JSON body."}), 400
@@ -111,60 +130,105 @@ class FixBias(MethodView):
             if not BiasCorrectionService.validate_method(method):
                 return jsonify({"error": f"'method' must be one of: {', '.join(BiasCorrectionService.VALID_METHODS)}"}), 400
 
-            # Validate path - accept both uploads and corrected directories
-            abs_path, error = PathValidator.validate_any_path(
-                file_path, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
+            # Validate path - should be working file or fixing file from uploads
+            abs_path, error = PathValidator.validate_upload_path(
+                file_path, BASE_DIR, UPLOAD_DIR)
+
             if error:
                 return jsonify({"error": error}), 400
 
-            # Read dataset
-            df = FileService.read_dataset(abs_path)
+            # Determine base name and fixing file path
+            filename = os.path.basename(abs_path)
+            if filename.startswith("working_"):
+                base_name = filename[8:]  # Remove "working_" prefix
+            elif filename.startswith("fixing_"):
+                base_name = filename[7:]  # Remove "fixing_" prefix
+            else:
+                base_name = filename  # Original file
+
+            fixing_filename = f"fixing_{base_name}"
+            fixing_path = os.path.join(UPLOAD_DIR, fixing_filename)
+            fixing_rel_path = f"uploads/{fixing_filename}"
+
+            # Logic based on is_first_fix flag
+            if is_first_fix:
+                # First fix in a batch: Always create fresh fixing file from source
+                # Delete existing fixing file if it exists (fresh start)
+                if os.path.exists(fixing_path):
+                    os.remove(fixing_path)
+                    print(
+                        f"[FixBias] Deleted existing fixing file for fresh start: {fixing_path}")
+
+                # Create fresh copy from source file
+                df = FileService.read_dataset(abs_path)
+                FileService.save_dataset(df, fixing_path, ensure_dir=True)
+                print(
+                    f"[FixBias] Created fresh fixing file from source: {fixing_path}")
+
+                # Read the fixing file for corrections
+                df_fixing = FileService.read_dataset(fixing_path)
+            else:
+                # Subsequent fix in same batch: Use existing fixing file directly
+                # The file_path should now be pointing to the fixing file from previous iteration
+                if not filename.startswith("fixing_"):
+                    # Safety check: if not a fixing file, something went wrong
+                    print(
+                        f"[FixBias] WARNING: Expected fixing file for subsequent fix, got: {filename}")
+                    # Fall back to creating fresh fixing file
+                    if os.path.exists(fixing_path):
+                        os.remove(fixing_path)
+                    df = FileService.read_dataset(abs_path)
+                    FileService.save_dataset(df, fixing_path, ensure_dir=True)
+                    df_fixing = FileService.read_dataset(fixing_path)
+                else:
+                    # Use existing fixing file
+                    fixing_path = abs_path
+                    fixing_rel_path = file_path
+                    print(
+                        f"[FixBias] Using existing fixing file for sequential fix: {fixing_path}")
+                    df_fixing = FileService.read_dataset(fixing_path)
 
             # Validate target column
             is_valid, error = BiasCorrectionService.validate_target_column(
-                df, target_col)
+                df_fixing, target_col)
             if not is_valid:
                 return jsonify({"error": error}), 400
 
-            # Get before statistics
+            # Get before statistics (from fixing file which is copy of working)
             before_stats = BiasDetectionService.get_class_distribution(
-                df, target_col)
+                df_fixing, target_col)
 
-            # Apply correction
+            # Apply correction to fixing file
             df_corrected, metadata = BiasCorrectionService.apply_correction(
-                df, target_col, method, threshold, categorical_columns
+                df_fixing, target_col, method, threshold, categorical_columns
             )
 
             # Get after statistics
             after_stats = BiasDetectionService.get_class_distribution(
                 df_corrected, target_col)
 
-            # Save corrected dataset with unique filename
-            # Extract base filename from input path
-            input_filename = os.path.basename(file_path).replace('.csv', '')
-            import time
-            timestamp = int(time.time() * 1000)  # milliseconds
-            corrected_filename = f"corrected_{input_filename}_{target_col}_{timestamp}.csv"
-            corrected_path = os.path.join(CORRECTED_DIR, corrected_filename)
+            # Save corrected dataset to fixing file (not working file)
             FileService.save_dataset(
-                df_corrected, corrected_path, ensure_dir=True)
+                df_corrected, fixing_path, ensure_dir=True)
+            print(f"[FixBias] Saved corrected data to: {fixing_path}")
 
             # Calculate severity for after distribution
             def compute_severity(distribution_dict):
                 """Calculate severity based on distribution imbalance."""
                 if not distribution_dict:
                     return "N/A"
-                
-                values = [v for v in distribution_dict.values() if isinstance(v, (int, float))]
+
+                values = [v for v in distribution_dict.values()
+                          if isinstance(v, (int, float))]
                 if len(values) == 0:
                     return "N/A"
                 if len(values) == 1:
                     return "Severe"
-                
+
                 max_val = max(values)
                 min_val = min(values)
                 ratio = min_val / max_val if max_val > 0 else 0
-                
+
                 if ratio >= 0.5:
                     return "Low"
                 elif ratio >= 0.2:
@@ -182,7 +246,8 @@ class FixBias(MethodView):
                     **after_stats,
                     "severity": compute_severity(after_stats.get("distribution", {}))
                 },
-                "corrected_file_path": f"corrected/{corrected_filename}"
+                "file_path": fixing_rel_path,  # Return fixing file path
+                "working_file_path": file_path  # Also return original working path for reference
             }
 
             # Add class weights if reweighting
@@ -293,11 +358,13 @@ class DetectSkew(MethodView):
     def post(self):
         """
         Detect skewness in a specific column of an uploaded dataset.
+        Works with selected columns from the working file.
 
         Input JSON:
         {
-            "filename": "dataset.csv",
-            "column": "age"
+            "filename": "uploads/working_dataset.csv",
+            "column": "age",
+            "selected_columns": ["age", "gender", "income"]  (optional)
         }
 
         Returns:
@@ -315,6 +382,7 @@ class DetectSkew(MethodView):
 
             filename = data.get("filename")
             column = data.get("column")
+            selected_columns = data.get("selected_columns", [])
 
             if not filename or not column:
                 abort(400, message="Both 'filename' and 'column' are required")
@@ -337,10 +405,25 @@ class DetectSkew(MethodView):
                     abort(
                         404, message=f"File '{secured}' not found in uploads")
 
-            # Read dataset
+            # Read full dataset
             df = FileService.read_dataset(abs_path)
 
-            # Detect skewness
+            # Filter to selected columns if provided (from memory store or parameter)
+            if not selected_columns:
+                from flask import current_app
+                store = current_app.config.get("SELECTED_FEATURES_STORE", {})
+                # Try to get from store using filename
+                selected_columns = store.get(filename, [])
+
+            # If selected columns exist, use only those
+            if selected_columns:
+                available_cols = set(df.columns)
+                cols_to_use = [
+                    col for col in selected_columns if col in available_cols]
+                if cols_to_use:
+                    df = df[cols_to_use]
+
+            # Detect skewness on the filtered dataset
             result = SkewnessDetectionService.detect_skewness(df, column)
 
             return jsonify(result), 200
@@ -362,10 +445,11 @@ class FixSkew(MethodView):
 
         Input JSON:
         {
-            "filename": "dataset.csv",
+            "filename": "uploads/working_dataset.csv" or "uploads/fixing_dataset.csv",
             "columns": ["age", "income"]
         }
 
+        If input is working file, creates fixing file. If input is fixing file, uses it directly.
         Returns transformation results including before/after skewness and methods applied.
         """
         try:
@@ -381,13 +465,39 @@ class FixSkew(MethodView):
             if not columns or not isinstance(columns, list):
                 abort(400, message="'columns' must be a non-empty list")
 
-            # Support both full paths (uploads/file.csv, corrected/file.csv) and just filenames
-            if filename.startswith("uploads/") or filename.startswith("corrected/"):
-                # Full path provided
-                abs_path, error = PathValidator.validate_any_path(
-                    filename, BASE_DIR, UPLOAD_DIR, CORRECTED_DIR)
+            print(f"[FixSkew] Received filename: {filename}")
+            print(f"[FixSkew] Received columns: {columns}")
+
+            # Support both full paths and just filenames
+            if filename.startswith("uploads/"):
+                abs_path, error = PathValidator.validate_upload_path(
+                    filename, BASE_DIR, UPLOAD_DIR)
+
                 if error:
-                    abort(400, message=error)
+                    # If fixing file not found, try to find the corresponding working file
+                    if "File not found" in error and "fixing_" in filename:
+                        path_parts = filename.split("/")
+                        filename_only = path_parts[-1] if path_parts else filename
+                        if filename_only.startswith("fixing_"):
+                            # Remove "fixing_" prefix
+                            base_name = filename_only[7:]
+                            working_filename = f"working_{base_name}"
+                            working_path = "/".join(path_parts[:-1] + [working_filename]) if len(
+                                path_parts) > 1 else working_filename
+
+                            print(
+                                f"[FixSkew] Fixing file not found, trying working file: {working_path}")
+                            abs_path, error = PathValidator.validate_upload_path(
+                                working_path, BASE_DIR, UPLOAD_DIR)
+
+                            if error:
+                                print(
+                                    f"[FixSkew] Neither fixing nor working file found")
+                                abort(
+                                    400, message=f"Neither fixing nor working file found: {filename}")
+                    else:
+                        print(f"[FixSkew] Path validation error: {error}")
+                        abort(400, message=error)
             else:
                 # Just filename provided, assume it's in uploads
                 from utils.validators import FileValidator
@@ -399,39 +509,54 @@ class FixSkew(MethodView):
                     abort(
                         404, message=f"File '{secured}' not found in uploads")
 
-            # Read dataset
-            df = FileService.read_dataset(abs_path)
+            # Determine if input is working or fixing file
+            base_filename = os.path.basename(abs_path)
 
-            # Apply skewness corrections
+            # Extract base name without prefix (working_ or fixing_)
+            if base_filename.startswith("working_"):
+                base_name = base_filename[8:]  # Remove "working_" prefix
+            elif base_filename.startswith("fixing_"):
+                base_name = base_filename[7:]  # Remove "fixing_" prefix
+            else:
+                base_name = base_filename
+
+            # Always use fixing_ prefix for the output file
+            fixing_filename = f"fixing_{base_name}"
+            fixing_path = os.path.join(UPLOAD_DIR, fixing_filename)
+            fixing_rel_path = f"uploads/{fixing_filename}"
+
+            # If input is working file, or fixing file doesn't exist yet, create it
+            if base_filename.startswith("working_") or not os.path.exists(fixing_path):
+                # Delete existing fixing file if it exists
+                if os.path.exists(fixing_path):
+                    os.remove(fixing_path)
+                    print(
+                        f"[FixSkew] Deleted existing fixing file: {fixing_path}")
+
+                # Create fresh copy: source -> fixing_file
+                df_source = FileService.read_dataset(abs_path)
+                FileService.save_dataset(
+                    df_source, fixing_path, ensure_dir=True)
+                print(
+                    f"[FixSkew] Created fixing file from {base_filename}: {fixing_path}")
+            else:
+                # Already a fixing file and exists, use it directly
+                print(f"[FixSkew] Using existing fixing file: {fixing_path}")
+
+            # Read fixing file and apply corrections
+            df = FileService.read_dataset(fixing_path)
             df_corrected, transformations = SkewnessCorrectionService.correct_multiple_columns(
                 df, columns)
 
-            # Save corrected dataset with unique filename based on input
-            # Extract base filename from input path
-            if filename.startswith("corrected/"):
-                # Already a corrected file, extract the filename part
-                input_base = filename.replace(
-                    "corrected/", "").replace('.csv', '')
-            elif filename.startswith("uploads/"):
-                # Uploads file, extract the filename part
-                input_base = filename.replace(
-                    "uploads/", "").replace('.csv', '')
-            else:
-                # Just a filename
-                input_base = filename.replace('.csv', '')
-
-            import time
-            timestamp = int(time.time() * 1000)  # milliseconds
-            corrected_filename = f"corrected_{input_base}_skewness_{timestamp}.csv"
-            corrected_path = os.path.join(CORRECTED_DIR, corrected_filename)
+            # Save corrected dataset to fixing file
             FileService.save_dataset(
-                df_corrected, corrected_path, ensure_dir=True)
+                df_corrected, fixing_path, ensure_dir=True)
+            print(f"[FixSkew] Saved corrected data to: {fixing_path}")
 
             return jsonify({
                 "message": "Skewness correction applied successfully",
-                "corrected_file_path": f"corrected/{corrected_filename}",
-                # For backward compatibility
-                "corrected_file": f"corrected/{corrected_filename}",
+                "file_path": fixing_rel_path,  # Return fixing file path
+                "working_file_path": filename if base_filename.startswith("working_") else None,
                 "transformations": transformations
             }), 200
 
@@ -554,19 +679,19 @@ class ComputeSummary(MethodView):
             def compute_severity(distribution_obj):
                 if not distribution_obj:
                     return "N/A"
-                
-                values = [v for k, v in distribution_obj.items() 
-                         if k not in ["severity", "note"] and isinstance(v, (int, float))]
-                
+
+                values = [v for k, v in distribution_obj.items()
+                          if k not in ["severity", "note"] and isinstance(v, (int, float))]
+
                 if len(values) == 0:
                     return "N/A"
                 if len(values) == 1:
                     return "Severe"
-                
+
                 max_val = max(values)
                 min_val = min(values)
                 ratio = min_val / max_val if max_val > 0 else 0
-                
+
                 if ratio >= 0.5:
                     return "Low"
                 elif ratio >= 0.2:
@@ -576,7 +701,7 @@ class ComputeSummary(MethodView):
 
             # Build updated bias summary
             base_bias = dict(bias_results)
-            
+
             if bias_fix_result:
                 bias_cols = bias_fix_result.get("columns", {})
                 for col, data in bias_cols.items():
@@ -602,7 +727,8 @@ class ComputeSummary(MethodView):
                     }
 
             if skewness_fix_result:
-                transformations = skewness_fix_result.get("transformations", {})
+                transformations = skewness_fix_result.get(
+                    "transformations", {})
                 for col, info in transformations.items():
                     continuous_summary[col] = {
                         "method": info.get("method"),
@@ -612,21 +738,23 @@ class ComputeSummary(MethodView):
                     }
 
             # Compute counts
-            total_selected_bias = len([col for col in selected_columns if col in categorical])
-            total_selected_skew = len([col for col in selected_columns if col in continuous])
+            total_selected_bias = len(
+                [col for col in selected_columns if col in categorical])
+            total_selected_skew = len(
+                [col for col in selected_columns if col in continuous])
 
-            needing_fix_bias = len([col for col in categorical 
+            needing_fix_bias = len([col for col in categorical
                                    if bias_results.get(col, {}).get("severity") in ["Moderate", "Severe"]])
-            
-            needing_fix_skew = len([col for col in continuous 
-                                   if skewness_results.get(col, {}).get("skewness") is not None 
+
+            needing_fix_skew = len([col for col in continuous
+                                   if skewness_results.get(col, {}).get("skewness") is not None
                                    and abs(skewness_results.get(col, {}).get("skewness", 0)) > 0.5])
 
             # Get corrected file path
             corrected_path = ""
             if skewness_fix_result:
                 corrected_path = skewness_fix_result.get("corrected_file_path") or \
-                                skewness_fix_result.get("corrected_file") or ""
+                    skewness_fix_result.get("corrected_file") or ""
             if not corrected_path and bias_fix_result:
                 corrected_path = bias_fix_result.get("corrected_file_path", "")
 

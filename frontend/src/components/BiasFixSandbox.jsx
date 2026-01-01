@@ -17,6 +17,7 @@ export default function BiasFixSandbox({
   categorical = [],
   biasResults = {},
   columns = [],
+  allColumns = [], // All columns in dataset (for SMOTE categorical selection)
   onFixComplete,
   initialSelectedColumns = [],
   hideApplyButton = false,
@@ -24,8 +25,19 @@ export default function BiasFixSandbox({
   initialResult = null, // New prop to restore previous results
   onStateChange,
 }) {
+  // Auto-select all columns that need fixing
+  const columnsNeedingFix = categorical.filter((col) => {
+    const severity = biasResults[col]?.severity;
+    return severity === "Moderate" || severity === "Severe";
+  });
+
   const [selectedColumns, setSelectedColumns] = useState(
-    new Set(initialSelectedColumns)
+    () =>
+      new Set(
+        initialSelectedColumns.length > 0
+          ? initialSelectedColumns
+          : columnsNeedingFix
+      )
   );
   const [columnSettings, setColumnSettings] = useState({}); // { colName: { method, threshold } }
   const [loading, setLoading] = useState(false);
@@ -64,9 +76,14 @@ export default function BiasFixSandbox({
 
   // Initialize settings for pre-selected columns
   useEffect(() => {
-    if (initialSelectedColumns && initialSelectedColumns.length > 0) {
+    const columnsToInitialize =
+      initialSelectedColumns.length > 0
+        ? initialSelectedColumns
+        : columnsNeedingFix;
+
+    if (columnsToInitialize && columnsToInitialize.length > 0) {
       const newSettings = {};
-      initialSelectedColumns.forEach((col) => {
+      columnsToInitialize.forEach((col) => {
         newSettings[col] = {
           method: "oversample",
           threshold: 0.5,
@@ -74,7 +91,7 @@ export default function BiasFixSandbox({
       });
       setColumnSettings(newSettings);
     }
-  }, [initialSelectedColumns]); // Run when initialSelectedColumns changes
+  }, []); // Run only once on mount
 
   const toggleColumn = (col) => {
     setSelectedColumns((prev) => {
@@ -195,7 +212,7 @@ export default function BiasFixSandbox({
 
       const columnsToFix = Array.from(selectedColumns);
       const allResults = {};
-      let currentFilePath = filePath;
+      let currentFilePath = filePath; // Always start from the original working file
 
       // Apply fixes sequentially to each selected column
       for (let i = 0; i < columnsToFix.length; i++) {
@@ -206,6 +223,7 @@ export default function BiasFixSandbox({
           file_path: currentFilePath,
           target_column: String(colToFix),
           method: settings?.method || "oversample",
+          is_first_fix: i === 0, // Tell backend if this is the first fix in the batch
         };
 
         // Add categorical columns if SMOTE
@@ -237,16 +255,17 @@ export default function BiasFixSandbox({
           threshold: settings?.threshold,
         };
 
-        // Use the corrected file as input for the next iteration
-        if (res.data?.corrected_file_path) {
-          currentFilePath = res.data.corrected_file_path;
+        // Backend now returns file_path (same as input since it modifies in-place)
+        // Use this for the next iteration
+        if (res.data?.file_path) {
+          currentFilePath = res.data.file_path;
         }
       }
 
       // Set combined results
       const finalResult = {
         columns: allResults,
-        corrected_file_path: currentFilePath,
+        file_path: currentFilePath, // Changed from corrected_file_path
       };
       setResult(finalResult);
 
@@ -267,173 +286,120 @@ export default function BiasFixSandbox({
 
   return (
     <div className="w-full">
-      {/* Column Selection */}
-      <div className="mb-6 p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm animate-fadeInUp">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🎯</span>
-            <h3 className="text-base font-bold text-slate-800">
-              Select Columns to Fix
-            </h3>
-            {selectedColumns.size > 0 && (
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-500 text-white text-xs font-bold animate-scaleIn">
-                {selectedColumns.size}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={selectAll}
-              className="text-xs px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+      {/* Column Fix Settings - directly show options without checkboxes */}
+      <div className="grid grid-cols-1 gap-4 mb-6">
+        {Array.from(selectedColumns).map((col, index) => {
+          const severity = biasResults[col]?.severity;
+          const settings = columnSettings[col] || {
+            method: "oversample",
+            threshold: 0.5,
+          };
+
+          // Severity emoji mapping
+          const severityEmoji = {
+            Severe: "🔴",
+            Moderate: "🟡",
+            Low: "🟢",
+          };
+
+          return (
+            <div
+              key={col}
+              className="p-5 rounded-xl border-2 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-400 shadow-md transition-all duration-300 hover:shadow-lg animate-fadeInUp"
+              style={{ animationDelay: `${index * 0.05}s` }}
             >
-              Select All Imbalanced
-            </button>
-            <button
-              type="button"
-              onClick={clearAll}
-              className="text-xs px-4 py-2 rounded-lg bg-white text-slate-700 font-medium hover:bg-slate-100 border border-slate-300 shadow-sm hover:shadow-md transition-all duration-300"
-            >
-              Clear All
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4">
-          {categorical.map((col, index) => {
-            const severity = biasResults[col]?.severity;
-            const hasIssue = severity === "Moderate" || severity === "Severe";
-            const isSelected = selectedColumns.has(col);
-            const settings = columnSettings[col] || {
-              method: "oversample",
-              threshold: 0.5,
-            };
-
-            // Severity emoji mapping
-            const severityEmoji = {
-              Severe: "🔴",
-              Moderate: "🟡",
-              Low: "🟢",
-            };
-
-            return (
-              <div
-                key={col}
-                className={`p-5 rounded-xl border-2 transition-all duration-300 hover:shadow-lg animate-fadeInUp ${
-                  isSelected
-                    ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-400 shadow-md scale-[1.02]"
-                    : hasIssue
-                    ? "bg-white border-slate-300 hover:border-blue-300"
-                    : "bg-slate-50 border-slate-200 opacity-60"
-                }`}
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                <div className="flex items-start gap-4">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleColumn(col)}
-                    disabled={!hasIssue}
-                    className="mt-1 w-5 h-5 rounded border-2 border-blue-400 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-base font-bold text-slate-900">
-                            {col}
-                          </span>
-                          {severity && (
-                            <span className="text-lg">
-                              {severityEmoji[severity] || "⚪"}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-slate-600 flex items-center gap-1">
-                          <span className="font-medium">Distribution:</span>
-                          <span className="text-slate-700">
-                            {getDistributionText(col)}
-                          </span>
-                        </div>
-                      </div>
-                      {severity && (
-                        <span
-                          className={`text-xs px-3 py-1 rounded-full font-bold shadow-sm ${
-                            severity === "Severe"
-                              ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
-                              : severity === "Moderate"
-                              ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white"
-                              : "bg-gradient-to-r from-green-400 to-emerald-500 text-white"
-                          }`}
-                        >
-                          {severity}
+              <div className="flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-base font-bold text-slate-900">
+                          {col}
                         </span>
-                      )}
-                    </div>
-
-                    {isSelected && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t-2 border-blue-200 animate-fadeInUp">
-                        <div>
-                          <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
-                            <span>🛠️</span>
-                            Fix Method
-                          </label>
-                          <select
-                            className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white hover:border-blue-400"
-                            value={settings.method}
-                            onChange={(e) =>
-                              updateColumnSetting(col, "method", e.target.value)
-                            }
-                          >
-                            {METHOD_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
-                            <span>🎚️</span>
-                            Threshold (0.1 – 1.0)
-                          </label>
-                          <input
-                            type="number"
-                            min={0.1}
-                            max={1}
-                            step={0.1}
-                            className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all hover:border-blue-400"
-                            value={settings.threshold}
-                            onChange={(e) =>
-                              updateColumnSetting(
-                                col,
-                                "threshold",
-                                e.target.value
-                              )
-                            }
-                            placeholder="0.5"
-                          />
-                          <p className="mt-2 text-xs text-slate-600 flex items-center gap-1">
-                            <span>💡</span>
-                            Target ratio for minority class
-                          </p>
-                        </div>
+                        {severity && (
+                          <span className="text-lg">
+                            {severityEmoji[severity] || "⚪"}
+                          </span>
+                        )}
                       </div>
+                      <div className="text-sm text-slate-600 flex items-center gap-1">
+                        <span className="font-medium">Distribution:</span>
+                        <span className="text-slate-700">
+                          {getDistributionText(col)}
+                        </span>
+                      </div>
+                    </div>
+                    {severity && (
+                      <span
+                        className={`text-xs px-3 py-1 rounded-full font-bold shadow-sm ${
+                          severity === "Severe"
+                            ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
+                            : severity === "Moderate"
+                            ? "bg-gradient-to-r from-amber-400 to-orange-500 text-white"
+                            : "bg-gradient-to-r from-green-400 to-emerald-500 text-white"
+                        }`}
+                      >
+                        {severity}
+                      </span>
                     )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeInUp">
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                        <span>🛠️</span>
+                        Fix Method
+                      </label>
+                      <select
+                        className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white hover:border-blue-400"
+                        value={settings.method}
+                        onChange={(e) =>
+                          updateColumnSetting(col, "method", e.target.value)
+                        }
+                      >
+                        {METHOD_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                        <span>🎚️</span>
+                        Threshold (0.1 – 1.0)
+                      </label>
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={1}
+                        step={0.1}
+                        className="w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all hover:border-blue-400"
+                        value={settings.threshold}
+                        onChange={(e) =>
+                          updateColumnSetting(col, "threshold", e.target.value)
+                        }
+                        placeholder="0.5"
+                      />
+                      <p className="mt-2 text-xs text-slate-600 flex items-center gap-1">
+                        <span>💡</span>
+                        Target ratio for minority class
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-
-        {categorical.length === 0 && (
-          <div className="text-sm text-slate-500 text-center py-8 animate-fadeIn">
-            <span className="text-3xl mb-2 block">📭</span>
-            No categorical columns available
-          </div>
-        )}
+            </div>
+          );
+        })}
       </div>
+
+      {selectedColumns.size === 0 && (
+        <div className="text-sm text-slate-500 text-center py-8 animate-fadeIn">
+          <span className="text-3xl mb-2 block">📭</span>
+          No categorical columns available
+        </div>
+      )}
 
       {/* Apply Button */}
       {!hideApplyButton && (
@@ -472,24 +438,9 @@ export default function BiasFixSandbox({
         isOpen={showCategoricalModal}
         onClose={() => setShowCategoricalModal(false)}
         onConfirm={handleCategoricalModalConfirm}
-        allColumns={columns}
+        allColumns={allColumns.length > 0 ? allColumns : columns}
         targetColumn={currentColumn}
       />
-
-      {/* Loading State */}
-      {loading && (
-        <div className="my-6 p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 animate-pulseGlow">
-          <div className="flex flex-col items-center gap-4">
-            <Spinner />
-            <p className="text-lg font-bold text-blue-800 animate-pulse">
-              Applying bias correction...
-            </p>
-            <p className="text-sm text-slate-600">
-              This may take a moment. Please wait.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Error Display */}
       {error && (
@@ -524,11 +475,11 @@ export default function BiasFixSandbox({
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">💾</span>
               <span className="font-bold text-slate-700">
-                Corrected File Saved:
+                Working File (Modified In-Place):
               </span>
             </div>
             <div className="font-mono text-blue-600 text-sm break-all bg-blue-50 p-3 rounded-lg border border-blue-200">
-              {result.corrected_file_path || "N/A"}
+              {result.file_path || "N/A"}
             </div>
           </div>
 

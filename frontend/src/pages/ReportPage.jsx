@@ -57,16 +57,13 @@ export default function ReportPage() {
   // Pull data from navigation state or fallback to localStorage persisted by Dashboard
   useEffect(() => {
     const state = location.state || {};
-    const rp =
-      state.reportPath ||
-      getStorageValue("bx_lastReportPath") ||
-      "";
+    const rp = state.reportPath || getStorageValue("bx_lastReportPath") || "";
     setReportPath(rp);
     if (state.correctionSummary) setCorrectionSummary(state.correctionSummary);
     if (!state.correctionSummary) {
       try {
         const storedCorr = getStorageValue("dashboard_reportCorrectionSummary");
-        if (storedCorr && typeof storedCorr === 'object') {
+        if (storedCorr && typeof storedCorr === "object") {
           setCorrectionSummary(storedCorr);
         }
       } catch (e) {
@@ -74,7 +71,7 @@ export default function ReportPage() {
         console.warn("Failed to parse stored correction summary:", e);
       }
     }
-  // Visualizations will be fetched on-demand below; no longer pulled from navigation state
+    // Visualizations will be fetched on-demand below; no longer pulled from navigation state
 
     // Try to pick corrected dataset path from navigation state first, then localStorage persisted by Dashboard
     const cpFromState =
@@ -90,7 +87,7 @@ export default function ReportPage() {
       try {
         if (e.key === "dashboard_reportCorrectionSummary" && e.newValue) {
           const parsed = getStorageValue(e.key);
-          if (parsed && typeof parsed === 'object') {
+          if (parsed && typeof parsed === "object") {
             setCorrectionSummary(parsed);
           }
         }
@@ -125,29 +122,31 @@ export default function ReportPage() {
       const continuousCols = getStorageValue("dashboard_continuous", []);
       const biasDet = getStorageValue("dashboard_biasResults", {});
       const skewDet = getStorageValue("dashboard_skewnessResults", {});
-      
+
       // Ensure arrays
       const selectedArr = Array.isArray(selected) ? selected : [];
       const catColsArr = Array.isArray(categoricalCols) ? categoricalCols : [];
       const contColsArr = Array.isArray(continuousCols) ? continuousCols : [];
-      const biasDetObj = typeof biasDet === 'object' && biasDet !== null ? biasDet : {};
-      const skewDetObj = typeof skewDet === 'object' && skewDet !== null ? skewDet : {};
-      
+      const biasDetObj =
+        typeof biasDet === "object" && biasDet !== null ? biasDet : {};
+      const skewDetObj =
+        typeof skewDet === "object" && skewDet !== null ? skewDet : {};
+
       // Use unique selections and only count those that belong to either categorical or continuous targets
       const uniqSelected = Array.from(new Set(selectedArr));
       const selectedInScope = uniqSelected.filter(
         (c) => catColsArr.includes(c) || contColsArr.includes(c)
       );
-      const counts = { 
-        totalSelectedAll: selectedInScope.length, 
-        Low: 0, 
-        Moderate: 0, 
-        Severe: 0, 
+      const counts = {
+        totalSelectedAll: selectedInScope.length,
+        Low: 0,
+        Moderate: 0,
+        Severe: 0,
         NotTested: 0,
         LowCols: [],
         ModerateCols: [],
         SevereCols: [],
-        NotTestedCols: []
+        NotTestedCols: [],
       };
       // Categorical severities only for categorical selections
       for (const col of selectedInScope.filter((c) => catColsArr.includes(c))) {
@@ -167,50 +166,53 @@ export default function ReportPage() {
         }
       }
       // Continuous skewness classes
-      const contCounts = { 
-        right: 0, 
-        left: 0, 
-        normal: 0, 
+      const contCounts = {
+        right: 0,
+        left: 0,
+        normal: 0,
         notTested: 0,
         rightCols: [],
         leftCols: [],
         normalCols: [],
-        notTestedCols: []
+        notTestedCols: [],
       };
       const classify = (v) => {
-        if (v === null || v === undefined || Number.isNaN(Number(v))) return "notTested";
+        if (v === null || v === undefined || Number.isNaN(Number(v)))
+          return "notTested";
         const sk = Number(v);
         if (Math.abs(sk) <= 0.1) return "normal"; // tolerance band for near-normal
         return sk > 0 ? "right" : "left";
       };
-      for (const col of selectedInScope.filter((c) => contColsArr.includes(c))) {
+      for (const col of selectedInScope.filter((c) =>
+        contColsArr.includes(c)
+      )) {
         const cat = classify(skewDetObj?.[col]?.skewness);
         contCounts[cat]++;
-        contCounts[cat + 'Cols'].push(col);
+        contCounts[cat + "Cols"].push(col);
       }
 
       return { ...counts, continuous: contCounts };
     } catch {
-      return { 
-        totalSelectedAll: 0, 
-        Low: 0, 
-        Moderate: 0, 
-        Severe: 0, 
+      return {
+        totalSelectedAll: 0,
+        Low: 0,
+        Moderate: 0,
+        Severe: 0,
         NotTested: 0,
         LowCols: [],
         ModerateCols: [],
         SevereCols: [],
         NotTestedCols: [],
-        continuous: { 
-          right: 0, 
-          left: 0, 
-          normal: 0, 
+        continuous: {
+          right: 0,
+          left: 0,
+          normal: 0,
           notTested: 0,
           rightCols: [],
           leftCols: [],
           normalCols: [],
-          notTestedCols: []
-        } 
+          notTestedCols: [],
+        },
       };
     }
   }, [storageTick]);
@@ -278,9 +280,10 @@ export default function ReportPage() {
     return out;
   }, [continuousCorrections, latestTs]);
   // corrected file path intentionally not displayed; keep correctedPath only for download action
-  const metaCounts = useMemo(() => correctionSummary?.meta || {}, [
-    correctionSummary?.meta,
-  ]);
+  const metaCounts = useMemo(
+    () => correctionSummary?.meta || {},
+    [correctionSummary?.meta]
+  );
 
   // Fixed counts derived from correction summary (both categorical and continuous)
   const fixedCategoricalCount = useMemo(() => {
@@ -305,15 +308,25 @@ export default function ReportPage() {
     try {
       const selected = getStorageValue("dashboard_selectedColumns", []);
       const biasResultsStored = getStorageValue("dashboard_biasResults", {});
-      const skewnessResultsStored = getStorageValue("dashboard_skewnessResults", {});
+      const skewnessResultsStored = getStorageValue(
+        "dashboard_skewnessResults",
+        {}
+      );
       const categoricalCols = getStorageValue("dashboard_categorical", []);
       const continuousCols = getStorageValue("dashboard_continuous", []);
 
       const selectedArr = Array.isArray(selected) ? selected : [];
       const catColsArr = Array.isArray(categoricalCols) ? categoricalCols : [];
       const contColsArr = Array.isArray(continuousCols) ? continuousCols : [];
-      const biasResultsObj = typeof biasResultsStored === 'object' && biasResultsStored !== null ? biasResultsStored : {};
-      const skewnessResultsObj = typeof skewnessResultsStored === 'object' && skewnessResultsStored !== null ? skewnessResultsStored : {};
+      const biasResultsObj =
+        typeof biasResultsStored === "object" && biasResultsStored !== null
+          ? biasResultsStored
+          : {};
+      const skewnessResultsObj =
+        typeof skewnessResultsStored === "object" &&
+        skewnessResultsStored !== null
+          ? skewnessResultsStored
+          : {};
 
       const uniqSelected = Array.from(new Set(selectedArr));
 
@@ -337,19 +350,19 @@ export default function ReportPage() {
         categorical: {
           selected: catSelected,
           needingFix: catNeedingFix,
-          fixed: Object.keys(latestCategorical)
+          fixed: Object.keys(latestCategorical),
         },
         continuous: {
           selected: contSelected,
           needingFix: contNeedingFix,
-          fixed: Object.keys(latestContinuous)
-        }
+          fixed: Object.keys(latestContinuous),
+        },
       };
     } catch (e) {
       console.warn("Failed to compute correction column details:", e);
       return {
         categorical: { selected: [], needingFix: [], fixed: [] },
-        continuous: { selected: [], needingFix: [], fixed: [] }
+        continuous: { selected: [], needingFix: [], fixed: [] },
       };
     }
   }, [latestCategorical, latestContinuous]);
@@ -367,7 +380,10 @@ export default function ReportPage() {
       // Total selected should reflect Target Column Selection (Step 3)
       const selected = getStorageValue("dashboard_selectedColumns", []);
       const biasResultsStored = getStorageValue("dashboard_biasResults", {});
-      const skewnessResultsStored = getStorageValue("dashboard_skewnessResults", {});
+      const skewnessResultsStored = getStorageValue(
+        "dashboard_skewnessResults",
+        {}
+      );
       const categoricalCols = getStorageValue("dashboard_categorical", []);
       const continuousCols = getStorageValue("dashboard_continuous", []);
 
@@ -375,8 +391,15 @@ export default function ReportPage() {
       const selectedArr = Array.isArray(selected) ? selected : [];
       const catColsArr = Array.isArray(categoricalCols) ? categoricalCols : [];
       const contColsArr = Array.isArray(continuousCols) ? continuousCols : [];
-      const biasResultsObj = typeof biasResultsStored === 'object' && biasResultsStored !== null ? biasResultsStored : {};
-      const skewnessResultsObj = typeof skewnessResultsStored === 'object' && skewnessResultsStored !== null ? skewnessResultsStored : {};
+      const biasResultsObj =
+        typeof biasResultsStored === "object" && biasResultsStored !== null
+          ? biasResultsStored
+          : {};
+      const skewnessResultsObj =
+        typeof skewnessResultsStored === "object" &&
+        skewnessResultsStored !== null
+          ? skewnessResultsStored
+          : {};
 
       const uniqSelected = Array.from(new Set(selectedArr));
 
@@ -391,12 +414,15 @@ export default function ReportPage() {
 
       setFallbackCounts({
         categorical: {
-          total_selected: uniqSelected.filter((c) => catColsArr.includes(c)).length,
+          total_selected: uniqSelected.filter((c) => catColsArr.includes(c))
+            .length,
           needing_fix: catNeeding,
           fixed: Object.keys(categoricalCorrections).length,
         },
         continuous: {
-          total_selected: uniqSelected.filter((c) => (continuousCols || []).includes(c)).length,
+          total_selected: uniqSelected.filter((c) =>
+            (continuousCols || []).includes(c)
+          ).length,
           needing_fix: contNeeding,
           fixed: Object.keys(continuousCorrections).length,
         },
@@ -410,91 +436,110 @@ export default function ReportPage() {
   //   visualizations?.before_chart && visualizations?.after_chart
   // );
 
-  // Auto-build visualizations for the latest fixed columns using persisted paths
+  // Helper to generate client-side charts from fix results (same as Visualization.jsx)
+  const generateCategoricalChartsFromResults = (fixResults, columns) => {
+    if (!fixResults || !fixResults.columns) return {};
+
+    const charts = {};
+    columns.forEach((col) => {
+      const colData = fixResults.columns[col];
+      if (!colData) return;
+
+      const beforeDist = colData.before?.distribution || colData.before || {};
+      const afterDist = colData.after?.distribution || colData.after || {};
+
+      // Remove non-distribution keys
+      const cleanBefore = { ...beforeDist };
+      const cleanAfter = { ...afterDist };
+      delete cleanBefore.severity;
+      delete cleanBefore.note;
+      delete cleanAfter.severity;
+      delete cleanAfter.note;
+
+      // Create chart data
+      const categories = Object.keys(cleanBefore);
+      const beforeValues = categories.map(
+        (cat) => (cleanBefore[cat] || 0) * 100
+      );
+      const afterValues = categories.map((cat) => (cleanAfter[cat] || 0) * 100);
+
+      charts[col] = {
+        beforeData: { categories, values: beforeValues },
+        afterData: { categories, values: afterValues },
+      };
+    });
+
+    return charts;
+  };
+
+  const generateContinuousChartsFromResults = (fixResults, columns) => {
+    if (!fixResults || !fixResults.columns) return {};
+
+    const charts = {};
+    columns.forEach((col) => {
+      const colData = fixResults.columns[col];
+      if (!colData) return;
+
+      charts[col] = {
+        before_skewness: colData.before?.skewness,
+        after_skewness: colData.after?.skewness,
+        method: colData.method,
+      };
+    });
+
+    return charts;
+  };
+
+  // Auto-build visualizations using stored fix results (from localStorage)
   useEffect(() => {
-    // Determine paths from storage (same precedence as Dashboard)
-    const beforePath =
-      getStorageValue("dashboard_beforeFixFilePath", "") ||
-      getStorageValue("dashboard_cleanedFilePath", "") ||
-      getStorageValue("dashboard_selectedFilePath", "") ||
-      getStorageValue("dashboard_filePath", "") ||
-      "";
-    const afterPath = correctedPath;
     const catCols = Object.keys(latestCategorical || {});
     const contCols = Object.keys(latestContinuous || {});
 
-    if (!afterPath || (!catCols.length && !contCols.length)) {
+    if (!catCols.length && !contCols.length) {
       setVizCategorical({});
       setVizContinuous({});
       return;
     }
 
-    let cancelled = false;
-    async function run() {
-      try {
-        setVizLoading(true);
-        setVizError("");
+    try {
+      setVizLoading(true);
+      setVizError("");
 
-        // Fetch categorical charts for each column (parallel)
-        if (catCols.length) {
-          const requests = catCols.map((col) =>
-            axios
-              .post(
-                "http://localhost:5000/api/bias/visualize",
-                {
-                  before_path: beforePath,
-                  after_path: afterPath,
-                  target_column: col,
-                },
-                { headers: { "Content-Type": "application/json" } }
-              )
-              .then((res) => ({ col, data: res.data }))
-              .catch((err) => ({ col, error: err }))
-          );
-          const results = await Promise.all(requests);
-          if (!cancelled) {
-            const out = {};
-            results.forEach((r) => {
-              if (r.error) {
-                out[r.col] = { error: r.error?.response?.data?.error || r.error.message || "Failed" };
-              } else {
-                out[r.col] = {
-                  before_chart: r.data?.before_chart || "",
-                  after_chart: r.data?.after_chart || "",
-                };
-              }
-            });
-            setVizCategorical(out);
-          }
-        } else {
-          setVizCategorical({});
-        }
+      // Get fix results from localStorage
+      const biasFixResult = getStorageValue("dashboard_biasFixResult", null);
+      const skewnessFixResult = getStorageValue(
+        "dashboard_skewnessFixResult",
+        null
+      );
 
-        // Fetch continuous charts (single request supports multiple columns)
-        if (contCols.length) {
-          const res = await axios.post(
-            "http://localhost:5000/api/skewness/visualize",
-            { before_path: beforePath, after_path: afterPath, columns: contCols },
-            { headers: { "Content-Type": "application/json" } }
-          );
-          if (!cancelled) {
-            setVizContinuous(res?.data?.charts || {});
-          }
-        } else {
-          setVizContinuous({});
-        }
-      } catch (e) {
-        if (!cancelled) setVizError(e?.response?.data?.error || e.message || "Failed to load visualizations");
-      } finally {
-        if (!cancelled) setVizLoading(false);
+      // Generate categorical charts from stored results
+      if (catCols.length && biasFixResult) {
+        const catCharts = generateCategoricalChartsFromResults(
+          biasFixResult,
+          catCols
+        );
+        setVizCategorical(catCharts);
+      } else {
+        setVizCategorical({});
       }
-    }
 
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [correctedPath, latestCategorical, latestContinuous]);
+      // Generate continuous charts from stored results
+      if (contCols.length && skewnessFixResult) {
+        const contCharts = generateContinuousChartsFromResults(
+          skewnessFixResult,
+          contCols
+        );
+        setVizContinuous(contCharts);
+      } else {
+        setVizContinuous({});
+      }
+
+      setVizLoading(false);
+    } catch (e) {
+      setVizError(e.message || "Failed to load visualizations");
+      setVizLoading(false);
+    }
+  }, [latestCategorical, latestContinuous]);
 
   const downloadReport = async () => {
     setError("");
@@ -502,69 +547,77 @@ export default function ReportPage() {
     if (!node) return;
     try {
       setLoading(true);
-      
+
+      // Wait a moment for all charts to fully render
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Convert all Plotly charts to static images first
-      const plotlyDivs = node.querySelectorAll('.js-plotly-plot');
+      const plotlyDivs = node.querySelectorAll(".js-plotly-plot");
+      console.log(
+        `[PDF Export] Found ${plotlyDivs.length} Plotly charts to convert`
+      );
       const plotlyImages = new Map();
-      
+
       for (const plotDiv of plotlyDivs) {
         try {
           // Convert Plotly chart to high-quality PNG
           const imgData = await Plotly.toImage(plotDiv, {
-            format: 'png',
+            format: "png",
             width: 800,
             height: 500,
-            scale: 3
+            scale: 3,
           });
-          
+
+          console.log("[PDF Export] Successfully converted chart to image");
+
           // Store the image data
           plotlyImages.set(plotDiv, imgData);
-          
+
           // Replace the Plotly div with an img tag temporarily
-          const img = document.createElement('img');
+          const img = document.createElement("img");
           img.src = imgData;
-          img.style.width = '100%';
-          img.style.height = 'auto';
-          img.className = 'plotly-static-image';
-          plotDiv.style.display = 'none';
+          img.style.width = "100%";
+          img.style.height = "auto";
+          img.className = "plotly-static-image";
+          plotDiv.style.display = "none";
           plotDiv.parentNode.insertBefore(img, plotDiv);
         } catch (err) {
-          console.warn('Failed to convert chart to image:', err);
+          console.warn("Failed to convert chart to image:", err);
         }
       }
-      
+
       // Apply export class
       node.classList.add("exporting");
-      
+
       // Force compute all styles and replace oklch with rgb
-      const elementsWithStyle = node.querySelectorAll('*');
+      const elementsWithStyle = node.querySelectorAll("*");
       const originalStyles = new Map();
-      
-      elementsWithStyle.forEach(el => {
+
+      elementsWithStyle.forEach((el) => {
         const computed = window.getComputedStyle(el);
         const bgcolor = computed.backgroundColor;
         const color = computed.color;
         const borderColor = computed.borderColor;
-        
+
         // Store original inline styles
         originalStyles.set(el, {
           backgroundColor: el.style.backgroundColor,
           color: el.style.color,
           borderColor: el.style.borderColor,
         });
-        
+
         // If oklch detected, force RGB override
-        if (bgcolor && bgcolor.includes('oklch')) {
-          el.style.backgroundColor = '#ffffff';
+        if (bgcolor && bgcolor.includes("oklch")) {
+          el.style.backgroundColor = "#ffffff";
         }
-        if (color && color.includes('oklch')) {
-          el.style.color = '#0f172a';
+        if (color && color.includes("oklch")) {
+          el.style.color = "#0f172a";
         }
-        if (borderColor && borderColor.includes('oklch')) {
-          el.style.borderColor = '#e2e8f0';
+        if (borderColor && borderColor.includes("oklch")) {
+          el.style.borderColor = "#e2e8f0";
         }
       });
-      
+
       const opt = {
         margin: [10, 10],
         filename: "biasxplorer_report.pdf",
@@ -577,19 +630,19 @@ export default function ReportPage() {
           logging: false,
           allowTaint: true,
         },
-        pagebreak: { 
-          mode: ['avoid-all', 'css', 'legacy'], 
-          before: '.avoid-break-before',
-          after: '.avoid-break-after',
-          avoid: ['table', 'tr', '.avoid-break', '.plotly-static-image'] 
+        pagebreak: {
+          mode: ["avoid-all", "css", "legacy"],
+          before: ".avoid-break-before",
+          after: ".avoid-break-after",
+          avoid: ["table", "tr", ".avoid-break", ".plotly-static-image"],
         },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       };
-      
+
       await html2pdf().set(opt).from(node).save();
-      
+
       // Restore original styles
-      elementsWithStyle.forEach(el => {
+      elementsWithStyle.forEach((el) => {
         const original = originalStyles.get(el);
         if (original) {
           el.style.backgroundColor = original.backgroundColor;
@@ -597,16 +650,15 @@ export default function ReportPage() {
           el.style.borderColor = original.borderColor;
         }
       });
-      
+
       // Remove static images and restore Plotly charts
-      const staticImages = node.querySelectorAll('.plotly-static-image');
-      staticImages.forEach(img => img.remove());
-      plotlyDivs.forEach(plotDiv => {
-        plotDiv.style.display = '';
+      const staticImages = node.querySelectorAll(".plotly-static-image");
+      staticImages.forEach((img) => img.remove());
+      plotlyDivs.forEach((plotDiv) => {
+        plotDiv.style.display = "";
       });
-      
     } catch (err) {
-      console.error('PDF generation error:', err);
+      console.error("PDF generation error:", err);
       setError(err?.message || "Failed to generate PDF");
     } finally {
       node.classList.remove("exporting");
@@ -617,29 +669,36 @@ export default function ReportPage() {
   const downloadCorrected = async () => {
     setError("");
     if (!correctedPath) {
-      setError("No corrected dataset available. Apply a fix on the Dashboard first.");
+      setError(
+        "No corrected dataset available. Apply a fix on the Dashboard first."
+      );
       return;
     }
     try {
       setLoading(true);
-      // Expect correctedPath like 'corrected/<filename>.csv'
-      const filename = correctedPath.startsWith("corrected/")
-        ? correctedPath.substring("corrected/".length)
-        : correctedPath;
-      const url = `http://localhost:5000/api/corrected/download/${encodeURIComponent(filename)}`;
+      // correctedPath is now like 'uploads/working_<filename>.csv'
+      // Pass the full path to the backend
+      const url = `http://localhost:5000/api/corrected/download/${encodeURIComponent(
+        correctedPath
+      )}`;
       const res = await axios.get(url, { responseType: "blob" });
       const blob = new Blob([res.data], { type: "text/csv" });
       const a = document.createElement("a");
       const blobUrl = URL.createObjectURL(blob);
       a.href = blobUrl;
-      a.download = filename || "corrected_dataset.csv";
+      // Extract just the filename for download
+      const filename =
+        correctedPath.split("/").pop() || "corrected_dataset.csv";
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(blobUrl);
     } catch (err) {
       const msg =
-        err?.response?.data?.error || err.message || "Failed to download corrected dataset";
+        err?.response?.data?.error ||
+        err.message ||
+        "Failed to download corrected dataset";
       setError(msg);
     } finally {
       setLoading(false);
@@ -663,7 +722,7 @@ export default function ReportPage() {
               <div className="absolute w-32 h-32 bg-blue-400/20 rounded-full animate-ping"></div>
               <div className="absolute w-24 h-24 bg-purple-400/20 rounded-full animate-pulse"></div>
             </div>
-            
+
             {/* Main content card */}
             <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-10 flex flex-col items-center gap-6 min-w-[320px]">
               {/* Spinner with gradient */}
@@ -671,7 +730,7 @@ export default function ReportPage() {
                 <div className="animate-spin rounded-full h-20 w-20 border-4 border-gray-200"></div>
                 <div className="animate-spin rounded-full h-20 w-20 border-4 border-transparent border-t-blue-600 border-r-purple-600 absolute top-0 left-0"></div>
               </div>
-              
+
               {/* Text content */}
               <div className="text-center space-y-2">
                 <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -681,12 +740,21 @@ export default function ReportPage() {
                   Please wait while we generate your PDF
                 </p>
               </div>
-              
+
               {/* Progress dots */}
               <div className="flex gap-2">
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-pink-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                <div
+                  className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
+                  style={{ animationDelay: "0s" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.2s" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-pink-600 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.4s" }}
+                ></div>
               </div>
             </div>
           </div>
@@ -719,7 +787,7 @@ export default function ReportPage() {
         </div>
       </header>
 
-  <main ref={mainRef} className="max-w-6xl mx-auto px-4 py-8">
+      <main ref={mainRef} className="max-w-6xl mx-auto px-4 py-8">
         {/* Official PDF Header - Visible only in PDF export */}
         <div className="hide-in-screen official-report-header">
           <div className="border-b-4 border-blue-600 pb-6 mb-8">
@@ -728,23 +796,41 @@ export default function ReportPage() {
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">
                   BiasXplorer
                 </h1>
-                <p className="text-lg text-slate-600">Dataset Bias Analysis Report</p>
+                <p className="text-lg text-slate-600">
+                  Dataset Bias Analysis Report
+                </p>
               </div>
               <div className="text-right text-sm text-slate-600">
-                <div className="font-semibold text-blue-600">OFFICIAL REPORT</div>
+                <div className="font-semibold text-blue-600">
+                  OFFICIAL REPORT
+                </div>
                 <div>Report ID: {`BXR-${Date.now().toString().slice(-8)}`}</div>
-                <div>Generated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                <div>Time: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+                <div>
+                  Generated:{" "}
+                  {new Date().toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </div>
+                <div>
+                  Time:{" "}
+                  {new Date().toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
               </div>
             </div>
             <div className="bg-blue-50 border-l-4 border-blue-600 p-4 mt-4">
               <p className="text-sm text-slate-700">
-                <strong>Confidential:</strong> This report contains analysis results for dataset bias detection and correction. 
-                The information herein is intended for authorized personnel only.
+                <strong>Confidential:</strong> This report contains analysis
+                results for dataset bias detection and correction. The
+                information herein is intended for authorized personnel only.
               </p>
             </div>
           </div>
-          
+
           {/* Executive Summary */}
           <div className="mb-8 bg-slate-50 border border-slate-200 rounded-lg p-6">
             <h2 className="text-xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">
@@ -752,19 +838,26 @@ export default function ReportPage() {
             </h2>
             <div className="space-y-2 text-sm text-slate-700">
               <p>
-                <strong>Total Columns Analyzed:</strong> {biasSeverityCounts.totalSelectedAll}
+                <strong>Total Columns Analyzed:</strong>{" "}
+                {biasSeverityCounts.totalSelectedAll}
               </p>
               <p>
                 <strong>Columns Corrected:</strong> {totalFixedCount}
               </p>
               <p>
-                <strong>Categorical Issues Identified:</strong> {biasSeverityCounts.Severe} Severe, {biasSeverityCounts.Moderate} Moderate, {biasSeverityCounts.Low} Low
+                <strong>Categorical Issues Identified:</strong>{" "}
+                {biasSeverityCounts.Severe} Severe,{" "}
+                {biasSeverityCounts.Moderate} Moderate, {biasSeverityCounts.Low}{" "}
+                Low
               </p>
               <p>
-                <strong>Continuous Distribution Issues:</strong> {biasSeverityCounts.continuous?.right ?? 0} Right-skewed, {biasSeverityCounts.continuous?.left ?? 0} Left-skewed
+                <strong>Continuous Distribution Issues:</strong>{" "}
+                {biasSeverityCounts.continuous?.right ?? 0} Right-skewed,{" "}
+                {biasSeverityCounts.continuous?.left ?? 0} Left-skewed
               </p>
               <p className="pt-2 border-t border-slate-300 mt-3">
-                <strong>Analysis Status:</strong> <span className="text-green-700 font-semibold">Complete</span>
+                <strong>Analysis Status:</strong>{" "}
+                <span className="text-green-700 font-semibold">Complete</span>
               </p>
             </div>
           </div>
@@ -776,193 +869,376 @@ export default function ReportPage() {
           </div>
         )}
 
-  {/* Summary grid: Bias + Correction only */}
-  <div className="report-section page-break-before-analysis">
-    {/* Section number for PDF */}
-    <div className="hide-in-screen">
-      <h2 className="text-2xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">
-        1. ANALYSIS OVERVIEW
-      </h2>
-    </div>
-    
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm official-card">
-            <h3 className="font-semibold text-slate-800 mb-3 text-base hide-in-pdf">1.1 Bias Detection Summary</h3>
-            <h3 className="font-semibold text-slate-800 mb-4 text-base hide-in-screen" style={{borderBottom: '1px solid #cbd5e1', paddingBottom: '8px'}}>1.1 Bias Detection Summary</h3>
-            
-            {/* Overview Section - Web */}
-            <div className="bg-slate-50 rounded-lg p-3 mb-3 border border-slate-100 hide-in-pdf">
-              <div className="text-base text-slate-700 mb-1">
-                Columns fixed: {totalFixedCount}{formatColumns(Object.keys(latestCategorical).concat(Object.keys(latestContinuous)))}
-              </div>
-              <div className="text-base text-slate-700">
-                Total columns selected: {biasSeverityCounts.totalSelectedAll}
-              </div>
-            </div>
-            
-            {/* Overview Section - PDF only */}
-            <div className="hide-in-screen">
-              <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '12px', fontSize: '12px'}}>
-                <tbody>
-                  <tr>
-                    <td style={{padding: '8px', fontWeight: 600, width: '60%', borderBottom: '1px solid #e2e8f0'}}>Columns Fixed:</td>
-                    <td style={{padding: '8px', borderBottom: '1px solid #e2e8f0'}}>{totalFixedCount}</td>
-                  </tr>
-                  <tr>
-                    <td style={{padding: '8px', fontWeight: 600, borderBottom: '1px solid #e2e8f0'}}>Total Columns Selected:</td>
-                    <td style={{padding: '8px', borderBottom: '1px solid #e2e8f0'}}>{biasSeverityCounts.totalSelectedAll}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Categorical Section - Web only */}
-            <div className="bg-amber-50 rounded-lg p-3 mb-3 border border-amber-100 hide-in-pdf">
-              <div className="text-sm font-semibold text-amber-900 mb-2">Categorical</div>
-              <div className="text-sm text-green-700">
-                Low: {biasSeverityCounts.Low}{formatColumns(biasSeverityCounts.LowCols)}
-              </div>
-              <div className="text-sm text-amber-900">
-                Moderate: {biasSeverityCounts.Moderate}{formatColumns(biasSeverityCounts.ModerateCols)}
-              </div>
-              <div className="text-sm text-red-900">
-                Severe: {biasSeverityCounts.Severe}{formatColumns(biasSeverityCounts.SevereCols)}
-              </div>
-              <div className="text-sm text-slate-500">
-                Not tested: {biasSeverityCounts.NotTested}{formatColumns(biasSeverityCounts.NotTestedCols)}
-              </div>
-            </div>
-            
-            {/* Categorical Section - PDF only */}
-            <div className="hide-in-screen">
-              <p style={{fontWeight: 600, marginBottom: '6px', fontSize: '13px'}}>Categorical Bias Results:</p>
-              <table style={{width: '100%', borderCollapse: 'collapse', marginBottom: '10px', fontSize: '11px'}}>
-                <thead>
-                  <tr style={{backgroundColor: '#f8fafc'}}>
-                    <th style={{padding: '6px 8px', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #cbd5e1'}}>Severity Level</th>
-                    <th style={{padding: '6px 8px', textAlign: 'right', fontWeight: 600, borderBottom: '2px solid #cbd5e1'}}>Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
-                    <td style={{padding: '6px 8px'}}>Low</td>
-                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.Low}</td>
-                  </tr>
-                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
-                    <td style={{padding: '6px 8px'}}>Moderate</td>
-                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.Moderate}</td>
-                  </tr>
-                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
-                    <td style={{padding: '6px 8px'}}>Severe</td>
-                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.Severe}</td>
-                  </tr>
-                  <tr>
-                    <td style={{padding: '6px 8px', color: '#64748b'}}>Not Tested</td>
-                    <td style={{padding: '6px 8px', textAlign: 'right', color: '#64748b'}}>{biasSeverityCounts.NotTested}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Continuous Section - Web only */}
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 hide-in-pdf">
-              <div className="text-sm font-semibold text-blue-900 mb-2">Continuous</div>
-              <div className="text-sm text-blue-900">
-                Right skew: {biasSeverityCounts.continuous?.right ?? 0}{formatColumns(biasSeverityCounts.continuous?.rightCols)}
-              </div>
-              <div className="text-sm text-indigo-900">
-                Left skew: {biasSeverityCounts.continuous?.left ?? 0}{formatColumns(biasSeverityCounts.continuous?.leftCols)}
-              </div>
-              <div className="text-sm text-emerald-800">
-                Approximately normal: {biasSeverityCounts.continuous?.normal ?? 0}{formatColumns(biasSeverityCounts.continuous?.normalCols)}
-              </div>
-              <div className="text-sm text-slate-500">
-                Not tested: {biasSeverityCounts.continuous?.notTested ?? 0}{formatColumns(biasSeverityCounts.continuous?.notTestedCols)}
-              </div>
-            </div>
-            
-            {/* Continuous Section - PDF only */}
-            <div className="hide-in-screen">
-              <p style={{fontWeight: 600, marginBottom: '6px', fontSize: '13px'}}>Continuous Distribution Results:</p>
-              <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '11px'}}>
-                <thead>
-                  <tr style={{backgroundColor: '#f8fafc'}}>
-                    <th style={{padding: '6px 8px', textAlign: 'left', fontWeight: 600, borderBottom: '2px solid #cbd5e1'}}>Distribution Type</th>
-                    <th style={{padding: '6px 8px', textAlign: 'right', fontWeight: 600, borderBottom: '2px solid #cbd5e1'}}>Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
-                    <td style={{padding: '6px 8px'}}>Right Skewed</td>
-                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.continuous?.right ?? 0}</td>
-                  </tr>
-                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
-                    <td style={{padding: '6px 8px'}}>Left Skewed</td>
-                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.continuous?.left ?? 0}</td>
-                  </tr>
-                  <tr style={{borderBottom: '1px solid #e2e8f0'}}>
-                    <td style={{padding: '6px 8px'}}>Approximately Normal</td>
-                    <td style={{padding: '6px 8px', textAlign: 'right'}}>{biasSeverityCounts.continuous?.normal ?? 0}</td>
-                  </tr>
-                  <tr>
-                    <td style={{padding: '6px 8px', color: '#64748b'}}>Not Tested</td>
-                    <td style={{padding: '6px 8px', textAlign: 'right', color: '#64748b'}}>{biasSeverityCounts.continuous?.notTested ?? 0}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+        {/* Summary grid: Bias + Correction only */}
+        <div className="report-section page-break-before-analysis">
+          {/* Section number for PDF */}
+          <div className="hide-in-screen">
+            <h2 className="text-2xl font-bold text-slate-900 mb-4 border-b-2 border-slate-300 pb-2">
+              1. ANALYSIS OVERVIEW
+            </h2>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm official-card">
-            <h3 className="font-semibold text-slate-800 mb-3 text-base">
-              1.2 Correction Implementation Summary
-            </h3>
-            {/* Corrected file path intentionally hidden as requested */}
-            <div className="space-y-3">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm official-card">
+              <h3 className="font-semibold text-slate-800 mb-3 text-base hide-in-pdf">
+                1.1 Bias Detection Summary
+              </h3>
+              <h3
+                className="font-semibold text-slate-800 mb-4 text-base hide-in-screen"
+                style={{
+                  borderBottom: "1px solid #cbd5e1",
+                  paddingBottom: "8px",
+                }}
+              >
+                1.1 Bias Detection Summary
+              </h3>
+
+              {/* Overview Section - Web */}
+              <div className="bg-slate-50 rounded-lg p-3 mb-3 border border-slate-100 hide-in-pdf">
+                <div className="text-base text-slate-700 mb-1">
+                  Columns fixed: {totalFixedCount}
+                  {formatColumns(
+                    Object.keys(latestCategorical).concat(
+                      Object.keys(latestContinuous)
+                    )
+                  )}
+                </div>
+                <div className="text-base text-slate-700">
+                  Total columns selected: {biasSeverityCounts.totalSelectedAll}
+                </div>
+              </div>
+
+              {/* Overview Section - PDF only */}
+              <div className="hide-in-screen">
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    marginBottom: "12px",
+                    fontSize: "12px",
+                  }}
+                >
+                  <tbody>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "8px",
+                          fontWeight: 600,
+                          width: "60%",
+                          borderBottom: "1px solid #e2e8f0",
+                        }}
+                      >
+                        Columns Fixed:
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px",
+                          borderBottom: "1px solid #e2e8f0",
+                        }}
+                      >
+                        {totalFixedCount}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        style={{
+                          padding: "8px",
+                          fontWeight: 600,
+                          borderBottom: "1px solid #e2e8f0",
+                        }}
+                      >
+                        Total Columns Selected:
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px",
+                          borderBottom: "1px solid #e2e8f0",
+                        }}
+                      >
+                        {biasSeverityCounts.totalSelectedAll}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Categorical Section - Web only */}
+              <div className="bg-amber-50 rounded-lg p-3 mb-3 border border-amber-100 hide-in-pdf">
                 <div className="text-sm font-semibold text-amber-900 mb-2">
                   Categorical
                 </div>
-                <div className="text-sm text-amber-900">
-                  Total selected: {metaCounts?.categorical?.total_selected ?? fallbackCounts.categorical.total_selected ?? "-"}
-                  {formatColumns(correctionColumnDetails.categorical.selected)}
+                <div className="text-sm text-green-700">
+                  Low: {biasSeverityCounts.Low}
+                  {formatColumns(biasSeverityCounts.LowCols)}
                 </div>
                 <div className="text-sm text-amber-900">
-                  Needing fix: {metaCounts?.categorical?.needing_fix ?? fallbackCounts.categorical.needing_fix ?? "-"}
-                  {formatColumns(correctionColumnDetails.categorical.needingFix)}
+                  Moderate: {biasSeverityCounts.Moderate}
+                  {formatColumns(biasSeverityCounts.ModerateCols)}
                 </div>
-                <div className="text-sm text-amber-900">
-                  Fixed: {Object.keys(latestCategorical).length}
-                  {formatColumns(correctionColumnDetails.categorical.fixed)}
+                <div className="text-sm text-red-900">
+                  Severe: {biasSeverityCounts.Severe}
+                  {formatColumns(biasSeverityCounts.SevereCols)}
+                </div>
+                <div className="text-sm text-slate-500">
+                  Not tested: {biasSeverityCounts.NotTested}
+                  {formatColumns(biasSeverityCounts.NotTestedCols)}
                 </div>
               </div>
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+
+              {/* Categorical Section - PDF only */}
+              <div className="hide-in-screen">
+                <p
+                  style={{
+                    fontWeight: 600,
+                    marginBottom: "6px",
+                    fontSize: "13px",
+                  }}
+                >
+                  Categorical Bias Results:
+                </p>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    marginBottom: "10px",
+                    fontSize: "11px",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ backgroundColor: "#f8fafc" }}>
+                      <th
+                        style={{
+                          padding: "6px 8px",
+                          textAlign: "left",
+                          fontWeight: 600,
+                          borderBottom: "2px solid #cbd5e1",
+                        }}
+                      >
+                        Severity Level
+                      </th>
+                      <th
+                        style={{
+                          padding: "6px 8px",
+                          textAlign: "right",
+                          fontWeight: 600,
+                          borderBottom: "2px solid #cbd5e1",
+                        }}
+                      >
+                        Count
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "6px 8px" }}>Low</td>
+                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                        {biasSeverityCounts.Low}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "6px 8px" }}>Moderate</td>
+                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                        {biasSeverityCounts.Moderate}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "6px 8px" }}>Severe</td>
+                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                        {biasSeverityCounts.Severe}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: "6px 8px", color: "#64748b" }}>
+                        Not Tested
+                      </td>
+                      <td
+                        style={{
+                          padding: "6px 8px",
+                          textAlign: "right",
+                          color: "#64748b",
+                        }}
+                      >
+                        {biasSeverityCounts.NotTested}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Continuous Section - Web only */}
+              <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 hide-in-pdf">
                 <div className="text-sm font-semibold text-blue-900 mb-2">
                   Continuous
                 </div>
                 <div className="text-sm text-blue-900">
-                  Total selected: {metaCounts?.continuous?.total_selected ?? fallbackCounts.continuous.total_selected ?? "-"}
-                  {formatColumns(correctionColumnDetails.continuous.selected)}
+                  Right skew: {biasSeverityCounts.continuous?.right ?? 0}
+                  {formatColumns(biasSeverityCounts.continuous?.rightCols)}
                 </div>
-                <div className="text-sm text-blue-900">
-                  Needing fix: {metaCounts?.continuous?.needing_fix ?? fallbackCounts.continuous.needing_fix ?? "-"}
-                  {formatColumns(correctionColumnDetails.continuous.needingFix)}
+                <div className="text-sm text-indigo-900">
+                  Left skew: {biasSeverityCounts.continuous?.left ?? 0}
+                  {formatColumns(biasSeverityCounts.continuous?.leftCols)}
                 </div>
-                <div className="text-sm text-blue-900">
-                  Fixed: {Object.keys(latestContinuous).length}
-                  {formatColumns(correctionColumnDetails.continuous.fixed)}
+                <div className="text-sm text-emerald-800">
+                  Approximately normal:{" "}
+                  {biasSeverityCounts.continuous?.normal ?? 0}
+                  {formatColumns(biasSeverityCounts.continuous?.normalCols)}
                 </div>
+                <div className="text-sm text-slate-500">
+                  Not tested: {biasSeverityCounts.continuous?.notTested ?? 0}
+                  {formatColumns(biasSeverityCounts.continuous?.notTestedCols)}
+                </div>
+              </div>
+
+              {/* Continuous Section - PDF only */}
+              <div className="hide-in-screen">
+                <p
+                  style={{
+                    fontWeight: 600,
+                    marginBottom: "6px",
+                    fontSize: "13px",
+                  }}
+                >
+                  Continuous Distribution Results:
+                </p>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: "11px",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ backgroundColor: "#f8fafc" }}>
+                      <th
+                        style={{
+                          padding: "6px 8px",
+                          textAlign: "left",
+                          fontWeight: 600,
+                          borderBottom: "2px solid #cbd5e1",
+                        }}
+                      >
+                        Distribution Type
+                      </th>
+                      <th
+                        style={{
+                          padding: "6px 8px",
+                          textAlign: "right",
+                          fontWeight: 600,
+                          borderBottom: "2px solid #cbd5e1",
+                        }}
+                      >
+                        Count
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "6px 8px" }}>Right Skewed</td>
+                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                        {biasSeverityCounts.continuous?.right ?? 0}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "6px 8px" }}>Left Skewed</td>
+                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                        {biasSeverityCounts.continuous?.left ?? 0}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                      <td style={{ padding: "6px 8px" }}>
+                        Approximately Normal
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                        {biasSeverityCounts.continuous?.normal ?? 0}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: "6px 8px", color: "#64748b" }}>
+                        Not Tested
+                      </td>
+                      <td
+                        style={{
+                          padding: "6px 8px",
+                          textAlign: "right",
+                          color: "#64748b",
+                        }}
+                      >
+                        {biasSeverityCounts.continuous?.notTested ?? 0}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-            {(legacyMethod || legacyBeforeTotal || legacyAfterTotal) && (
-              <div className="mt-2 text-xs text-slate-500">
-                Legacy summary — Method: {legacyMethod || "-"}; Before: {legacyBeforeTotal ?? "-"}; After: {legacyAfterTotal ?? "-"}
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm official-card">
+              <h3 className="font-semibold text-slate-800 mb-3 text-base">
+                1.2 Correction Implementation Summary
+              </h3>
+              {/* Corrected file path intentionally hidden as requested */}
+              <div className="space-y-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <div className="text-sm font-semibold text-amber-900 mb-2">
+                    Categorical
+                  </div>
+                  <div className="text-sm text-amber-900">
+                    Total selected:{" "}
+                    {metaCounts?.categorical?.total_selected ??
+                      fallbackCounts.categorical.total_selected ??
+                      "-"}
+                    {formatColumns(
+                      correctionColumnDetails.categorical.selected
+                    )}
+                  </div>
+                  <div className="text-sm text-amber-900">
+                    Needing fix:{" "}
+                    {metaCounts?.categorical?.needing_fix ??
+                      fallbackCounts.categorical.needing_fix ??
+                      "-"}
+                    {formatColumns(
+                      correctionColumnDetails.categorical.needingFix
+                    )}
+                  </div>
+                  <div className="text-sm text-amber-900">
+                    Fixed: {Object.keys(latestCategorical).length}
+                    {formatColumns(correctionColumnDetails.categorical.fixed)}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div className="text-sm font-semibold text-blue-900 mb-2">
+                    Continuous
+                  </div>
+                  <div className="text-sm text-blue-900">
+                    Total selected:{" "}
+                    {metaCounts?.continuous?.total_selected ??
+                      fallbackCounts.continuous.total_selected ??
+                      "-"}
+                    {formatColumns(correctionColumnDetails.continuous.selected)}
+                  </div>
+                  <div className="text-sm text-blue-900">
+                    Needing fix:{" "}
+                    {metaCounts?.continuous?.needing_fix ??
+                      fallbackCounts.continuous.needing_fix ??
+                      "-"}
+                    {formatColumns(
+                      correctionColumnDetails.continuous.needingFix
+                    )}
+                  </div>
+                  <div className="text-sm text-blue-900">
+                    Fixed: {Object.keys(latestContinuous).length}
+                    {formatColumns(correctionColumnDetails.continuous.fixed)}
+                  </div>
+                </div>
               </div>
-            )}
+              {(legacyMethod || legacyBeforeTotal || legacyAfterTotal) && (
+                <div className="mt-2 text-xs text-slate-500">
+                  Legacy summary — Method: {legacyMethod || "-"}; Before:{" "}
+                  {legacyBeforeTotal ?? "-"}; After: {legacyAfterTotal ?? "-"}
+                </div>
+              )}
+            </div>
           </div>
-          
         </div>
-  </div>
 
         {/* Correction Details */}
         {(Object.keys(categoricalCorrections).length > 0 ||
@@ -974,14 +1250,15 @@ export default function ReportPage() {
                 2. DETAILED CORRECTION RESULTS
               </h2>
             </div>
-            
+
             {Object.keys(latestCategorical).length > 0 && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 avoid-break official-section">
                 <h3 className="text-lg font-bold text-amber-900 mb-4">
                   2.1 Categorical Bias Corrections
                 </h3>
                 <p className="text-sm text-slate-600 mb-4 hide-in-screen-only">
-                  The following categorical columns were corrected using specified methods to balance class distributions:
+                  The following categorical columns were corrected using
+                  specified methods to balance class distributions:
                 </p>
                 <div className="overflow-x-auto rounded-lg border border-amber-200 bg-white avoid-break">
                   <table className="min-w-full table-auto avoid-break">
@@ -1000,15 +1277,44 @@ export default function ReportPage() {
                     <tbody className="divide-y divide-amber-100 text-sm">
                       {Object.entries(latestCategorical).map(([col, entry]) => {
                         return (
-                          <tr key={`${col}-latest`} className="hover:bg-amber-50/60">
+                          <tr
+                            key={`${col}-latest`}
+                            className="hover:bg-amber-50/60"
+                          >
                             <td className="px-4 py-3 font-semibold">{col}</td>
-                            <td className="px-4 py-3">{entry?.method || "-"}</td>
-                            <td className="px-4 py-3">{entry?.threshold ?? "-"}</td>
-                            <td className="px-4 py-3">{entry?.before?.total ?? "-"}</td>
-                            <td className="px-4 py-3">{entry?.after?.total ?? "-"}</td>
-                            <td className="px-4 py-3">{(() => { const r = computeRatio(entry?.before?.distribution || entry?.before); return r === null ? "-" : r; })()}</td>
-                            <td className="px-4 py-3">{(() => { const r = computeRatio(entry?.after?.distribution || entry?.after); return r === null ? "-" : r; })()}</td>
-                            <td className="px-4 py-3">{entry?.ts ? new Date(entry.ts).toLocaleString() : "-"}</td>
+                            <td className="px-4 py-3">
+                              {entry?.method || "-"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {entry?.threshold ?? "-"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {entry?.before?.total ?? "-"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {entry?.after?.total ?? "-"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {(() => {
+                                const r = computeRatio(
+                                  entry?.before?.distribution || entry?.before
+                                );
+                                return r === null ? "-" : r;
+                              })()}
+                            </td>
+                            <td className="px-4 py-3">
+                              {(() => {
+                                const r = computeRatio(
+                                  entry?.after?.distribution || entry?.after
+                                );
+                                return r === null ? "-" : r;
+                              })()}
+                            </td>
+                            <td className="px-4 py-3">
+                              {entry?.ts
+                                ? new Date(entry.ts).toLocaleString()
+                                : "-"}
+                            </td>
                           </tr>
                         );
                       })}
@@ -1024,7 +1330,8 @@ export default function ReportPage() {
                   2.2 Continuous Distribution Corrections
                 </h3>
                 <p className="text-sm text-slate-600 mb-4 hide-in-screen-only">
-                  The following continuous columns were transformed to reduce skewness and normalize distributions:
+                  The following continuous columns were transformed to reduce
+                  skewness and normalize distributions:
                 </p>
                 <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white avoid-break">
                   <table className="min-w-full table-auto avoid-break">
@@ -1040,12 +1347,25 @@ export default function ReportPage() {
                     <tbody className="divide-y divide-blue-100 text-sm">
                       {Object.entries(latestContinuous).map(([col, entry]) => {
                         return (
-                          <tr key={`${col}-latest`} className="hover:bg-blue-50/60">
+                          <tr
+                            key={`${col}-latest`}
+                            className="hover:bg-blue-50/60"
+                          >
                             <td className="px-4 py-3 font-semibold">{col}</td>
-                            <td className="px-4 py-3">{entry?.original_skewness ?? "-"}</td>
-                            <td className="px-4 py-3">{entry?.new_skewness ?? "-"}</td>
-                            <td className="px-4 py-3">{entry?.method || "-"}</td>
-                            <td className="px-4 py-3">{entry?.ts ? new Date(entry.ts).toLocaleString() : "-"}</td>
+                            <td className="px-4 py-3">
+                              {entry?.original_skewness ?? "-"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {entry?.new_skewness ?? "-"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {entry?.method || "-"}
+                            </td>
+                            <td className="px-4 py-3">
+                              {entry?.ts
+                                ? new Date(entry.ts).toLocaleString()
+                                : "-"}
+                            </td>
                           </tr>
                         );
                       })}
@@ -1060,15 +1380,19 @@ export default function ReportPage() {
         {/* Visualizations Section - full width, placed below summaries */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm mb-6 report-section page-break-before">
           {/* Section header for PDF */}
-          <div className="hide-in-screen" style={{marginBottom: '8px'}}>
+          <div className="hide-in-screen" style={{ marginBottom: "8px" }}>
             <h2 className="text-2xl font-bold text-slate-900 mb-2 border-b-2 border-slate-300 pb-2">
               3. VISUAL ANALYSIS
             </h2>
           </div>
-          
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 hide-in-pdf">Visualizations</h3>
+
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 hide-in-pdf">
+            Visualizations
+          </h3>
           {vizError && (
-            <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">{vizError}</div>
+            <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
+              {vizError}
+            </div>
           )}
           {vizLoading && (
             <div className="my-2">
@@ -1077,25 +1401,39 @@ export default function ReportPage() {
           )}
           {!vizLoading && !vizError && (
             <>
-              {Object.keys(vizCategorical).length === 0 && Object.keys(vizContinuous).length === 0 ? (
-                <div className="text-sm text-slate-700">No visualizations available. Generate corrections first.</div>
+              {Object.keys(vizCategorical).length === 0 &&
+              Object.keys(vizContinuous).length === 0 ? (
+                <div className="text-sm text-slate-700">
+                  No visualizations available. Generate corrections first.
+                </div>
               ) : (
                 <div className="space-y-8">
                   {/* Categorical */}
                   {Object.keys(vizCategorical).length > 0 && (
                     <div className="avoid-break">
-                      <h4 className="font-bold text-slate-800 mb-3 text-base">3.1 Categorical Distribution Comparisons</h4>
+                      <h4 className="font-bold text-slate-800 mb-3 text-base">
+                        3.1 Categorical Distribution Comparisons
+                      </h4>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(vizCategorical).map(([col, data]) => (
-                          <div key={`cat-${col}`} className="rounded-md border border-slate-200 bg-white p-3 avoid-break">
-                            <div className="mb-2 text-sm font-semibold text-slate-700">{col}</div>
+                          <div
+                            key={`cat-${col}`}
+                            className="rounded-md border border-slate-200 bg-white p-3 avoid-break"
+                          >
+                            <div className="mb-2 text-sm font-semibold text-slate-700">
+                              {col}
+                            </div>
                             {data.error ? (
-                              <div className="text-sm text-red-700">{data.error}</div>
+                              <div className="text-sm text-red-700">
+                                {data.error}
+                              </div>
                             ) : (
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 avoid-break">
                                 <div className="min-w-0 overflow-hidden avoid-break">
-                                  <div className="text-xs text-slate-600 mb-1">Before</div>
-                                  {data.before_chart && (
+                                  <div className="text-xs text-slate-600 mb-1">
+                                    Before
+                                  </div>
+                                  {data.before_chart ? (
                                     <Plot
                                       className="w-full overflow-hidden"
                                       data={JSON.parse(data.before_chart).data}
@@ -1106,15 +1444,79 @@ export default function ReportPage() {
                                         width: undefined,
                                         margin: { l: 50, r: 30, t: 30, b: 50 },
                                       }}
-                                      config={{ responsive: true, displayModeBar: false }}
+                                      config={{
+                                        responsive: true,
+                                        displayModeBar: false,
+                                      }}
                                       style={{ width: "100%", height: 400 }}
                                       useResizeHandler
                                     />
-                                  )}
+                                  ) : data.beforeData ? (
+                                    <Plot
+                                      className="w-full overflow-hidden"
+                                      data={[
+                                        {
+                                          x: data.beforeData.categories,
+                                          y: data.beforeData.values.map(
+                                            (v) => v / 100
+                                          ),
+                                          type: "bar",
+                                          text: data.beforeData.values.map(
+                                            (v) => `${v.toFixed(2)}%`
+                                          ),
+                                          textposition: "outside",
+                                          marker: {
+                                            color: "#4C78A8",
+                                            line: {
+                                              color: "#2C5282",
+                                              width: 1,
+                                            },
+                                          },
+                                          hovertemplate:
+                                            "<b>%{x}</b><br>Proportion: %{y:.2%}<br><extra></extra>",
+                                        },
+                                      ]}
+                                      layout={{
+                                        title: {
+                                          text: `Before: ${col}`,
+                                          font: { size: 16, weight: "bold" },
+                                          xref: "paper",
+                                          x: 0,
+                                          xanchor: "left",
+                                          pad: { l: 2 },
+                                        },
+                                        xaxis_title: "Class",
+                                        yaxis_title: "Proportion",
+                                        yaxis: {
+                                          range: [0, 1],
+                                          tickformat: ".0%",
+                                        },
+                                        plot_bgcolor: "white",
+                                        autosize: true,
+                                        height: 400,
+                                        width: undefined,
+                                        margin: { l: 50, r: 30, t: 60, b: 50 },
+                                        hovermode: "closest",
+                                        xaxis: {
+                                          showgrid: true,
+                                          gridwidth: 1,
+                                          gridcolor: "#E2E8F0",
+                                        },
+                                      }}
+                                      config={{
+                                        responsive: true,
+                                        displayModeBar: false,
+                                      }}
+                                      style={{ width: "100%", height: 400 }}
+                                      useResizeHandler
+                                    />
+                                  ) : null}
                                 </div>
                                 <div className="min-w-0 overflow-hidden avoid-break">
-                                  <div className="text-xs text-slate-600 mb-1">After</div>
-                                  {data.after_chart && (
+                                  <div className="text-xs text-slate-600 mb-1">
+                                    After
+                                  </div>
+                                  {data.after_chart ? (
                                     <Plot
                                       className="w-full overflow-hidden"
                                       data={JSON.parse(data.after_chart).data}
@@ -1125,11 +1527,73 @@ export default function ReportPage() {
                                         width: undefined,
                                         margin: { l: 50, r: 30, t: 30, b: 50 },
                                       }}
-                                      config={{ responsive: true, displayModeBar: false }}
+                                      config={{
+                                        responsive: true,
+                                        displayModeBar: false,
+                                      }}
                                       style={{ width: "100%", height: 400 }}
                                       useResizeHandler
                                     />
-                                  )}
+                                  ) : data.afterData ? (
+                                    <Plot
+                                      className="w-full overflow-hidden"
+                                      data={[
+                                        {
+                                          x: data.afterData.categories,
+                                          y: data.afterData.values.map(
+                                            (v) => v / 100
+                                          ),
+                                          type: "bar",
+                                          text: data.afterData.values.map(
+                                            (v) => `${v.toFixed(2)}%`
+                                          ),
+                                          textposition: "outside",
+                                          marker: {
+                                            color: "#4C78A8",
+                                            line: {
+                                              color: "#2C5282",
+                                              width: 1,
+                                            },
+                                          },
+                                          hovertemplate:
+                                            "<b>%{x}</b><br>Proportion: %{y:.2%}<br><extra></extra>",
+                                        },
+                                      ]}
+                                      layout={{
+                                        title: {
+                                          text: `After: ${col}`,
+                                          font: { size: 16, weight: "bold" },
+                                          xref: "paper",
+                                          x: 0,
+                                          xanchor: "left",
+                                          pad: { l: 2 },
+                                        },
+                                        xaxis_title: "Class",
+                                        yaxis_title: "Proportion",
+                                        yaxis: {
+                                          range: [0, 1],
+                                          tickformat: ".0%",
+                                        },
+                                        plot_bgcolor: "white",
+                                        autosize: true,
+                                        height: 400,
+                                        width: undefined,
+                                        margin: { l: 50, r: 30, t: 60, b: 50 },
+                                        hovermode: "closest",
+                                        xaxis: {
+                                          showgrid: true,
+                                          gridwidth: 1,
+                                          gridcolor: "#E2E8F0",
+                                        },
+                                      }}
+                                      config={{
+                                        responsive: true,
+                                        displayModeBar: false,
+                                      }}
+                                      style={{ width: "100%", height: 400 }}
+                                      useResizeHandler
+                                    />
+                                  ) : null}
                                 </div>
                               </div>
                             )}
@@ -1142,17 +1606,28 @@ export default function ReportPage() {
                   {/* Continuous */}
                   {Object.keys(vizContinuous).length > 0 && (
                     <div className="avoid-break">
-                      <h4 className="font-bold text-slate-800 mb-3 text-base">3.2 Continuous Distribution Comparisons</h4>
+                      <h4 className="font-bold text-slate-800 mb-3 text-base">
+                        3.2 Continuous Distribution Comparisons
+                      </h4>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(vizContinuous).map(([col, data]) => (
-                          <div key={`cont-${col}`} className="rounded-md border border-slate-200 bg-white p-3 avoid-break">
-                            <div className="mb-2 text-sm font-semibold text-slate-700">{col}</div>
+                          <div
+                            key={`cont-${col}`}
+                            className="rounded-md border border-slate-200 bg-white p-3 avoid-break"
+                          >
+                            <div className="mb-2 text-sm font-semibold text-slate-700">
+                              {col}
+                            </div>
                             {data.error ? (
-                              <div className="text-sm text-red-700">{data.error}</div>
+                              <div className="text-sm text-red-700">
+                                {data.error}
+                              </div>
                             ) : (
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 avoid-break">
                                 <div className="min-w-0 overflow-hidden avoid-break">
-                                  <div className="text-xs text-slate-600 mb-1">Before</div>
+                                  <div className="text-xs text-slate-600 mb-1">
+                                    Before
+                                  </div>
                                   {data.before_chart && (
                                     <Plot
                                       className="w-full overflow-hidden"
@@ -1164,14 +1639,19 @@ export default function ReportPage() {
                                         width: undefined,
                                         margin: { l: 50, r: 30, t: 30, b: 50 },
                                       }}
-                                      config={{ responsive: true, displayModeBar: false }}
+                                      config={{
+                                        responsive: true,
+                                        displayModeBar: false,
+                                      }}
                                       style={{ width: "100%", height: 400 }}
                                       useResizeHandler
                                     />
                                   )}
                                 </div>
                                 <div className="min-w-0 overflow-hidden avoid-break">
-                                  <div className="text-xs text-slate-600 mb-1">After</div>
+                                  <div className="text-xs text-slate-600 mb-1">
+                                    After
+                                  </div>
                                   {data.after_chart && (
                                     <Plot
                                       className="w-full overflow-hidden"
@@ -1183,7 +1663,10 @@ export default function ReportPage() {
                                         width: undefined,
                                         margin: { l: 50, r: 30, t: 30, b: 50 },
                                       }}
-                                      config={{ responsive: true, displayModeBar: false }}
+                                      config={{
+                                        responsive: true,
+                                        displayModeBar: false,
+                                      }}
                                       style={{ width: "100%", height: 400 }}
                                       useResizeHandler
                                     />
@@ -1209,7 +1692,9 @@ export default function ReportPage() {
               <h2 className="text-lg font-semibold text-slate-800">
                 Download Report
               </h2>
-              <p className="text-sm text-slate-600">Keep this for your records.</p>
+              <p className="text-sm text-slate-600">
+                Keep this for your records.
+              </p>
               {reportPath && (
                 <p className="mt-2 text-xs text-slate-500">
                   Path: <span className="font-mono">{reportPath}</span>
@@ -1243,7 +1728,7 @@ export default function ReportPage() {
           </div>
         </div>
 
-  {/* Download Corrected Dataset - Hidden in PDF export */}
+        {/* Download Corrected Dataset - Hidden in PDF export */}
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm hide-in-pdf">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
@@ -1268,6 +1753,18 @@ export default function ReportPage() {
           </div>
         </div>
 
+        {/* Navigation - Previous Button */}
+        <div className="mt-6 flex items-center justify-start hide-in-pdf">
+          <Link
+            to="/dashboard"
+            className="group px-6 py-3 text-sm font-bold text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
+          >
+            <span className="group-hover:-translate-x-1 transition-transform">
+              ←
+            </span>
+            <span>Previous</span>
+          </Link>
+        </div>
       </main>
     </div>
   );

@@ -8,6 +8,7 @@ export default function ColumnSelector({
   filePath,
   columns = [],
   onSubmit,
+  onPrevious,
   initialSelections = {},
 }) {
   const [selections, setSelections] = useState(() => {
@@ -187,14 +188,27 @@ export default function ColumnSelector({
       </div>
 
       <div className="mt-6 flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl border border-slate-200">
-        <div className="flex items-center gap-4 text-sm font-semibold">
-          <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-xl">
-            📊 Categorical: {categorical.length}
+        {onPrevious ? (
+          <button
+            type="button"
+            onClick={onPrevious}
+            className="group px-6 py-3 text-sm font-bold text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
+          >
+            <span className="group-hover:-translate-x-1 transition-transform">
+              ←
+            </span>
+            <span>Previous</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-4 text-sm font-semibold">
+            <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-xl">
+              📊 Categorical: {categorical.length}
+            </div>
+            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-xl">
+              📈 Continuous: {continuous.length}
+            </div>
           </div>
-          <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-xl">
-            📈 Continuous: {continuous.length}
-          </div>
-        </div>
+        )}
         <button
           type="button"
           className="inline-flex items-center gap-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-3 text-white font-bold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
@@ -203,7 +217,7 @@ export default function ColumnSelector({
         >
           {submitting ? (
             <>
-              <Spinner className="h-5 w-5" />
+              <span>⏳</span>
               <span>Saving...</span>
             </>
           ) : (
@@ -214,12 +228,6 @@ export default function ColumnSelector({
           )}
         </button>
       </div>
-
-      {submitting && (
-        <div className="mt-4 text-center">
-          <Spinner text="Saving selections..." />
-        </div>
-      )}
 
       {/* Toast */}
       {toast.visible && (

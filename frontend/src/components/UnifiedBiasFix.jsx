@@ -10,6 +10,7 @@ export default function UnifiedBiasFix({
   biasResults = {},
   skewnessResults = {},
   columns = [],
+  allColumns = [], // All columns in dataset (for SMOTE categorical selection)
   onFixComplete,
   selectedBiasColumns = [],
   selectedSkewnessColumns = [],
@@ -20,6 +21,8 @@ export default function UnifiedBiasFix({
   initialBiasSelectedColumns = [], // Persisted selected bias columns
   initialSkewnessSelectedColumns = [], // Persisted selected skewness columns
   onSelectedColumnsChange, // Callback to notify parent of selection changes
+  onPrevious, // Callback for Previous button
+  onNext, // Callback for Next/Visualize button
 }) {
   const [biasState, setBiasState] = useState(null);
   const [skewnessState, setSkewnessState] = useState(null);
@@ -431,6 +434,7 @@ export default function UnifiedBiasFix({
             categorical={categoricalNeedingFix}
             biasResults={biasResults}
             columns={columns}
+            allColumns={allColumns}
             onFixComplete={handleBiasFixComplete}
             initialSelectedColumns={filteredBiasColumns}
             hideApplyButton={true}
@@ -472,9 +476,22 @@ export default function UnifiedBiasFix({
         </div>
       )}
 
-      {/* Unified Apply Button */}
+      {/* Navigation and Apply Button */}
       {(hasCategoricalIssues || hasSkewnessIssues) && (
-        <div className="flex justify-center mt-8 animate-fadeInUp stagger-2">
+        <div className="flex justify-center items-center mt-8 animate-fadeInUp stagger-2 relative">
+          {onPrevious && (
+            <button
+              type="button"
+              onClick={onPrevious}
+              disabled={isApplying}
+              className="absolute left-0 group px-6 py-3 text-sm font-bold text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="group-hover:-translate-x-1 transition-transform">
+                ←
+              </span>
+              <span>Previous</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleUnifiedApply}
@@ -483,7 +500,7 @@ export default function UnifiedBiasFix({
           >
             {isApplying ? (
               <>
-                <Spinner className="h-6 w-6" />
+                <span>⏳</span>
                 <span>Applying Fixes...</span>
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full animate-ping"></div>
               </>
@@ -502,6 +519,19 @@ export default function UnifiedBiasFix({
               </>
             )}
           </button>
+          {onNext && (
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={isApplying}
+              className="absolute right-0 group px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>Visualize</span>
+              <span className="group-hover:translate-x-1 transition-transform">
+                →
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

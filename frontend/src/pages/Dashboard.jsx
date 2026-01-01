@@ -11,9 +11,9 @@ import Visualization from "../components/Visualization";
 
 const STEPS = [
   "Dataset Preview",
-  "Data Preprocessing",
   "Target Column Selection",
   "Column Type Classification",
+  "Data Preprocessing",
   "Bias Detection",
   "Bias Fix",
   "Visualization",
@@ -21,17 +21,35 @@ const STEPS = [
 
 export default function Dashboard() {
   const location = useLocation();
-  const initialFilePath = location.state?.filePath || "";
+
+  // Legacy filePath for backward compatibility - check localStorage first
+  const existingFilePath =
+    typeof window !== "undefined"
+      ? localStorage.getItem("dashboard_filePath")?.replace(/^"|"$/g, "")
+      : "";
+  const existingWorkingPath =
+    typeof window !== "undefined"
+      ? localStorage.getItem("dashboard_workingFilePath")?.replace(/^"|"$/g, "")
+      : "";
 
   // Initialize all state variables first - order matters!
   const [currentStep, setCurrentStep] = usePersistedState(
     "dashboard_currentStep",
     1
   );
-  const [filePath] = usePersistedState(
-    "dashboard_filePath",
-    initialFilePath
+
+  // NEW: Track original (read-only) and working (modifiable) file paths
+  const [originalFilePath, setOriginalFilePath] = usePersistedState(
+    "dashboard_originalFilePath",
+    ""
   );
+  const [workingFilePathState, setWorkingFilePathState] = usePersistedState(
+    "dashboard_workingFilePath",
+    existingWorkingPath || existingFilePath
+  );
+
+  // Legacy filePath for backward compatibility
+  const [filePath] = usePersistedState("dashboard_filePath", existingFilePath);
   const [columns, setColumns] = usePersistedState("dashboard_columns", []);
   const [selectedColumns, setSelectedColumns] = usePersistedState(
     "dashboard_selectedColumns",
@@ -69,6 +87,11 @@ export default function Dashboard() {
     "dashboard_correctedFilePath",
     ""
   );
+  // NEW: Track fixing file path (fixing_<file>.csv) - created when applying corrections
+  const [fixingFilePath, setFixingFilePath] = usePersistedState(
+    "dashboard_fixingFilePath",
+    ""
+  );
   const [visualizationKey, setVisualizationKey] = usePersistedState(
     "dashboard_visualizationKey",
     0
@@ -102,12 +125,8 @@ export default function Dashboard() {
     "dashboard_reportBiasSummary",
     null
   );
-  const [reportCorrectionSummary, setReportCorrectionSummary] = usePersistedState(
-    "dashboard_reportCorrectionSummary",
-    null
-  );
-
-  
+  const [reportCorrectionSummary, setReportCorrectionSummary] =
+    usePersistedState("dashboard_reportCorrectionSummary", null);
 
   // Store the file path that was used as input to bias fixing (for visualization "before" state)
   const [beforeFixFilePath, setBeforeFixFilePath] = usePersistedState(
@@ -125,22 +144,46 @@ export default function Dashboard() {
 
   // State declarations removed as they were duplicated
 
-  // Clear cleanedFilePath when on Step 1 (fresh start)
-  useEffect(() => {
-    if (currentStep === 1 && cleanedFilePath) {
-      setCleanedFilePath("");
-    }
-  }, [currentStep, cleanedFilePath, setCleanedFilePath]);
-
-  // Prefer cleaned > selected > original dataset for downstream steps
-  const workingFilePath = useMemo(
-    () => cleanedFilePath || selectedFilePath || filePath,
-    [cleanedFilePath, selectedFilePath, filePath]
-  );
+  // NEW workingFilePath logic: Always use the working copy throughout all steps
+  // The working file is modified in-place during preprocessing and corrections
+  const workingFilePath = useMemo(() => {
+    return workingFilePathState || filePath;
+  }, [workingFilePathState, filePath]);
 
   // Target column will be selected manually by the user
 
   const pct = Math.round(((currentStep - 1) / (STEPS.length - 1)) * 100);
+
+  // Effect to handle upload result from navigation state
+  useEffect(() => {
+    const uploadResult = location.state?.uploadResult;
+    if (uploadResult) {
+      console.log("[Dashboard] Received upload result:", uploadResult);
+      if (uploadResult.originalFilePath) {
+        setOriginalFilePath(uploadResult.originalFilePath);
+      }
+      if (uploadResult.workingFilePath) {
+        setWorkingFilePathState(uploadResult.workingFilePath);
+      }
+      // Clear navigation state to prevent re-processing on refresh
+      window.history.replaceState({}, document.title);
+    }
+
+    // Backward compatibility: If old filePath exists but workingFilePath doesn't, use filePath
+    if (!workingFilePathState && filePath) {
+      console.log(
+        "[Dashboard] Migrating old filePath to workingFilePath:",
+        filePath
+      );
+      setWorkingFilePathState(filePath);
+    }
+  }, [
+    location.state,
+    setOriginalFilePath,
+    setWorkingFilePathState,
+    workingFilePathState,
+    filePath,
+  ]);
 
   // Memoized callbacks to prevent unnecessary re-renders
   const handleSelectedColumnsChange = useCallback(
@@ -167,7 +210,10 @@ export default function Dashboard() {
   );
 
   const handleResultsChange = useCallback(
-    async ({ biasFixResult: newBiasResult, skewnessFixResult: newSkewResult }) => {
+    async ({
+      biasFixResult: newBiasResult,
+      skewnessFixResult: newSkewResult,
+    }) => {
       console.log("[Dashboard] onResultsChange called:", {
         newBiasResult,
         newSkewResult,
@@ -185,22 +231,27 @@ export default function Dashboard() {
 
       // Call backend to compute report summaries instead of calculating locally
       try {
-        const response = await fetch("http://localhost:5000/api/bias/compute-summary", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            bias_results: biasResults,
-            skewness_results: skewnessResults,
-            bias_fix_result: newBiasResult,
-            skewness_fix_result: newSkewResult,
-            selected_columns: selectedColumns,
-            categorical: categorical,
-            continuous: continuous
-          }),
-        });
+        const response = await fetch(
+          "http://localhost:5000/api/bias/compute-summary",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              bias_results: biasResults,
+              skewness_results: skewnessResults,
+              bias_fix_result: newBiasResult,
+              skewness_fix_result: newSkewResult,
+              selected_columns: selectedColumns,
+              categorical: categorical,
+              continuous: continuous,
+            }),
+          }
+        );
 
         if (!response.ok) {
-          throw new Error(`Backend summary computation failed: ${response.statusText}`);
+          throw new Error(
+            `Backend summary computation failed: ${response.statusText}`
+          );
         }
 
         const data = await response.json();
@@ -210,13 +261,15 @@ export default function Dashboard() {
         if (data.bias_summary !== undefined) {
           setReportBiasSummary(data.bias_summary);
         }
-        
+
         if (data.correction_summary !== undefined) {
           setReportCorrectionSummary(data.correction_summary);
         }
-
       } catch (e) {
-        console.warn("[Dashboard] Failed to compute report summaries via backend:", e);
+        console.warn(
+          "[Dashboard] Failed to compute report summaries via backend:",
+          e
+        );
         // Fall back to not updating summaries if backend fails
       }
     },
@@ -309,9 +362,7 @@ export default function Dashboard() {
             <div
               className="absolute h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transition-all duration-700 ease-out shadow-lg"
               style={{ width: `${pct}%` }}
-            >
-            </div>
-                
+            ></div>
           </div>
           <div className="mt-3 grid grid-cols-7 gap-1 text-[10px]">
             {STEPS.map((label, i) => {
@@ -388,7 +439,7 @@ export default function Dashboard() {
         {currentStep === 1 && (
           <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
             <DatasetPreview
-              filePath={filePath}
+              filePath={workingFilePath}
               onNext={({ columns: cols }) => {
                 // Reset all column-related states when loading new data
                 setColumns(cols || []);
@@ -415,49 +466,14 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Step 2: Data Preprocessing */}
+        {/* Step 2: Target Column Selection */}
         {currentStep === 2 && (
-          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
-            <Preprocess
-              filePath={selectedFilePath || filePath}
-              onComplete={({ cleanedFilePath: cleaned }) => {
-                if (cleaned) {
-                  setCleanedFilePath(cleaned);
-                }
-              }}
-            />
-
-            <div className="flex justify-between items-center mt-8 pt-6 border-t-2 border-slate-200">
-              <button
-                onClick={() => setCurrentStep(1)}
-                className="group px-6 py-3 text-sm font-bold text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
-              >
-                <span className="group-hover:-translate-x-1 transition-transform">
-                  ←
-                </span>
-                <span>Previous</span>
-              </button>
-              <button
-                onClick={() => setCurrentStep(3)}
-                className="group px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
-              >
-                <span>Next</span>
-                <span className="group-hover:translate-x-1 transition-transform">
-                  →
-                </span>
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* Step 3: Target Column Selection */}
-        {currentStep === 3 && (
           <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
             <FeatureSelector
               filePath={workingFilePath}
               columns={columns}
               initialSelected={selectedColumns}
-              onSelect={({ features }) => {
+              onSelect={({ features, response }) => {
                 const newSelected = new Set(features);
 
                 // Keep existing results for all currently selected columns
@@ -492,7 +508,12 @@ export default function Dashboard() {
                   );
                 }
 
+                // Store selected columns in state (localStorage via usePersistedState)
                 setSelectedColumns(features);
+
+                // NO separate file is created - continue using workingFilePath
+                // The backend stores selection in memory only
+
                 // Clear corrected file path and before fix path when changing columns
                 setCorrectedFilePath("");
                 setBeforeFixFilePath("");
@@ -507,19 +528,15 @@ export default function Dashboard() {
                   setTargetColumn("");
                 }
 
-                setCurrentStep(4);
+                setCurrentStep(3);
               }}
-            />
-            <NavButtons
-              onPrev={() => setCurrentStep(2)}
-              onNext={() => setCurrentStep(4)}
-              nextDisabled={!selectedColumns.length}
+              onPrevious={() => setCurrentStep(1)}
             />
           </section>
         )}
 
-        {/* Step 4: Column Type Classification */}
-        {currentStep === 4 && (
+        {/* Step 3: Column Type Classification */}
+        {currentStep === 3 && (
           <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
             <ColumnSelector
               filePath={workingFilePath}
@@ -570,9 +587,6 @@ export default function Dashboard() {
 
                 setCategorical(cat || []);
                 setContinuous(cont || []);
-                if (response?.selected_file_path) {
-                  setSelectedFilePath(response.selected_file_path);
-                }
 
                 // Clear corrected file path and before fix path when column types change
                 setCorrectedFilePath("");
@@ -583,13 +597,31 @@ export default function Dashboard() {
                   setTargetColumn("");
                 }
 
-                setCurrentStep(5);
+                setCurrentStep(4);
               }}
+              onPrevious={() => setCurrentStep(2)}
             />
-            <NavButtons
-              onPrev={() => setCurrentStep(3)}
+          </section>
+        )}
+
+        {/* Step 4: Data Preprocessing */}
+        {currentStep === 4 && (
+          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp">
+            <Preprocess
+              filePath={workingFilePath}
+              selectedColumns={selectedColumns}
+              categorical={categorical}
+              continuous={continuous}
+              onComplete={({ modifiedInPlace }) => {
+                // Preprocessing modifies the working file in-place
+                // No new file path to store, just acknowledge completion
+                console.log(
+                  "[Dashboard] Preprocessing complete, file modified in-place:",
+                  modifiedInPlace
+                );
+              }}
+              onPrevious={() => setCurrentStep(3)}
               onNext={() => setCurrentStep(5)}
-              nextDisabled={!categorical.length && !continuous.length}
             />
           </section>
         )}
@@ -601,6 +633,7 @@ export default function Dashboard() {
               filePath={workingFilePath}
               categorical={categorical}
               continuous={continuous}
+              allSelectedColumns={selectedColumns}
               initialResults={biasSummary}
               initialSkewnessResults={skewnessResults}
               removedColumns={[]}
@@ -657,11 +690,25 @@ export default function Dashboard() {
                 }
               }}
             />
-            <NavButtons
-              onPrev={() => setCurrentStep(4)}
-              onNext={() => setCurrentStep(6)}
-              nextDisabled={!categorical.length && !continuous.length}
-            />
+            <div className="flex justify-between items-center mt-8 pt-6 border-t-2 border-slate-200">
+              <button
+                onClick={() => setCurrentStep(4)}
+                className="group px-6 py-3 text-sm font-bold text-slate-700 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
+              >
+                <span className="group-hover:-translate-x-1 transition-transform">
+                  ←
+                </span>
+                <span>Previous</span>
+              </button>
+              <button
+                onClick={() => setCurrentStep(6)}
+                disabled={!biasSummary && !skewnessResults}
+                className="group px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>🔧</span>
+                <span>Fix Detected Bias</span>
+              </button>
+            </div>
           </section>
         )}
 
@@ -678,7 +725,8 @@ export default function Dashboard() {
               continuous={continuous}
               biasResults={biasResults}
               skewnessResults={skewnessResults}
-              columns={columns}
+              columns={selectedColumns}
+              allColumns={columns}
               selectedBiasColumns={selectedBiasColumns}
               selectedSkewnessColumns={selectedSkewnessColumns}
               onApplyingChange={setIsApplyingFixes} // Track applying state
@@ -698,47 +746,31 @@ export default function Dashboard() {
                   fixedCategorical,
                   fixedContinuous,
                   currentWorkingFilePath: workingFilePath,
+                  originalFilePath,
                 });
-                // Save the current working file path as the "before fix" state
-                setBeforeFixFilePath(workingFilePath);
-                setCorrectedFilePath(correctedPath);
+                // NEW: Use workingFilePath for "before" and fixing file (correctedPath) for "after"
+                // correctedPath is now fixing_<file>.csv from backend
+                setBeforeFixFilePath(workingFilePath); // Use working file for "before" comparison
+                setFixingFilePath(correctedPath); // Store fixing file path
+                setCorrectedFilePath(correctedPath); // Use fixing file for "after" comparison
                 setFixedCategoricalColumns(fixedCategorical || []);
                 setFixedContinuousColumns(fixedContinuous || []);
-                setVisualizationKey((prev) => prev + 1);
+                setVisualizationKey((prev) => prev + 1); // Force visualization to refresh
 
                 // Also update persisted correction summary with corrected path if already prepared
                 setReportCorrectionSummary((prev) =>
-                  prev
-                    ? { ...prev, corrected_file_path: correctedPath }
-                    : prev
+                  prev ? { ...prev, corrected_file_path: correctedPath } : prev
                 );
                 console.log(
-                  "[Dashboard] State updated - correctedFilePath:",
-                  correctedPath,
-                  "beforeFixFilePath:",
-                  workingFilePath
+                  "[Dashboard] State updated for visualization - beforeFixFilePath (working):",
+                  workingFilePath,
+                  "correctedFilePath (fixing):",
+                  correctedPath
                 );
               }}
+              onPrevious={() => setCurrentStep(5)}
+              onNext={() => setCurrentStep(7)}
             />
-
-            <div className="mt-6 flex items-center justify-between">
-              <button
-                type="button"
-                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => setCurrentStep(5)}
-                disabled={isApplyingFixes}
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => setCurrentStep(7)}
-                disabled={isApplyingFixes}
-              >
-                Next
-              </button>
-            </div>
           </section>
         )}
 
@@ -753,7 +785,6 @@ export default function Dashboard() {
                 workingFilePath,
                 beforeFixFilePath,
                 cleanedFilePath,
-                selectedFilePath,
                 filePath,
                 actualBeforePath: beforeFixFilePath || workingFilePath,
               });
@@ -803,16 +834,19 @@ export default function Dashboard() {
                       key={`viz-cat-${visualizationKey}`}
                       mode="categorical-multi"
                       beforePath={beforeFixFilePath || workingFilePath}
-                      afterPath={correctedFilePath}
+                      afterPath={correctedFilePath || workingFilePath}
                       targetColumns={fixedCategoricalColumns}
+                      fixResults={biasFixResult}
                     />
                     {/* Debug info */}
                     {(() => {
                       console.log("[Visualization Categorical] Paths:", {
                         beforeFixFilePath,
-                        workingFilePath,
+                        originalFilePath,
                         correctedFilePath,
-                        actualBeforePath: beforeFixFilePath || workingFilePath,
+                        workingFilePath,
+                        actualBeforePath: beforeFixFilePath || originalFilePath,
+                        actualAfterPath: correctedFilePath || workingFilePath,
                       });
                       return null;
                     })()}
@@ -843,8 +877,9 @@ export default function Dashboard() {
                       key={`viz-cont-${visualizationKey}`}
                       mode="continuous"
                       beforePath={beforeFixFilePath || workingFilePath}
-                      afterPath={correctedFilePath}
+                      afterPath={correctedFilePath || workingFilePath}
                       continuous={fixedContinuousColumns}
+                      fixResults={skewnessFixResult}
                     />
                   </div>
                 )}
