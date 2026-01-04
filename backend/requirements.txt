@@ -1,13 +1,9 @@
 flask
 flask-smorest
 python-dotenv
-flask-jwt-extended
 passlib
 matplotlib
-redis
-cryptography
 flask_cors
-pymongo
 numpy
 scipy
 pandas
