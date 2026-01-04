@@ -4,11 +4,12 @@ A simple project for exploring bias in datasets or models.
 
 ## Development Log
 
-| Date            | Time    | Feature/Task                   | Status       |
-| --------------- | ------- | ------------------------------ | ------------ |
-| October 1, 2025 | 8:52 AM | Signup and login functionality | ✅ Completed |
+| Date            | Time    | Feature/Task                                          | Status       |
+| --------------- | ------- | ----------------------------------------------------- | ------------ |
+| January 4, 2026 | Current | Separated upload page from homepage                   | ✅ Completed |
+| October 1, 2025 | 8:52 AM | Signup and login functionality                        | ✅ Completed |
 | October 1, 2025 | 3:45 AM | Classify columns of dataset as Continuous or Descrete | ✅ Completed |
-|                 |         |                                |              |
+|                 |         |                                                       |              |
 
 ## Features
 

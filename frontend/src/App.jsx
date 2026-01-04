@@ -4,12 +4,18 @@ import {
   Navigate,
 } from "react-router-dom";
 import Home from "./pages/Home";
+import Upload from "./pages/Upload";
 import ReportPage from "./pages/ReportPage";
 import Dashboard from "./pages/Dashboard";
 
 const router = createBrowserRouter([
   {
     children: [
+      { path: "/", element: <Home /> },
+      {
+        path: "/upload",
+        element: <Upload />,
+      },
       {
         path: "/dashboard",
         element: <Dashboard />,
@@ -18,10 +24,8 @@ const router = createBrowserRouter([
         path: "/report",
         element: <ReportPage />,
       },
-      { path: "/", element: <Home /> },
     ],
   },
-  // Public home page with upload
 ]);
 
 export default function App() {

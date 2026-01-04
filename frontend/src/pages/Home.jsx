@@ -1,13 +1,10 @@
 import { useNavigate, Link } from "react-router-dom";
-import FileUpload from "../components/FileUpload";
 
 export default function Home() {
   const navigate = useNavigate();
 
-  const handleUploadSuccess = (uploadResult) => {
-    // uploadResult contains: { originalFilePath, workingFilePath, filePath }
-    // Navigate to dashboard with upload result in route state
-    navigate("/dashboard", { state: { uploadResult } });
+  const handleGetStarted = () => {
+    navigate("/upload");
   };
 
   const clearAllData = () => {
@@ -35,6 +32,12 @@ export default function Home() {
               </div>
             </div>
             <nav className="flex items-center gap-3 animate-fadeInDown">
+              <Link
+                to="/upload"
+                className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
+              >
+                📤 Upload
+              </Link>
               <Link
                 to="/dashboard"
                 className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
@@ -98,33 +101,35 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Upload Section */}
-        <div className="grid grid-cols-1 gap-6">
-          <section className="rounded-3xl border-2 border-white/50 glass-effect p-8 shadow-2xl animate-fadeInUp stagger-3">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-3xl">📁</span>
-                  <h2 className="text-2xl font-bold text-slate-800">
-                    Upload Your Dataset
-                  </h2>
-                </div>
-                <p className="text-sm text-slate-600 ml-12">
-                  Supported formats:{" "}
-                  <span className="font-semibold">CSV, XLS, XLSX</span> •
-                  Maximum size: 50MB
-                </p>
+        {/* CTA Section */}
+        <div className="text-center animate-fadeInUp stagger-3">
+          <div className="rounded-3xl border-2 border-white/50 glass-effect p-12 shadow-2xl">
+            <div className="max-w-2xl mx-auto">
+              <h3 className="text-3xl font-bold text-slate-800 mb-4">
+                Ready to Get Started?
+              </h3>
+              <p className="text-slate-600 mb-8">
+                Upload your dataset and begin analyzing bias with our powerful
+                tools. It only takes a few clicks to get comprehensive insights.
+              </p>
+              <div className="flex items-center justify-center gap-4 flex-wrap">
+                <button
+                  onClick={handleGetStarted}
+                  className="px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 card-hover-lift flex items-center gap-3"
+                >
+                  <span className="text-2xl">🚀</span>
+                  <span>Get Started Now</span>
+                </button>
+                <button
+                  onClick={clearAllData}
+                  className="px-6 py-4 text-base font-semibold bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
+                >
+                  <span>🗑️</span>
+                  <span>Clear All Data</span>
+                </button>
               </div>
-              <button
-                onClick={clearAllData}
-                className="px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift flex items-center gap-2"
-              >
-                <span>🗑️</span>
-                <span>Clear All Data</span>
-              </button>
             </div>
-            <FileUpload onUploadSuccess={handleUploadSuccess} />
-          </section>
+          </div>
         </div>
 
         {/* Footer Info */}

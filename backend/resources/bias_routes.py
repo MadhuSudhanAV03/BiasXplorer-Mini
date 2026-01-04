@@ -509,7 +509,7 @@ class FixSkew(MethodView):
                     abort(
                         404, message=f"File '{secured}' not found in uploads")
 
-            # Determine if input is working or fixing file
+            # Determine output file path
             base_filename = os.path.basename(abs_path)
 
             # Extract base name without prefix (working_ or fixing_)
@@ -525,26 +525,12 @@ class FixSkew(MethodView):
             fixing_path = os.path.join(UPLOAD_DIR, fixing_filename)
             fixing_rel_path = f"uploads/{fixing_filename}"
 
-            # If input is working file, or fixing file doesn't exist yet, create it
-            if base_filename.startswith("working_") or not os.path.exists(fixing_path):
-                # Delete existing fixing file if it exists
-                if os.path.exists(fixing_path):
-                    os.remove(fixing_path)
-                    print(
-                        f"[FixSkew] Deleted existing fixing file: {fixing_path}")
+            # For skewness: Always read from INPUT file and transform all columns at once
+            # This ensures each column is transformed independently from original values
+            print(f"[FixSkew] Reading input file: {abs_path}")
+            df = FileService.read_dataset(abs_path)
 
-                # Create fresh copy: source -> fixing_file
-                df_source = FileService.read_dataset(abs_path)
-                FileService.save_dataset(
-                    df_source, fixing_path, ensure_dir=True)
-                print(
-                    f"[FixSkew] Created fixing file from {base_filename}: {fixing_path}")
-            else:
-                # Already a fixing file and exists, use it directly
-                print(f"[FixSkew] Using existing fixing file: {fixing_path}")
-
-            # Read fixing file and apply corrections
-            df = FileService.read_dataset(fixing_path)
+            # Apply transformations to all columns in one pass
             df_corrected, transformations = SkewnessCorrectionService.correct_multiple_columns(
                 df, columns)
 

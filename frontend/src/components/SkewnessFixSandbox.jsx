@@ -346,56 +346,67 @@ export default function SkewnessFixSandbox({
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {Object.entries(result.transformations || {}).map(
-                  ([col, info], index) => (
-                    <tr
-                      key={col}
-                      className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 animate-fadeInUp"
-                      style={{ animationDelay: `${index * 0.03}s` }}
-                    >
-                      <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                        {col}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {info.error ? (
-                          <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg border border-red-300 font-semibold">
-                            {info.error}
-                          </span>
-                        ) : info.original_skewness !== null ? (
-                          <span className="px-3 py-1 bg-red-50 text-red-600 rounded-lg border border-red-200 font-medium">
-                            {info.original_skewness.toFixed(3)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">N/A</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {info.error ? (
-                          <span className="text-slate-400">-</span>
-                        ) : info.new_skewness !== null ? (
-                          <span
-                            className={`px-3 py-1 rounded-lg border-2 font-bold shadow-sm ${
-                              Math.abs(info.new_skewness) <= 0.5
-                                ? "bg-green-50 text-green-700 border-green-300"
-                                : "bg-yellow-50 text-yellow-700 border-yellow-300"
-                            }`}
-                          >
-                            {info.new_skewness.toFixed(3)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">N/A</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {info.error ? (
-                          <span className="text-slate-400">-</span>
-                        ) : (
-                          <span className="px-3 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg border border-blue-300 font-semibold inline-block">
-                            {info.method}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
+                  ([col, info], index) => {
+                    // Use detected skewness value for display (from detection phase)
+                    // This ensures consistency even if categorical fixes modified the dataset
+                    const displayOriginalSkewness =
+                      skewnessResults[col]?.skewness !== undefined &&
+                      skewnessResults[col]?.skewness !== null
+                        ? skewnessResults[col].skewness
+                        : info.original_skewness;
+
+                    return (
+                      <tr
+                        key={col}
+                        className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 animate-fadeInUp"
+                        style={{ animationDelay: `${index * 0.03}s` }}
+                      >
+                        <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                          {col}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {info.error ? (
+                            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg border border-red-300 font-semibold">
+                              {info.error}
+                            </span>
+                          ) : displayOriginalSkewness !== null &&
+                            displayOriginalSkewness !== undefined ? (
+                            <span className="px-3 py-1 bg-red-50 text-red-600 rounded-lg border border-red-200 font-medium">
+                              {displayOriginalSkewness.toFixed(3)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {info.error ? (
+                            <span className="text-slate-400">-</span>
+                          ) : info.new_skewness !== null ? (
+                            <span
+                              className={`px-3 py-1 rounded-lg border-2 font-bold shadow-sm ${
+                                Math.abs(info.new_skewness) <= 0.5
+                                  ? "bg-green-50 text-green-700 border-green-300"
+                                  : "bg-yellow-50 text-yellow-700 border-yellow-300"
+                              }`}
+                            >
+                              {info.new_skewness.toFixed(3)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {info.error ? (
+                            <span className="text-slate-400">-</span>
+                          ) : (
+                            <span className="px-3 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg border border-blue-300 font-semibold inline-block">
+                              {info.method}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  }
                 )}
               </tbody>
             </table>

@@ -472,25 +472,9 @@ export default function ReportPage() {
     return charts;
   };
 
-  const generateContinuousChartsFromResults = (fixResults, columns) => {
-    if (!fixResults || !fixResults.columns) return {};
-
-    const charts = {};
-    columns.forEach((col) => {
-      const colData = fixResults.columns[col];
-      if (!colData) return;
-
-      charts[col] = {
-        before_skewness: colData.before?.skewness,
-        after_skewness: colData.after?.skewness,
-        method: colData.method,
-      };
-    });
-
-    return charts;
-  };
-
-  // Auto-build visualizations using stored fix results (from localStorage)
+  // Auto-build visualizations:
+  // - Categorical: use stored fix results (from localStorage)
+  // - Continuous: call backend API to recalculate from actual files
   useEffect(() => {
     const catCols = Object.keys(latestCategorical || {});
     const contCols = Object.keys(latestContinuous || {});
@@ -523,18 +507,50 @@ export default function ReportPage() {
         setVizCategorical({});
       }
 
-      // Generate continuous charts from stored results
-      if (contCols.length && skewnessFixResult) {
-        const contCharts = generateContinuousChartsFromResults(
-          skewnessFixResult,
-          contCols
-        );
-        setVizContinuous(contCharts);
+      // For continuous/skewness, call backend API to recalculate from actual files
+      if (contCols.length) {
+        const workingPath = getStorageValue("dashboard_workingFilePath", "");
+        const correctedFilePath =
+          correctedPath || getStorageValue("dashboard_correctedFilePath", "");
+
+        if (workingPath && correctedFilePath) {
+          // Call backend to generate histogram+KDE charts
+          axios
+            .post(
+              "http://localhost:5000/api/skewness/visualize",
+              {
+                before_path: workingPath,
+                after_path: correctedFilePath,
+                columns: contCols,
+              },
+              { headers: { "Content-Type": "application/json" } }
+            )
+            .then((res) => {
+              setVizContinuous(res?.data?.charts || {});
+              setVizLoading(false);
+            })
+            .catch((err) => {
+              console.error("Failed to load continuous visualizations:", err);
+              setVizError(
+                err?.response?.data?.error ||
+                  err.message ||
+                  "Failed to load continuous visualizations"
+              );
+              setVizContinuous({});
+              setVizLoading(false);
+            });
+        } else {
+          console.warn("Missing paths for continuous visualization:", {
+            workingPath,
+            correctedFilePath,
+          });
+          setVizContinuous({});
+          setVizLoading(false);
+        }
       } else {
         setVizContinuous({});
+        setVizLoading(false);
       }
-
-      setVizLoading(false);
     } catch (e) {
       setVizError(e.message || "Failed to load visualizations");
       setVizLoading(false);

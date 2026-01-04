@@ -3,37 +3,85 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         BIASXPLORER-MINI WORKFLOW                            │
-│                        (Updated: December 7, 2025)                           │
+│                        (Updated: January 4, 2026)                            │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ╔═══════════════════════════════════════════════════════════════════════════╗
-║ STEP 1: DATASET PREVIEW                                                   ║
+║ STEP 0: HOMEPAGE & NAVIGATION                                             ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║ Route:      / (localhost:5173)                                            ║
+║ Component:  Home.jsx                                                       ║
+║                                                                            ║
+║ FEATURES:                                                                  ║
+║   • Welcome page with project overview                                    ║
+║   • Feature highlights (Detect Bias, Fix Issues, Visualize Results)      ║
+║   • Navigation to Upload, Dashboard, and Reports                          ║
+║   • "Get Started Now" button → navigates to /upload                       ║
+║   • "Clear All Data" button to reset application state                    ║
+║                                                                            ║
+║ NAVIGATION OPTIONS:                                                        ║
+║   ✅ Upload → /upload (Primary action)                                    ║
+║   ✅ Dashboard → /dashboard                                               ║
+║   ✅ Reports → /report                                                    ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+                                    ↓
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 1: DATASET UPLOAD                                                    ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+║ Route:      /upload                                                        ║
+║ Component:  Upload.jsx                                                     ║
+║ API:        POST /api/upload                                              ║
+║                                                                            ║
+║ INPUT:                                                                     ║
+║   • User uploads: dataset.csv via drag & drop or file picker             ║
+║                                                                            ║
+║ PROCESSING:                                                                ║
+║   • Validate file type (CSV/Excel)                                        ║
+║   • Create two copies:                                                    ║
+║     - original_<filename>.csv (read-only reference)                       ║
+║     - working_<filename>.csv (for all operations)                         ║
+║                                                                            ║
+║ SERVER STORAGE:                                                            ║
+║   📁 backend/uploads/original_<filename>.csv                              ║
+║   📁 backend/uploads/working_<filename>.csv                               ║
+║                                                                            ║
+║ BROWSER STORAGE (localStorage):                                           ║
+║   • dashboard_originalFilePath: "uploads/original_<filename>.csv"         ║
+║   • dashboard_workingFilePath: "uploads/working_<filename>.csv"           ║
+║   • dashboard_filePath: "uploads/working_<filename>.csv" (legacy)         ║
+║                                                                            ║
+║ OUTPUT → NEXT STEP:                                                        ║
+║   ✅ Navigate to /dashboard with upload result                            ║
+║   ✅ Files ready for preview and analysis                                 ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+                                    ↓
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 2: DATASET PREVIEW                                                   ║
+╠═══════════════════════════════════════════════════════════════════════════╣
+╔═══════════════════════════════════════════════════════════════════════════╗
+║ STEP 2: DATASET PREVIEW                                                   ║
 ╠═══════════════════════════════════════════════════════════════════════════╣
 ║ Component:  DatasetPreview.jsx                                            ║
 ║ API:        POST /api/preview                                             ║
 ║                                                                            ║
 ║ INPUT:                                                                     ║
-║   • User uploads: dataset.csv                                             ║
+║   • File: "uploads/working_<filename>.csv"                                ║
 ║                                                                            ║
 ║ PROCESSING:                                                                ║
-║   • Validate file type (CSV/Excel)                                        ║
 ║   • Read first 10 rows                                                    ║
 ║   • Extract column names                                                  ║
-║                                                                            ║
-║ SERVER STORAGE:                                                            ║
-║   📁 backend/uploads/dataset.csv                                          ║
+║   • Count missing values per column                                       ║
 ║                                                                            ║
 ║ BROWSER STORAGE (localStorage):                                           ║
-║   • dashboard_filePath: "uploads/dataset.csv"                             ║
 ║   • dashboard_columns: ["col1", "col2", "col3", ...]                      ║
 ║                                                                            ║
 ║ OUTPUT → NEXT STEP:                                                        ║
-║   ✅ File path: "uploads/dataset.csv"                                     ║
 ║   ✅ Column names: ["col1", "col2", "col3", ...]                          ║
+║   ✅ Preview table with sample data                                       ║
 ╚═══════════════════════════════════════════════════════════════════════════╝
                                     ↓
 ╔═══════════════════════════════════════════════════════════════════════════╗
-║ STEP 2: TARGET COLUMN SELECTION ⭐ (MOVED UP)                             ║
+║ STEP 3: TARGET COLUMN SELECTION ⭐                                        ║
 ╠═══════════════════════════════════════════════════════════════════════════╣
 ║ Component:  FeatureSelector.jsx                                           ║
 ║ API:        POST /api/features                                            ║

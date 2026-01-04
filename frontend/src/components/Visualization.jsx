@@ -64,25 +64,6 @@ export default function Visualization({
     return charts;
   };
 
-  // Helper function to generate charts from fixResults (for continuous)
-  const generateContinuousChartsFromResults = (fixResults, columns) => {
-    if (!fixResults || !fixResults.columns) return {};
-
-    const charts = {};
-    columns.forEach((col) => {
-      const colData = fixResults.columns[col];
-      if (!colData) return;
-
-      charts[col] = {
-        before_skewness: colData.before?.skewness,
-        after_skewness: colData.after?.skewness,
-        method: colData.method,
-      };
-    });
-
-    return charts;
-  };
-
   const canRunCategorical = useMemo(
     () =>
       Boolean(
@@ -116,7 +97,7 @@ export default function Visualization({
   useEffect(() => {
     let cancelled = false;
 
-    // NEW: If fixResults are provided, use them instead of calling backend
+    // NEW: If fixResults are provided, use them instead of calling backend (CATEGORICAL ONLY)
     if (
       fixResults &&
       mode === "categorical-multi" &&
@@ -135,19 +116,7 @@ export default function Visualization({
       return;
     }
 
-    if (fixResults && mode === "continuous" && continuous.length > 0) {
-      console.log(
-        "[Visualization] Using fixResults for continuous:",
-        fixResults
-      );
-      const charts = generateContinuousChartsFromResults(
-        fixResults,
-        continuous
-      );
-      setSkewCharts(charts);
-      setLoading(false);
-      return;
-    }
+    // For continuous (skewness), always call backend to recalculate from actual files
 
     async function runCategorical() {
       if (!canRunCategorical) return;

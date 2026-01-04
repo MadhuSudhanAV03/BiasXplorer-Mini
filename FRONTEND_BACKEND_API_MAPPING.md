@@ -1,34 +1,113 @@
 # Frontend to Backend API Request Mapping
+
 ## Complete Guide: Where Frontend Sends Requests to Backend
+
+**Last Updated**: January 4, 2026
+
+---
+
+## 🎯 Application Routes
+
+### Frontend Routes
+
+| Route        | Component      | Purpose                                           |
+| ------------ | -------------- | ------------------------------------------------- |
+| `/`          | Home.jsx       | Landing page with project overview and navigation |
+| `/upload`    | Upload.jsx     | Dedicated upload page for dataset files           |
+| `/dashboard` | Dashboard.jsx  | 7-step workflow for bias analysis                 |
+| `/report`    | ReportPage.jsx | Final report with visualizations and downloads    |
+
+### Navigation Flow
+
+```
+Home (/)
+  → Click "Get Started"
+    → Upload (/upload)
+      → Upload file
+        → Dashboard (/dashboard)
+          → Complete 7 steps
+            → Report (/report)
+```
 
 ---
 
 ## 📋 Summary Table
 
-| # | Component/Page | API Endpoint | Method | Purpose |
-|---|----------------|--------------|--------|---------|
-| 1 | FileUpload.jsx | `/api/upload` | POST | Upload CSV/Excel files |
-| 2 | DatasetPreview.jsx | `/api/preview` | POST | Preview dataset columns and rows |
-| 3 | Preprocess.jsx | `/api/preprocess` | POST | Clean dataset (handle missing values) |
-| 4 | ColumnSelector.jsx | `/api/column-types` | POST | Save column types (categorical/continuous) |
-| 5 | FeatureSelector.jsx | `/api/features` | POST | Select features for analysis |
-| 6 | BiasDetection.jsx | `/api/bias/detect` | POST | Detect bias in categorical columns |
-| 7 | BiasDetection.jsx | `/api/skewness/detect` | POST | Detect skewness in continuous columns |
-| 8 | BiasFixSandbox.jsx | `/api/bias/fix` | POST | Fix categorical bias (SMOTE, oversample, etc.) |
-| 9 | SkewnessDetection.jsx | `/api/preview` | POST | Fetch columns for skewness analysis |
-| 10 | SkewnessDetection.jsx | `/api/skewness/detect` | POST | Detect skewness in selected column |
-| 11 | SkewnessFixSandbox.jsx | `/api/skewness/fix` | POST | Fix skewness (log, sqrt, Box-Cox, etc.) |
-| 12 | Visualization.jsx | `/api/bias/visualize` | POST | Generate categorical bias charts |
-| 13 | Visualization.jsx | `/api/skewness/visualize` | POST | Generate continuous skewness charts |
-| 14 | ReportGenerator.jsx | `/api/reports/generate` | POST | Generate PDF report |
-| 15 | ReportGenerator.jsx | `/<report_path>` | GET | Download generated PDF report |
-| 16 | ReportPage.jsx | `/api/bias/visualize` | POST | Fetch categorical visualizations |
-| 17 | ReportPage.jsx | `/api/skewness/visualize` | POST | Fetch continuous visualizations |
-| 18 | ReportPage.jsx | `/api/corrected/download/<filename>` | GET | Download corrected CSV dataset |
+| #   | Component/Page         | API Endpoint                         | Method | Purpose                                        |
+| --- | ---------------------- | ------------------------------------ | ------ | ---------------------------------------------- |
+| 0   | Home.jsx               | N/A                                  | N/A    | Landing page (no API calls)                    |
+| 1   | Upload.jsx             | `/api/upload`                        | POST   | Upload CSV/Excel files                         |
+| 2   | DatasetPreview.jsx     | `/api/preview`                       | POST   | Preview dataset columns and rows               |
+| 3   | Preprocess.jsx         | `/api/preprocess`                    | POST   | Clean dataset (handle missing values)          |
+| 4   | ColumnSelector.jsx     | `/api/column-types`                  | POST   | Save column types (categorical/continuous)     |
+| 5   | FeatureSelector.jsx    | `/api/features`                      | POST   | Select features for analysis                   |
+| 6   | BiasDetection.jsx      | `/api/bias/detect`                   | POST   | Detect bias in categorical columns             |
+| 7   | BiasDetection.jsx      | `/api/skewness/detect`               | POST   | Detect skewness in continuous columns          |
+| 8   | BiasFixSandbox.jsx     | `/api/bias/fix`                      | POST   | Fix categorical bias (SMOTE, oversample, etc.) |
+| 9   | SkewnessDetection.jsx  | `/api/preview`                       | POST   | Fetch columns for skewness analysis            |
+| 10  | SkewnessDetection.jsx  | `/api/skewness/detect`               | POST   | Detect skewness in selected column             |
+| 11  | SkewnessFixSandbox.jsx | `/api/skewness/fix`                  | POST   | Fix skewness (log, sqrt, Box-Cox, etc.)        |
+| 12  | Visualization.jsx      | `/api/bias/visualize`                | POST   | Generate categorical bias charts               |
+| 13  | Visualization.jsx      | `/api/skewness/visualize`            | POST   | Generate continuous skewness charts            |
+| 14  | ReportGenerator.jsx    | `/api/reports/generate`              | POST   | Generate PDF report                            |
+| 15  | ReportGenerator.jsx    | `/<report_path>`                     | GET    | Download generated PDF report                  |
+| 16  | ReportPage.jsx         | `/api/bias/visualize`                | POST   | Fetch categorical visualizations               |
+| 17  | ReportPage.jsx         | `/api/skewness/visualize`            | POST   | Fetch continuous visualizations                |
+| 18  | ReportPage.jsx         | `/api/corrected/download/<filename>` | GET    | Download corrected CSV dataset                 |
 
 ---
 
 ## 📂 Detailed Breakdown by Component
+
+0. **Home.jsx** (Landing Page)
+
+**Location:** `frontend/src/pages/Home.jsx`
+
+**Purpose:** Welcome page with project overview and navigation  
+**API Calls:** None  
+**User Actions:**
+
+- View project features and benefits
+- Click "Get Started Now" → Navigate to `/upload`
+- Click "Upload" in header → Navigate to `/upload`
+- Click "Dashboard" in header → Navigate to `/dashboard`
+- Click "Reports" in header → Navigate to `/report`
+- Click "Clear All Data" → Clear localStorage
+
+---
+
+### 1. **Upload.jsx** (Upload Page)
+
+**Location:** `frontend/src/pages/Upload.jsx`
+
+```javascript
+// Line 6
+const UPLOAD_URL = "http://localhost:5000/api/upload";
+
+// Line 39-42
+const res = await axios.post(UPLOAD_URL, formData, {
+  headers: { "Content-Type": "multipart/form-data" },
+  withCredentials: false,
+});
+```
+
+**Purpose:** Dedicated page for uploading dataset files  
+**Request Body:** FormData with `file` field  
+**Response:**
+
+```json
+{
+  "original_file_path": "uploads/original_filename.csv",
+  "working_file_path": "uploads/working_filename.csv",
+  "file_path": "uploads/working_filename.csv"
+}
+```
+
+**After Upload:** Automatically navigate to `/dashboard` with upload result
+
+---
+
+### 2. **FileUpload.jsx** (Component used in Upload.jsx
 
 ### 1. **FileUpload.jsx** (Step 1: Upload)
 
@@ -78,7 +157,7 @@ const res = await axios.post(
 ### 3. **Preprocess.jsx** (Step 3: Preprocess)
 
 **Location:** `frontend/src/components/Preprocess.jsx`
- 
+
 ```javascript
 // Line 5
 const PREPROCESS_URL = "http://localhost:5000/api/preprocess";
@@ -113,7 +192,8 @@ const res = await axios.post(SET_TYPES_URL, payload, {
 ```
 
 **Purpose:** Save column classifications (categorical vs continuous)  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "file_path": "uploads/cleaned_filename.csv",
@@ -121,6 +201,7 @@ const res = await axios.post(SET_TYPES_URL, payload, {
   "continuous": ["age", "income"]
 }
 ```
+
 **Response:** `{ message: "Column types saved" }`  
 **Backend Handler:** `backend/resources/select_routes.py`
 
@@ -141,13 +222,15 @@ const res = await axios.post(SELECT_URL, payload, {
 ```
 
 **Purpose:** Select which features/columns to analyze  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "file_path": "uploads/cleaned_filename.csv",
   "selected_features": ["gender", "age", "income"]
 }
 ```
+
 **Response:** `{ message: "Features selected", selected_file_path: "uploads/selected_cleaned_filename.csv" }`  
 **Backend Handler:** `backend/resources/select_routes.py`
 
@@ -170,14 +253,17 @@ const res = await axios.post(
 ```
 
 **Purpose:** Detect bias in categorical columns  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "file_path": "uploads/selected_cleaned_filename.csv",
   "categorical": ["gender"]
 }
 ```
-**Response:** 
+
+**Response:**
+
 ```json
 {
   "gender": {
@@ -188,6 +274,7 @@ const res = await axios.post(
   }
 }
 ```
+
 **Backend Handler:** `backend/resources/bias_routes.py`
 
 ---
@@ -209,14 +296,17 @@ const res = await axios.post(
 ```
 
 **Purpose:** Detect skewness in continuous columns  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "filename": "selected_cleaned_filename.csv",
   "column": "age"
 }
 ```
-**Response:** 
+
+**Response:**
+
 ```json
 {
   "skewness": 1.45,
@@ -224,6 +314,7 @@ const res = await axios.post(
   "recommended_method": "Log Transformation"
 }
 ```
+
 **Backend Handler:** `backend/resources/bias_routes.py` (skewness detection)
 
 ---
@@ -243,7 +334,8 @@ const res = await axios.post(FIX_URL, payload, {
 ```
 
 **Purpose:** Fix categorical bias using SMOTE/oversample/undersample  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "file_path": "uploads/selected_cleaned_filename.csv",
@@ -253,7 +345,9 @@ const res = await axios.post(FIX_URL, payload, {
   "categorical_columns": ["country", "education"]
 }
 ```
-**Response:** 
+
+**Response:**
+
 ```json
 {
   "corrected_file_path": "corrected/corrected_filename_gender_123456.csv",
@@ -262,6 +356,7 @@ const res = await axios.post(FIX_URL, payload, {
   "method": "smote"
 }
 ```
+
 **Backend Handler:** `backend/resources/bias_routes.py`
 
 ---
@@ -327,14 +422,17 @@ const res = await axios.post(FIX_SKEW_URL, payload, {
 ```
 
 **Purpose:** Fix skewness using transformations (log, sqrt, Box-Cox, etc.)  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "filename": "selected_cleaned_filename.csv",
   "columns": ["age", "income"]
 }
 ```
-**Response:** 
+
+**Response:**
+
 ```json
 {
   "corrected_file_path": "corrected/corrected_filename_skew_123456.csv",
@@ -346,6 +444,7 @@ const res = await axios.post(FIX_SKEW_URL, payload, {
   "after_skewness": { "age": 0.12, "income": 0.08 }
 }
 ```
+
 **Backend Handler:** `backend/resources/bias_routes.py`
 
 ---
@@ -371,7 +470,8 @@ const res = await axios.post(
 ```
 
 **Purpose:** Generate Plotly charts for categorical bias (before/after)  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "before_path": "uploads/selected_cleaned_filename.csv",
@@ -379,13 +479,16 @@ const res = await axios.post(
   "target_column": "gender"
 }
 ```
-**Response:** 
+
+**Response:**
+
 ```json
 {
   "before_chart": "{...plotly JSON...}",
   "after_chart": "{...plotly JSON...}"
 }
 ```
+
 **Backend Handler:** `backend/resources/bias_routes.py`
 
 ---
@@ -411,7 +514,8 @@ const res = await axios.post(
 ```
 
 **Purpose:** Generate Plotly charts for continuous skewness (before/after)  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "before_path": "uploads/selected_cleaned_filename.csv",
@@ -419,7 +523,9 @@ const res = await axios.post(
   "columns": ["age", "income"]
 }
 ```
-**Response:** 
+
+**Response:**
+
 ```json
 {
   "charts": {
@@ -432,6 +538,7 @@ const res = await axios.post(
   }
 }
 ```
+
 **Backend Handler:** `backend/resources/bias_routes.py`
 
 ---
@@ -451,7 +558,8 @@ const res = await axios.post(REPORT_URL, payload, {
 ```
 
 **Purpose:** Generate PDF report with bias summary and visualizations  
-**Request Body:** 
+**Request Body:**
+
 ```json
 {
   "bias_summary": { "gender": { "Male": 0.75, "Female": 0.25, "severity": "Severe" } },
@@ -459,6 +567,7 @@ const res = await axios.post(REPORT_URL, payload, {
   "visualizations": { "before_chart": "...", "after_chart": "..." }
 }
 ```
+
 **Response:** `{ report_path: "reports/report_123456.pdf" }`  
 **Backend Handler:** `backend/resources/report_routes.py`
 
@@ -527,7 +636,9 @@ const res = await axios.post(
 
 ```javascript
 // Line 630
-const url = `http://localhost:5000/api/corrected/download/${encodeURIComponent(filename)}`;
+const url = `http://localhost:5000/api/corrected/download/${encodeURIComponent(
+  filename
+)}`;
 const res = await axios.get(url, { responseType: "blob" });
 ```
 
@@ -588,27 +699,33 @@ const res = await axios.get(url, { responseType: "blob" });
 ## 📊 API Endpoint Summary
 
 ### Upload & Preview
+
 - `POST /api/upload` - Upload dataset file
 - `POST /api/preview` - Get columns and preview rows
 
 ### Preprocessing & Selection
+
 - `POST /api/preprocess` - Clean dataset (missing values)
 - `POST /api/column-types` - Save column classifications
 - `POST /api/features` - Select features for analysis
 
 ### Bias Detection
+
 - `POST /api/bias/detect` - Detect categorical bias
 - `POST /api/skewness/detect` - Detect continuous skewness
 
 ### Bias Correction
+
 - `POST /api/bias/fix` - Fix categorical bias
 - `POST /api/skewness/fix` - Fix continuous skewness
 
 ### Visualization
+
 - `POST /api/bias/visualize` - Generate categorical charts
 - `POST /api/skewness/visualize` - Generate continuous charts
 
 ### Reports & Downloads
+
 - `POST /api/reports/generate` - Generate PDF report
 - `GET /reports/<filename>.pdf` - Download PDF report
 - `GET /api/corrected/download/<filename>` - Download corrected CSV
@@ -617,13 +734,13 @@ const res = await axios.get(url, { responseType: "blob" });
 
 ## 🛠️ Backend Route Handlers
 
-| Route File | Endpoints Handled |
-|------------|-------------------|
-| `upload_routes.py` | `/api/upload` |
-| `select_routes.py` | `/api/preview`, `/api/column-types`, `/api/features` |
-| `preprocess_routes.py` | `/api/preprocess` |
-| `bias_routes.py` | `/api/bias/detect`, `/api/bias/fix`, `/api/bias/visualize`, `/api/skewness/detect`, `/api/skewness/fix`, `/api/skewness/visualize`, `/api/corrected/download/<filename>` |
-| `report_routes.py` | `/api/reports/generate` |
+| Route File             | Endpoints Handled                                                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `upload_routes.py`     | `/api/upload`                                                                                                                                                            |
+| `select_routes.py`     | `/api/preview`, `/api/column-types`, `/api/features`                                                                                                                     |
+| `preprocess_routes.py` | `/api/preprocess`                                                                                                                                                        |
+| `bias_routes.py`       | `/api/bias/detect`, `/api/bias/fix`, `/api/bias/visualize`, `/api/skewness/detect`, `/api/skewness/fix`, `/api/skewness/visualize`, `/api/corrected/download/<filename>` |
+| `report_routes.py`     | `/api/reports/generate`                                                                                                                                                  |
 
 ---
 
@@ -632,7 +749,7 @@ const res = await axios.get(url, { responseType: "blob" });
 1. **Base URL:** All requests go to `http://localhost:5000`
 2. **Content-Type:** Most use `application/json` except file upload (`multipart/form-data`)
 3. **Response Type:** Most return JSON, except downloads return `blob`
-4. **File Paths:** 
+4. **File Paths:**
    - Uploaded files: `uploads/<filename>`
    - Cleaned files: `uploads/cleaned_<filename>`
    - Selected files: `uploads/selected_cleaned_<filename>`
