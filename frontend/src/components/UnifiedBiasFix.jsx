@@ -507,7 +507,7 @@ export default function UnifiedBiasFix({
       )}
 
       {/* Continuous Skewness Fix Section */}
-      {hasSkewnessIssues && !skewnessFixResult && (
+      {hasSkewnessIssues && (
         <div className="rounded-3xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 shadow-2xl card-hover-lift animate-scaleIn stagger-1">
           <div className="mb-6 flex items-center gap-4">
             <div className="text-4xl">📈</div>
@@ -530,7 +530,7 @@ export default function UnifiedBiasFix({
             onFixComplete={handleSkewnessFixComplete}
             initialSelectedColumns={filteredSkewnessColumns}
             hideApplyButton={true}
-            hideResults={!hasAppliedFixes} // Show results if any fixes have been applied
+            hideResults={false} // Always show results when available
             initialResult={skewnessFixResult} // Pass stored result for persistence
             onStateChange={setSkewnessState}
           />
