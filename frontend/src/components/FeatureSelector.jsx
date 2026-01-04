@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
+import Toast from "./Toast";
 
 const SELECT_URL = "http://localhost:5000/api/features";
 
@@ -77,7 +78,7 @@ export default function FeatureSelector({
     <div className="w-full">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="text-4xl animate-float">🎯</div>
+          <div className="text-4xl">🎯</div>
           <div>
             <h2 className="text-2xl font-bold text-slate-800">
               Target Column Selection
@@ -213,21 +214,13 @@ export default function FeatureSelector({
         </button>
       </div>
 
-      {/* Toast */}
-      {toast.visible && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 rounded-2xl px-6 py-4 shadow-2xl animate-slideInRight flex items-center gap-3 ${
-            toast.type === "success"
-              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-              : "bg-gradient-to-r from-red-500 to-pink-500 text-white"
-          }`}
-        >
-          <span className="text-2xl">
-            {toast.type === "success" ? "✅" : "❌"}
-          </span>
-          <span className="font-bold">{toast.message}</span>
-        </div>
-      )}
+      {/* Toast Notification */}
+      <Toast
+        visible={toast.visible}
+        type={toast.type}
+        message={toast.message}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
     </div>
   );
 }

@@ -1,8 +1,13 @@
 import { useNavigate, Link } from "react-router-dom";
+import { useState } from "react";
 import FileUpload from "../components/FileUpload";
+import Toast from "../components/Toast";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 export default function Upload() {
   const navigate = useNavigate();
+  const [toast, setToast] = useState({ visible: false, type: "success", message: "" });
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleUploadSuccess = (uploadResult) => {
     // uploadResult contains: { originalFilePath, workingFilePath, filePath }
@@ -11,9 +16,13 @@ export default function Upload() {
   };
 
   const clearAllData = () => {
-    // Clear all localStorage data
+    setShowConfirm(true);
+  };
+
+  const handleConfirmClear = () => {
     localStorage.clear();
-    alert("Application data has been cleared!");
+    setShowConfirm(false);
+    setToast({ visible: true, type: "success", message: "Application data has been cleared!" });
   };
 
   return (
@@ -23,7 +32,7 @@ export default function Upload() {
           <div className="flex items-center justify-between">
             <div className="animate-fadeInDown">
               <div className="flex items-center gap-3">
-                <div className="text-4xl animate-float">🔍</div>
+                <div className="text-4xl">🔍</div>
                 <div>
                   <h1 className="text-3xl md:text-4xl font-extrabold text-gradient-blue tracking-tight">
                     BiasXplorer
@@ -37,7 +46,7 @@ export default function Upload() {
             <nav className="flex items-center gap-3 animate-fadeInDown">
               <Link
                 to="/"
-                className="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 hover:bg-white/50 rounded-xl transition-all duration-300"
+                className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 card-hover-lift"
               >
                 🏠 Home
               </Link>
@@ -151,6 +160,25 @@ export default function Upload() {
           </p>
         </div>
       </main>
+
+      {/* Toast Notification */}
+      <Toast
+        visible={toast.visible}
+        type={toast.type}
+        message={toast.message}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showConfirm}
+        title="Clear All Data"
+        message="Are you sure you want to clear all application data? This action cannot be undone."
+        onConfirm={handleConfirmClear}
+        onCancel={() => setShowConfirm(false)}
+        confirmText="Clear Data"
+        type="danger"
+      />
     </div>
   );
 }

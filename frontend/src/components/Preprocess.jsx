@@ -153,7 +153,7 @@ export default function Preprocess({
   return (
     <div className="w-full">
       <div className="mb-6 flex items-center gap-3">
-        <div className="text-4xl animate-float">🧹</div>
+        <div className="text-4xl">🧹</div>
         <div>
           <h2 className="text-2xl font-bold text-slate-800">
             Data Preprocessing

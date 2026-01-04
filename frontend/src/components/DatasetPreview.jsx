@@ -68,7 +68,7 @@ export default function DatasetPreview({ filePath, onNext }) {
   return (
     <div className="w-full">
       <div className="mb-6 flex items-center gap-3">
-        <div className="text-4xl animate-float">📂</div>
+        <div className="text-4xl">📂</div>
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Dataset Preview</h2>
           <p className="text-sm text-slate-600 mt-1">
