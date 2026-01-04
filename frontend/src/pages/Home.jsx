@@ -1,16 +1,25 @@
 import { useNavigate, Link } from "react-router-dom";
+import { useState } from "react";
+import Toast from "../components/Toast";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 export default function Home() {
   const navigate = useNavigate();
+  const [toast, setToast] = useState({ visible: false, type: "success", message: "" });
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleGetStarted = () => {
     navigate("/upload");
   };
 
   const clearAllData = () => {
-    // Clear all localStorage data
+    setShowConfirm(true);
+  };
+
+  const handleConfirmClear = () => {
     localStorage.clear();
-    alert("Application data has been cleared!");
+    setShowConfirm(false);
+    setToast({ visible: true, type: "success", message: "Application data has been cleared!" });
   };
 
   return (
@@ -20,7 +29,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div className="animate-fadeInDown">
               <div className="flex items-center gap-3">
-                <div className="text-4xl animate-float">🔍</div>
+                <div className="text-4xl">🔍</div>
                 <div>
                   <h1 className="text-3xl md:text-4xl font-extrabold text-gradient-blue tracking-tight">
                     BiasXplorer
@@ -140,6 +149,25 @@ export default function Home() {
           </p>
         </div>
       </main>
+
+      {/* Toast Notification */}
+      <Toast
+        visible={toast.visible}
+        type={toast.type}
+        message={toast.message}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showConfirm}
+        title="Clear All Data"
+        message="Are you sure you want to clear all application data? This action cannot be undone."
+        onConfirm={handleConfirmClear}
+        onCancel={() => setShowConfirm(false)}
+        confirmText="Clear Data"
+        type="danger"
+      />
     </div>
   );
 }

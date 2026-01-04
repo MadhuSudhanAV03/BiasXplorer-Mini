@@ -53,8 +53,28 @@ const CategoricalColumnsModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+    <div 
+      className="fixed inset-0 flex items-center justify-center"
+      style={{ 
+        zIndex: 99999, 
+        pointerEvents: 'auto',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        backgroundColor: 'rgba(255, 255, 255, 0.3)'
+      }}
+      onClick={(e) => {
+        // Prevent clicks from going through to elements below
+        e.stopPropagation();
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"
+        style={{ zIndex: 100000, position: 'relative' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-800">
@@ -120,18 +140,21 @@ const CategoricalColumnsModal = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 bg-gray-50">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            type="button"
+            className="px-6 py-3 text-sm font-bold text-gray-700 bg-white hover:bg-gray-100 rounded-lg transition-colors border-2 border-gray-300 hover:border-gray-400 shadow-sm"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            type="button"
+            className="px-6 py-3 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
           >
-            Confirm & Apply SMOTE
+            <span>✓</span>
+            <span>Confirm & Apply SMOTE</span>
           </button>
         </div>
       </div>

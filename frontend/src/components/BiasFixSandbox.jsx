@@ -70,9 +70,10 @@ export default function BiasFixSandbox({
         result,
         canApply: filePath && selectedColumns.size > 0 && !loading,
         handleApplyClick,
+        isModalOpen: showCategoricalModal,
       });
     }
-  }, [selectedColumns, columnSettings, loading, result, filePath]);
+  }, [selectedColumns, columnSettings, loading, result, filePath, showCategoricalModal]);
 
   // Initialize settings for pre-selected columns
   useEffect(() => {
@@ -285,7 +286,12 @@ export default function BiasFixSandbox({
   const canApply = filePath && selectedColumns.size > 0 && !loading;
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      {/* Dimming overlay when modal is open */}
+      {showCategoricalModal && (
+        <div className="absolute inset-0 bg-white bg-opacity-70 rounded-xl z-20 pointer-events-none" />
+      )}
+      
       {/* Column Fix Settings - directly show options without checkboxes */}
       <div className="grid grid-cols-1 gap-4 mb-6">
         {Array.from(selectedColumns).map((col, index) => {
@@ -403,11 +409,11 @@ export default function BiasFixSandbox({
 
       {/* Apply Button */}
       {!hideApplyButton && (
-        <div className="mb-6">
+        <div className={`mb-6 transition-opacity duration-300 ${showCategoricalModal ? 'opacity-30 pointer-events-none' : ''}`}>
           <button
             type="button"
             onClick={handleApplyClick}
-            disabled={!canApply}
+            disabled={!canApply || showCategoricalModal}
             className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-4 text-white font-bold text-lg shadow-xl hover:shadow-2xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 disabled:hover:scale-100 animate-pulseGlow"
           >
             {loading ? (
