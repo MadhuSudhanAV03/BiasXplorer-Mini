@@ -27,7 +27,7 @@ class FileService:
         ext = os.path.splitext(filepath)[1].lower()
 
         if ext == ".csv":
-            return pd.read_csv(filepath)
+            return pd.read_csv(filepath, sep=None, engine='python')
         elif ext in (".xls", ".xlsx"):
             return pd.read_excel(filepath)
         else:
