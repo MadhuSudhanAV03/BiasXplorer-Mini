@@ -597,7 +597,7 @@ export default function UnifiedBiasFix({
                     <div>
                       <h4 className="font-bold text-slate-800 mb-1">Skewness Fixed</h4>
                       <p className="text-sm text-slate-600">
-                        {Object.keys(skewnessFixResult?.columns || {}).length} column(s) transformed
+                        {Object.keys(skewnessFixResult?.transformations || {}).length} column(s) transformed
                       </p>
                     </div>
                   </div>
