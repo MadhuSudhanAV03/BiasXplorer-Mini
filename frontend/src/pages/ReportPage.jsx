@@ -503,7 +503,13 @@ export default function ReportPage() {
       );
     }
 
-    if (!catCols.length && !contCols.length) {
+    // Filter out reweight columns from visualization (they show only statistics, no graphs)
+    const nonReweightCatCols = catCols.filter((col) => {
+      const colData = biasFixResult?.columns?.[col];
+      return colData?.method !== "reweight";
+    });
+
+    if (!nonReweightCatCols.length && !contCols.length) {
       setVizCategorical({});
       setVizContinuous({});
       setVizLoading(false);
@@ -514,11 +520,11 @@ export default function ReportPage() {
       setVizLoading(true);
       setVizError("");
 
-      // Generate categorical charts from stored results
-      if (catCols.length && biasFixResult) {
+      // Generate categorical charts from stored results (excluding reweight)
+      if (nonReweightCatCols.length && biasFixResult) {
         const catCharts = generateCategoricalChartsFromResults(
           biasFixResult,
-          catCols
+          nonReweightCatCols
         );
         setVizCategorical(catCharts);
       } else {
@@ -736,6 +742,45 @@ export default function ReportPage() {
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadWeights = () => {
+    setError("");
+    try {
+      // Get biasFixResult from localStorage
+      const biasFixResult = getStorageValue("dashboard_biasFixResult", null);
+      if (!biasFixResult?.columns) {
+        setError("No bias correction results found");
+        return;
+      }
+
+      // Collect all reweight columns and their class weights
+      const reweightData = {};
+      Object.entries(biasFixResult.columns).forEach(([col, colData]) => {
+        if (colData?.method === "reweight" && colData?.class_weights) {
+          reweightData[col] = colData.class_weights;
+        }
+      });
+
+      if (Object.keys(reweightData).length === 0) {
+        setError("No reweight class weights found");
+        return;
+      }
+
+      // Create JSON blob and download
+      const jsonStr = JSON.stringify(reweightData, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = "class_weights.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      setError(err.message || "Failed to download class weights");
     }
   };
 
@@ -1277,10 +1322,22 @@ export default function ReportPage() {
         {/* Correction Details */}
         {(() => {
           // Check if we have any fixed columns using same logic as visualizations
-          const biasFixResult = getStorageValue("dashboard_biasFixResult", null);
-          const skewnessFixResult = getStorageValue("dashboard_skewnessFixResult", null);
-          const hasCategorical = Object.keys(latestCategorical).length > 0 || (biasFixResult?.columns && Object.keys(biasFixResult.columns).length > 0);
-          const hasContinuous = Object.keys(latestContinuous).length > 0 || (skewnessFixResult?.transformations && Object.keys(skewnessFixResult.transformations).length > 0);
+          const biasFixResult = getStorageValue(
+            "dashboard_biasFixResult",
+            null
+          );
+          const skewnessFixResult = getStorageValue(
+            "dashboard_skewnessFixResult",
+            null
+          );
+          const hasCategorical =
+            Object.keys(latestCategorical).length > 0 ||
+            (biasFixResult?.columns &&
+              Object.keys(biasFixResult.columns).length > 0);
+          const hasContinuous =
+            Object.keys(latestContinuous).length > 0 ||
+            (skewnessFixResult?.transformations &&
+              Object.keys(skewnessFixResult.transformations).length > 0);
           return hasCategorical || hasContinuous;
         })() && (
           <div className="grid grid-cols-1 gap-6 mb-6 report-section">
@@ -1293,8 +1350,15 @@ export default function ReportPage() {
 
             {(() => {
               const catCols = Object.keys(latestCategorical);
-              const biasFixResult = getStorageValue("dashboard_biasFixResult", null);
-              return catCols.length > 0 || (biasFixResult?.columns && Object.keys(biasFixResult.columns).length > 0);
+              const biasFixResult = getStorageValue(
+                "dashboard_biasFixResult",
+                null
+              );
+              return (
+                catCols.length > 0 ||
+                (biasFixResult?.columns &&
+                  Object.keys(biasFixResult.columns).length > 0)
+              );
             })() && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 avoid-break official-section">
                 <h3 className="text-lg font-bold text-amber-900 mb-4">
@@ -1321,18 +1385,22 @@ export default function ReportPage() {
                     <tbody className="divide-y divide-amber-100 text-sm">
                       {(() => {
                         // Use latestCategorical if available, otherwise fallback to biasFixResult
-                        const entries = Object.keys(latestCategorical).length > 0
-                          ? Object.entries(latestCategorical)
-                          : Object.entries(getStorageValue("dashboard_biasFixResult", null)?.columns || {}).map(([col, data]) => [
-                              col,
-                              {
-                                method: data.method,
-                                threshold: data.threshold,
-                                before: data.before,
-                                after: data.after,
-                                ts: Date.now()
-                              }
-                            ]);
+                        const entries =
+                          Object.keys(latestCategorical).length > 0
+                            ? Object.entries(latestCategorical)
+                            : Object.entries(
+                                getStorageValue("dashboard_biasFixResult", null)
+                                  ?.columns || {}
+                              ).map(([col, data]) => [
+                                col,
+                                {
+                                  method: data.method,
+                                  threshold: data.threshold,
+                                  before: data.before,
+                                  after: data.after,
+                                  ts: Date.now(),
+                                },
+                              ]);
                         return entries.map(([col, entry]) => {
                           return (
                             <tr
@@ -1385,8 +1453,15 @@ export default function ReportPage() {
 
             {(() => {
               const contCols = Object.keys(latestContinuous);
-              const skewnessFixResult = getStorageValue("dashboard_skewnessFixResult", null);
-              return contCols.length > 0 || (skewnessFixResult?.transformations && Object.keys(skewnessFixResult.transformations).length > 0);
+              const skewnessFixResult = getStorageValue(
+                "dashboard_skewnessFixResult",
+                null
+              );
+              return (
+                contCols.length > 0 ||
+                (skewnessFixResult?.transformations &&
+                  Object.keys(skewnessFixResult.transformations).length > 0)
+              );
             })() && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 avoid-break official-section">
                 <h3 className="text-lg font-bold text-blue-900 mb-4">
@@ -1410,17 +1485,23 @@ export default function ReportPage() {
                     <tbody className="divide-y divide-blue-100 text-sm">
                       {(() => {
                         // Use latestContinuous if available, otherwise fallback to skewnessFixResult
-                        const entries = Object.keys(latestContinuous).length > 0
-                          ? Object.entries(latestContinuous)
-                          : Object.entries(getStorageValue("dashboard_skewnessFixResult", null)?.transformations || {}).map(([col, info]) => [
-                              col,
-                              {
-                                original_skewness: info.original_skewness,
-                                new_skewness: info.new_skewness,
-                                method: info.method,
-                                ts: Date.now()
-                              }
-                            ]);
+                        const entries =
+                          Object.keys(latestContinuous).length > 0
+                            ? Object.entries(latestContinuous)
+                            : Object.entries(
+                                getStorageValue(
+                                  "dashboard_skewnessFixResult",
+                                  null
+                                )?.transformations || {}
+                              ).map(([col, info]) => [
+                                col,
+                                {
+                                  original_skewness: info.original_skewness,
+                                  new_skewness: info.new_skewness,
+                                  method: info.method,
+                                  ts: Date.now(),
+                                },
+                              ]);
                         return entries.map(([col, entry]) => {
                           return (
                             <tr
@@ -1485,11 +1566,113 @@ export default function ReportPage() {
                 </div>
               ) : (
                 <div className="space-y-8">
+                  {/* Class Weights Summary - For reweight method */}
+                  {(() => {
+                    const biasFixResult = getStorageValue(
+                      "dashboard_biasFixResult",
+                      null
+                    );
+                    if (!biasFixResult?.columns) return null;
+
+                    // Filter columns with reweight method and class_weights
+                    const reweightColumns = Object.entries(
+                      biasFixResult.columns
+                    )
+                      .filter(
+                        ([, colData]) =>
+                          colData?.method === "reweight" &&
+                          colData?.class_weights
+                      )
+                      .map(([col]) => col);
+
+                    if (reweightColumns.length === 0) return null;
+
+                    return (
+                      <div className="avoid-break">
+                        <h4 className="font-bold text-slate-800 mb-3 text-base">
+                          3.1 Class Weights Summary (Reweight Method)
+                        </h4>
+                        <div className="grid grid-cols-1 gap-4">
+                          {reweightColumns.map((col) => {
+                            const colData = biasFixResult.columns[col];
+                            const weights = colData.class_weights;
+
+                            return (
+                              <div
+                                key={`reweight-${col}`}
+                                className="rounded-md border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 p-4 avoid-break"
+                              >
+                                <div className="mb-2">
+                                  <span className="text-sm font-semibold text-purple-900">
+                                    {col}
+                                  </span>
+                                  <span className="ml-2 text-xs text-purple-700">
+                                    Method: Reweight
+                                  </span>
+                                </div>
+                                <div className="text-sm text-purple-800 mb-3">
+                                  The <strong>reweight</strong> method computes
+                                  class weights without modifying the dataset.
+                                  Use these weights in your model's{" "}
+                                  <code className="bg-purple-200 px-1 rounded">
+                                    class_weight
+                                  </code>{" "}
+                                  parameter or{" "}
+                                  <code className="bg-purple-200 px-1 rounded">
+                                    sample_weight
+                                  </code>{" "}
+                                  during training.
+                                </div>
+                                <div className="bg-white rounded border border-purple-200 p-3">
+                                  <div className="text-xs font-semibold text-purple-700 mb-2">
+                                    Computed Class Weights:
+                                  </div>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                    {Object.entries(weights).map(
+                                      ([cls, weight]) => (
+                                        <div
+                                          key={cls}
+                                          className="bg-purple-50 rounded px-2 py-1 text-xs"
+                                        >
+                                          <span className="font-medium text-purple-900">
+                                            {cls}:
+                                          </span>{" "}
+                                          <span className="text-purple-700">
+                                            {typeof weight === "number"
+                                              ? weight.toFixed(4)
+                                              : weight}
+                                          </span>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Categorical */}
                   {Object.keys(vizCategorical).length > 0 && (
                     <div className="avoid-break">
                       <h4 className="font-bold text-slate-800 mb-3 text-base">
-                        3.1 Categorical Distribution Comparisons
+                        {(() => {
+                          const biasFixResult = getStorageValue(
+                            "dashboard_biasFixResult",
+                            null
+                          );
+                          const hasReweight = biasFixResult?.columns
+                            ? Object.values(biasFixResult.columns).some(
+                                (colData) => colData?.method === "reweight"
+                              )
+                            : false;
+                          return hasReweight
+                            ? "3.2 Categorical Distribution Comparisons"
+                            : "3.1 Categorical Distribution Comparisons";
+                        })()}
                       </h4>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(vizCategorical).map(([col, data]) => (
@@ -1684,7 +1867,30 @@ export default function ReportPage() {
                   {Object.keys(vizContinuous).length > 0 && (
                     <div className="avoid-break">
                       <h4 className="font-bold text-slate-800 mb-3 text-base">
-                        3.2 Continuous Distribution Comparisons
+                        {(() => {
+                          const biasFixResult = getStorageValue(
+                            "dashboard_biasFixResult",
+                            null
+                          );
+                          const hasReweight = biasFixResult?.columns
+                            ? Object.values(biasFixResult.columns).some(
+                                (colData) => colData?.method === "reweight"
+                              )
+                            : false;
+                          const hasCategoricalViz =
+                            Object.keys(vizCategorical).length > 0;
+
+                          // Numbering: if reweight exists (3.1), categorical is 3.2, continuous is 3.3
+                          // if no reweight but categorical exists, categorical is 3.1, continuous is 3.2
+                          // if only continuous, it's 3.1
+                          if (hasReweight && hasCategoricalViz) {
+                            return "3.3 Continuous Distribution Comparisons";
+                          } else if (hasCategoricalViz) {
+                            return "3.2 Continuous Distribution Comparisons";
+                          } else {
+                            return "3.1 Continuous Distribution Comparisons";
+                          }
+                        })()}
                       </h4>
                       <div className="grid grid-cols-1 gap-4">
                         {Object.entries(vizContinuous).map(([col, data]) => (
@@ -1829,6 +2035,47 @@ export default function ReportPage() {
             </div>
           </div>
         </div>
+
+        {/* Download Class Weights - Hidden in PDF export */}
+        {(() => {
+          const biasFixResult = getStorageValue(
+            "dashboard_biasFixResult",
+            null
+          );
+          const hasReweight = biasFixResult?.columns
+            ? Object.values(biasFixResult.columns).some(
+                (colData) =>
+                  colData?.method === "reweight" && colData?.class_weights
+              )
+            : false;
+
+          if (!hasReweight) return null;
+
+          return (
+            <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm hide-in-pdf">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-800">
+                    Download Class Weights
+                  </h2>
+                  <p className="text-sm text-slate-600">
+                    JSON file containing computed class weights for all reweight
+                    columns.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
+                    onClick={downloadWeights}
+                  >
+                    Download Weights
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Navigation - Previous Button */}
         <div className="mt-6 flex items-center justify-start hide-in-pdf">

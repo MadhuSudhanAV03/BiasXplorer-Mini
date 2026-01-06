@@ -810,48 +810,151 @@ export default function Dashboard() {
 
             {correctedFilePath && (
               <>
-                {/* Categorical Visualizations */}
-                {fixedCategoricalColumns.length > 0 && (
-                  <div className="rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-8 shadow-2xl card-hover-lift">
-                    <div className="mb-6 flex items-center gap-4">
-                      <div className="text-4xl">📊</div>
-                      <div>
-                        <h3 className="text-2xl font-bold text-amber-900">
-                          Categorical Bias - Before & After
-                        </h3>
-                        <p className="text-sm text-amber-700 mt-1 flex items-center gap-2">
-                          <span className="px-3 py-1 bg-amber-200 text-amber-900 rounded-full font-semibold">
-                            {fixedCategoricalColumns.length} column
-                            {fixedCategoricalColumns.length !== 1
-                              ? "s"
-                              : ""}{" "}
-                            fixed
-                          </span>
-                        </p>
+                {/* Class Weights Statistics (for reweight columns) */}
+                {(() => {
+                  const reweightColumns = fixedCategoricalColumns.filter(
+                    (col) => {
+                      const colData = biasFixResult?.columns?.[col];
+                      return (
+                        colData?.method === "reweight" && colData?.class_weights
+                      );
+                    }
+                  );
+
+                  if (reweightColumns.length === 0) return null;
+
+                  return (
+                    <div className="rounded-3xl border-2 border-purple-300 bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 p-8 shadow-2xl card-hover-lift">
+                      <div className="mb-6 flex items-center gap-4">
+                        <div className="text-4xl">⚖️</div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-purple-900">
+                            Class Weights Summary
+                          </h3>
+                          <p className="text-sm text-purple-700 mt-1 flex items-center gap-2">
+                            <span className="px-3 py-1 bg-purple-200 text-purple-900 rounded-full font-semibold">
+                              {reweightColumns.length} column
+                              {reweightColumns.length !== 1 ? "s" : ""}{" "}
+                              reweighted
+                            </span>
+                            <span className="text-purple-600">
+                              • Dataset unchanged
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        {reweightColumns.map((col) => {
+                          const colData = biasFixResult?.columns?.[col];
+                          const classWeights = colData?.class_weights || {};
+
+                          return (
+                            <div
+                              key={col}
+                              className="p-5 bg-white rounded-xl border-2 border-purple-200 shadow-md"
+                            >
+                              <div className="flex items-center gap-2 mb-4">
+                                <span className="text-xl">📊</span>
+                                <span className="text-lg font-bold text-slate-800">
+                                  {col}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                {Object.entries(classWeights).map(
+                                  ([cls, weight]) => (
+                                    <div
+                                      key={cls}
+                                      className="p-3 bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg border border-purple-200"
+                                    >
+                                      <div className="text-xs font-semibold text-purple-600 mb-1">
+                                        {cls}
+                                      </div>
+                                      <div className="text-lg font-bold text-purple-900">
+                                        {typeof weight === "number"
+                                          ? weight.toFixed(4)
+                                          : weight}
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-4 p-4 bg-purple-100 rounded-lg border border-purple-200">
+                        <div className="flex items-start gap-2">
+                          <span className="text-lg">💡</span>
+                          <div className="text-sm text-purple-800">
+                            <p className="font-bold mb-1">
+                              These columns used the Reweight method
+                            </p>
+                            <p>
+                              The dataset remains unchanged. Use these class
+                              weights in your machine learning model during
+                              training to balance the classes.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <Visualization
-                      key={`viz-cat-${visualizationKey}`}
-                      mode="categorical-multi"
-                      beforePath={beforeFixFilePath || workingFilePath}
-                      afterPath={correctedFilePath || workingFilePath}
-                      targetColumns={fixedCategoricalColumns}
-                      fixResults={biasFixResult}
-                    />
-                    {/* Debug info */}
-                    {(() => {
-                      console.log("[Visualization Categorical] Paths:", {
-                        beforeFixFilePath,
-                        originalFilePath,
-                        correctedFilePath,
-                        workingFilePath,
-                        actualBeforePath: beforeFixFilePath || originalFilePath,
-                        actualAfterPath: correctedFilePath || workingFilePath,
-                      });
-                      return null;
-                    })()}
-                  </div>
-                )}
+                  );
+                })()}
+
+                {/* Categorical Visualizations (excluding reweight columns) */}
+                {(() => {
+                  // Filter out reweight columns from visualization
+                  const nonReweightColumns = fixedCategoricalColumns.filter(
+                    (col) => {
+                      const colData = biasFixResult?.columns?.[col];
+                      return colData?.method !== "reweight";
+                    }
+                  );
+
+                  if (nonReweightColumns.length === 0) return null;
+
+                  return (
+                    <div className="rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 p-8 shadow-2xl card-hover-lift">
+                      <div className="mb-6 flex items-center gap-4">
+                        <div className="text-4xl">📊</div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-amber-900">
+                            Categorical Bias - Before & After
+                          </h3>
+                          <p className="text-sm text-amber-700 mt-1 flex items-center gap-2">
+                            <span className="px-3 py-1 bg-amber-200 text-amber-900 rounded-full font-semibold">
+                              {nonReweightColumns.length} column
+                              {nonReweightColumns.length !== 1 ? "s" : ""} fixed
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <Visualization
+                        key={`viz-cat-${visualizationKey}`}
+                        mode="categorical-multi"
+                        beforePath={beforeFixFilePath || workingFilePath}
+                        afterPath={correctedFilePath || workingFilePath}
+                        targetColumns={nonReweightColumns}
+                        fixResults={biasFixResult}
+                      />
+                      {/* Debug info */}
+                      {(() => {
+                        console.log("[Visualization Categorical] Paths:", {
+                          beforeFixFilePath,
+                          originalFilePath,
+                          correctedFilePath,
+                          workingFilePath,
+                          actualBeforePath:
+                            beforeFixFilePath || originalFilePath,
+                          actualAfterPath: correctedFilePath || workingFilePath,
+                        });
+                        return null;
+                      })()}
+                    </div>
+                  );
+                })()}
 
                 {/* Continuous Visualizations */}
                 {fixedContinuousColumns.length > 0 && (

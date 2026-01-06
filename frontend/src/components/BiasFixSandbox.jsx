@@ -73,7 +73,14 @@ export default function BiasFixSandbox({
         isModalOpen: showCategoricalModal,
       });
     }
-  }, [selectedColumns, columnSettings, loading, result, filePath, showCategoricalModal]);
+  }, [
+    selectedColumns,
+    columnSettings,
+    loading,
+    result,
+    filePath,
+    showCategoricalModal,
+  ]);
 
   // Initialize settings for pre-selected columns
   useEffect(() => {
@@ -254,6 +261,7 @@ export default function BiasFixSandbox({
           after: res.data?.after,
           method: settings?.method,
           threshold: settings?.threshold,
+          class_weights: res.data?.class_weights, // Store class weights for reweight method
         };
 
         // Backend now returns file_path (same as input since it modifies in-place)
@@ -291,7 +299,7 @@ export default function BiasFixSandbox({
       {showCategoricalModal && (
         <div className="absolute inset-0 bg-white bg-opacity-70 rounded-xl z-20 pointer-events-none" />
       )}
-      
+
       {/* Column Fix Settings - directly show options without checkboxes */}
       <div className="grid grid-cols-1 gap-4 mb-6">
         {Array.from(selectedColumns).map((col, index) => {
@@ -409,7 +417,11 @@ export default function BiasFixSandbox({
 
       {/* Apply Button */}
       {!hideApplyButton && (
-        <div className={`mb-6 transition-opacity duration-300 ${showCategoricalModal ? 'opacity-30 pointer-events-none' : ''}`}>
+        <div
+          className={`mb-6 transition-opacity duration-300 ${
+            showCategoricalModal ? "opacity-30 pointer-events-none" : ""
+          }`}
+        >
           <button
             type="button"
             onClick={handleApplyClick}
@@ -468,11 +480,37 @@ export default function BiasFixSandbox({
             <span className="text-4xl">✨</span>
             <div>
               <h3 className="text-2xl font-bold text-green-800 flex items-center gap-2">
-                Bias Correction Applied Successfully!
+                {(() => {
+                  const hasReweight = Object.values(result.columns || {}).some(
+                    (col) => col?.method === "reweight"
+                  );
+                  const hasOtherMethods = Object.values(
+                    result.columns || {}
+                  ).some((col) => col?.method && col.method !== "reweight");
+
+                  if (hasReweight && !hasOtherMethods) {
+                    return "Class Weights Computed Successfully!";
+                  } else if (hasReweight && hasOtherMethods) {
+                    return "Bias Correction & Weights Computed!";
+                  }
+                  return "Bias Correction Applied Successfully!";
+                })()}
                 <span className="text-green-600">✓</span>
               </h3>
               <p className="text-sm text-green-700 mt-1">
-                Your dataset has been corrected and balanced
+                {(() => {
+                  const hasReweight = Object.values(result.columns || {}).some(
+                    (col) => col?.method === "reweight"
+                  );
+                  const hasOtherMethods = Object.values(
+                    result.columns || {}
+                  ).some((col) => col?.method && col.method !== "reweight");
+
+                  if (hasReweight && !hasOtherMethods) {
+                    return "Weights calculated for balanced model training (dataset unchanged)";
+                  }
+                  return "Your dataset has been corrected and balanced";
+                })()}
               </p>
             </div>
           </div>
@@ -489,137 +527,327 @@ export default function BiasFixSandbox({
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border-2 border-slate-200 shadow-lg">
-            <table className="min-w-full table-auto bg-white">
-              <thead className="bg-gradient-to-r from-slate-700 to-slate-800 text-white">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <span>📊</span>
-                      Column
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <span>🏷️</span>
-                      Class
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <span>📉</span>
-                      Before
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <span>📈</span>
-                      After
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <span>🛠️</span>
-                      Method
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <span>🎯</span>
-                      Threshold
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {(() => {
-                  const rows = [];
-                  const columns = result.columns || {};
+          {/* Class Weights Display (for Reweight method) */}
+          {(() => {
+            const columns = result.columns || {};
+            const reweightColumns = Object.entries(columns).filter(
+              ([_, colData]) =>
+                colData?.method === "reweight" && colData?.class_weights
+            );
 
-                  Object.entries(columns).forEach(([colName, colData]) => {
-                    const beforeDist = colData?.before?.distribution || {};
-                    const afterDist = colData?.after?.distribution || {};
-                    const classes = Object.keys(beforeDist).filter(
-                      (k) => k !== "severity" && k !== "note"
-                    );
+            if (reweightColumns.length === 0) return null;
 
-                    if (classes.length === 0) return;
+            return (
+              <div className="mb-6 rounded-xl bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 border-2 border-purple-300 p-6 shadow-xl animate-fadeInUp">
+                <div className="flex items-start gap-3 mb-4">
+                  <span className="text-3xl">⚖️</span>
+                  <div className="flex-1">
+                    <h4 className="text-xl font-bold text-purple-900 mb-2">
+                      Class Weights Computed (Reweight Method)
+                    </h4>
+                    <p className="text-sm text-purple-700 leading-relaxed">
+                      The dataset remains unchanged. Use these weights in your
+                      machine learning model's{" "}
+                      <code className="px-2 py-1 bg-purple-200 rounded text-purple-900 font-mono text-xs">
+                        class_weight
+                      </code>{" "}
+                      parameter during training to balance the classes.
+                    </p>
+                  </div>
+                </div>
 
-                    classes.forEach((className, idx) => {
-                      const beforeValue =
-                        beforeDist[className] !== null &&
-                        beforeDist[className] !== undefined
-                          ? Number(beforeDist[className]).toFixed(2)
-                          : "N/A";
-                      const afterValue =
-                        afterDist[className] !== null &&
-                        afterDist[className] !== undefined
-                          ? Number(afterDist[className]).toFixed(2)
-                          : "N/A";
-
-                      rows.push(
-                        <tr
-                          key={`${colName}-${className}`}
-                          className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 animate-fadeInUp"
-                          style={{ animationDelay: `${rows.length * 0.03}s` }}
+                {reweightColumns.map(([colName, colData]) => (
+                  <div
+                    key={colName}
+                    className="mb-4 last:mb-0 p-4 bg-white rounded-lg border-2 border-purple-200 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📊</span>
+                        <span className="font-bold text-slate-800">
+                          {colName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const weightsData = {
+                              column: colName,
+                              class_weights: colData.class_weights,
+                              timestamp: new Date().toISOString(),
+                            };
+                            navigator.clipboard
+                              .writeText(JSON.stringify(weightsData, null, 2))
+                              .then(() => {
+                                // Show temporary success feedback
+                                const btn = event.currentTarget;
+                                const originalText = btn.innerHTML;
+                                btn.innerHTML = "<span>✓ Copied!</span>";
+                                btn.classList.add("bg-green-500", "text-white");
+                                setTimeout(() => {
+                                  btn.innerHTML = originalText;
+                                  btn.classList.remove(
+                                    "bg-green-500",
+                                    "text-white"
+                                  );
+                                }, 2000);
+                              })
+                              .catch((err) => {
+                                console.error("Failed to copy:", err);
+                                alert("Failed to copy to clipboard");
+                              });
+                          }}
+                          className="px-3 py-1.5 text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg border border-purple-300 transition-all duration-200 flex items-center gap-1.5 hover:shadow-md"
                         >
-                          {idx === 0 && (
-                            <td
-                              rowSpan={classes.length}
-                              className="px-6 py-4 text-sm font-bold text-slate-900 align-top border-r-2 border-slate-200 bg-slate-50"
-                            >
-                              {colName}
-                            </td>
-                          )}
-                          <td className="px-6 py-4 text-sm font-medium text-slate-700">
-                            <span className="px-3 py-1 bg-slate-100 rounded-full">
-                              {className}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm font-medium text-red-600">
-                            <span className="px-3 py-1 bg-red-50 rounded-lg border border-red-200">
-                              {beforeValue}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm font-bold text-green-600">
-                            <span className="px-3 py-1 bg-green-50 rounded-lg border-2 border-green-300 shadow-sm">
-                              {afterValue}
-                            </span>
-                          </td>
-                          {idx === 0 && (
-                            <>
-                              <td
-                                rowSpan={classes.length}
-                                className="px-6 py-4 text-sm font-semibold text-blue-700 align-top"
-                              >
-                                <span className="px-3 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg border border-blue-300 inline-block">
-                                  {METHOD_OPTIONS.find(
-                                    (m) => m.value === colData?.method
-                                  )?.label ||
-                                    colData?.method ||
-                                    "N/A"}
-                                </span>
-                              </td>
-                              <td
-                                rowSpan={classes.length}
-                                className="px-6 py-4 text-sm font-bold text-slate-700 align-top"
-                              >
-                                <span className="px-3 py-2 bg-purple-100 rounded-lg border border-purple-300 inline-block">
-                                  {colData?.threshold || "N/A"}
-                                </span>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      );
-                    });
-                  });
+                          <span>📋</span>
+                          <span>Copy</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            const weightsData = {
+                              column: colName,
+                              class_weights: colData.class_weights,
+                              timestamp: new Date().toISOString(),
+                            };
+                            const blob = new Blob(
+                              [JSON.stringify(weightsData, null, 2)],
+                              { type: "application/json" }
+                            );
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `class_weights_${colName}_${Date.now()}.json`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="px-3 py-1.5 text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg border border-purple-300 transition-all duration-200 flex items-center gap-1.5 hover:shadow-md"
+                        >
+                          <span>💾</span>
+                          <span>Download JSON</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {Object.entries(colData.class_weights || {}).map(
+                        ([cls, weight]) => (
+                          <div
+                            key={cls}
+                            className="p-3 bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg border border-purple-200 hover:shadow-md transition-shadow"
+                          >
+                            <div className="text-xs font-semibold text-purple-600 mb-1">
+                              {cls}
+                            </div>
+                            <div className="text-lg font-bold text-purple-900">
+                              {typeof weight === "number"
+                                ? weight.toFixed(4)
+                                : weight}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ))}
 
-                  return rows;
-                })()}
-              </tbody>
-            </table>
-          </div>
+                <div className="mt-4 p-4 bg-purple-100 rounded-lg border border-purple-200">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">💡</span>
+                    <div className="text-sm text-purple-800">
+                      <p className="font-bold mb-1">
+                        How to use these weights:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 ml-2">
+                        <li>
+                          <strong>Scikit-learn:</strong>{" "}
+                          <code className="px-1 bg-white rounded text-xs">
+                            model.fit(X, y, sample_weight=weights)
+                          </code>
+                        </li>
+                        <li>
+                          <strong>TensorFlow/Keras:</strong>{" "}
+                          <code className="px-1 bg-white rounded text-xs">
+                            model.fit(X, y, class_weight=class_weights)
+                          </code>
+                        </li>
+                        <li>
+                          <strong>PyTorch:</strong> Use weights in loss function
+                          (e.g., CrossEntropyLoss)
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Distribution Comparison Table (excludes reweight columns) */}
+          {(() => {
+            const columns = result.columns || {};
+            const nonReweightColumns = Object.entries(columns).filter(
+              ([_, colData]) => colData?.method !== "reweight"
+            );
+
+            if (nonReweightColumns.length === 0) return null;
+
+            return (
+              <>
+                <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 text-sm text-blue-800">
+                    <span>ℹ️</span>
+                    <span className="font-medium">
+                      Distribution comparison for methods that modify the
+                      dataset
+                      {Object.keys(columns).some(
+                        (col) => columns[col]?.method === "reweight"
+                      ) && (
+                        <span className="text-blue-600">
+                          {" "}
+                          (Reweight columns shown above with computed weights)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border-2 border-slate-200 shadow-lg">
+                  <table className="min-w-full table-auto bg-white">
+                    <thead className="bg-gradient-to-r from-slate-700 to-slate-800 text-white">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                          <div className="flex items-center gap-2">
+                            <span>📊</span>
+                            Column
+                          </div>
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                          <div className="flex items-center gap-2">
+                            <span>🏷️</span>
+                            Class
+                          </div>
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                          <div className="flex items-center gap-2">
+                            <span>📉</span>
+                            Before
+                          </div>
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                          <div className="flex items-center gap-2">
+                            <span>📈</span>
+                            After
+                          </div>
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                          <div className="flex items-center gap-2">
+                            <span>🛠️</span>
+                            Method
+                          </div>
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider">
+                          <div className="flex items-center gap-2">
+                            <span>🎯</span>
+                            Threshold
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {(() => {
+                        const rows = [];
+
+                        nonReweightColumns.forEach(([colName, colData]) => {
+                          const beforeDist =
+                            colData?.before?.distribution || {};
+                          const afterDist = colData?.after?.distribution || {};
+                          const classes = Object.keys(beforeDist).filter(
+                            (k) => k !== "severity" && k !== "note"
+                          );
+
+                          if (classes.length === 0) return;
+
+                          classes.forEach((className, idx) => {
+                            const beforeValue =
+                              beforeDist[className] !== null &&
+                              beforeDist[className] !== undefined
+                                ? Number(beforeDist[className]).toFixed(2)
+                                : "N/A";
+                            const afterValue =
+                              afterDist[className] !== null &&
+                              afterDist[className] !== undefined
+                                ? Number(afterDist[className]).toFixed(2)
+                                : "N/A";
+
+                            rows.push(
+                              <tr
+                                key={`${colName}-${className}`}
+                                className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 animate-fadeInUp"
+                                style={{
+                                  animationDelay: `${rows.length * 0.03}s`,
+                                }}
+                              >
+                                {idx === 0 && (
+                                  <td
+                                    rowSpan={classes.length}
+                                    className="px-6 py-4 text-sm font-bold text-slate-900 align-top border-r-2 border-slate-200 bg-slate-50"
+                                  >
+                                    {colName}
+                                  </td>
+                                )}
+                                <td className="px-6 py-4 text-sm font-medium text-slate-700">
+                                  <span className="px-3 py-1 bg-slate-100 rounded-full">
+                                    {className}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-sm font-medium text-red-600">
+                                  <span className="px-3 py-1 bg-red-50 rounded-lg border border-red-200">
+                                    {beforeValue}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-sm font-bold text-green-600">
+                                  <span className="px-3 py-1 bg-green-50 rounded-lg border-2 border-green-300 shadow-sm">
+                                    {afterValue}
+                                  </span>
+                                </td>
+                                {idx === 0 && (
+                                  <>
+                                    <td
+                                      rowSpan={classes.length}
+                                      className="px-6 py-4 text-sm font-semibold text-blue-700 align-top"
+                                    >
+                                      <span className="px-3 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg border border-blue-300 inline-block">
+                                        {METHOD_OPTIONS.find(
+                                          (m) => m.value === colData?.method
+                                        )?.label ||
+                                          colData?.method ||
+                                          "N/A"}
+                                      </span>
+                                    </td>
+                                    <td
+                                      rowSpan={classes.length}
+                                      className="px-6 py-4 text-sm font-bold text-slate-700 align-top"
+                                    >
+                                      <span className="px-3 py-2 bg-purple-100 rounded-lg border border-purple-300 inline-block">
+                                        {colData?.threshold || "N/A"}
+                                      </span>
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            );
+                          });
+                        });
+
+                        return rows;
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            );
+          })()}
 
           <div className="mt-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 shadow-sm animate-fadeInUp">
             <div className="flex items-start gap-3">
