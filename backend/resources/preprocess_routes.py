@@ -58,6 +58,9 @@ class PreprocessDatatset(MethodView):
             # Read dataset
             df = FileService.read_dataset(abs_path)
 
+            # Replace '?' with NaN to treat it as a null value
+            df = df.replace('?', None)
+
             # Determine columns to clean
             if selected_columns and len(selected_columns) > 0:
                 # Validate selected columns exist
