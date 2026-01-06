@@ -476,25 +476,43 @@ export default function ReportPage() {
   // - Categorical: use stored fix results (from localStorage)
   // - Continuous: call backend API to recalculate from actual files
   useEffect(() => {
-    const catCols = Object.keys(latestCategorical || {});
-    const contCols = Object.keys(latestContinuous || {});
+    // Get fix results from localStorage first
+    const biasFixResult = getStorageValue("dashboard_biasFixResult", null);
+    const skewnessFixResult = getStorageValue(
+      "dashboard_skewnessFixResult",
+      null
+    );
+
+    // Get columns from correction summary if available
+    let catCols = Object.keys(latestCategorical || {});
+    let contCols = Object.keys(latestContinuous || {});
+
+    // Fallback: if correction summary is empty but fix results exist, use those
+    if (!catCols.length && biasFixResult?.columns) {
+      catCols = Object.keys(biasFixResult.columns);
+      console.log(
+        "[ReportPage] Using categorical columns from biasFixResult:",
+        catCols
+      );
+    }
+    if (!contCols.length && skewnessFixResult?.transformations) {
+      contCols = Object.keys(skewnessFixResult.transformations);
+      console.log(
+        "[ReportPage] Using continuous columns from skewnessFixResult:",
+        contCols
+      );
+    }
 
     if (!catCols.length && !contCols.length) {
       setVizCategorical({});
       setVizContinuous({});
+      setVizLoading(false);
       return;
     }
 
     try {
       setVizLoading(true);
       setVizError("");
-
-      // Get fix results from localStorage
-      const biasFixResult = getStorageValue("dashboard_biasFixResult", null);
-      const skewnessFixResult = getStorageValue(
-        "dashboard_skewnessFixResult",
-        null
-      );
 
       // Generate categorical charts from stored results
       if (catCols.length && biasFixResult) {
@@ -555,7 +573,7 @@ export default function ReportPage() {
       setVizError(e.message || "Failed to load visualizations");
       setVizLoading(false);
     }
-  }, [latestCategorical, latestContinuous]);
+  }, [latestCategorical, latestContinuous, correctedPath]);
 
   const downloadReport = async () => {
     setError("");
@@ -1254,8 +1272,14 @@ export default function ReportPage() {
         </div>
 
         {/* Correction Details */}
-        {(Object.keys(categoricalCorrections).length > 0 ||
-          Object.keys(continuousCorrections).length > 0) && (
+        {(() => {
+          // Check if we have any fixed columns using same logic as visualizations
+          const biasFixResult = getStorageValue("dashboard_biasFixResult", null);
+          const skewnessFixResult = getStorageValue("dashboard_skewnessFixResult", null);
+          const hasCategorical = Object.keys(latestCategorical).length > 0 || (biasFixResult?.columns && Object.keys(biasFixResult.columns).length > 0);
+          const hasContinuous = Object.keys(latestContinuous).length > 0 || (skewnessFixResult?.transformations && Object.keys(skewnessFixResult.transformations).length > 0);
+          return hasCategorical || hasContinuous;
+        })() && (
           <div className="grid grid-cols-1 gap-6 mb-6 report-section">
             {/* Section header for PDF */}
             <div className="hide-in-screen">
@@ -1264,7 +1288,11 @@ export default function ReportPage() {
               </h2>
             </div>
 
-            {Object.keys(latestCategorical).length > 0 && (
+            {(() => {
+              const catCols = Object.keys(latestCategorical);
+              const biasFixResult = getStorageValue("dashboard_biasFixResult", null);
+              return catCols.length > 0 || (biasFixResult?.columns && Object.keys(biasFixResult.columns).length > 0);
+            })() && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 avoid-break official-section">
                 <h3 className="text-lg font-bold text-amber-900 mb-4">
                   2.1 Categorical Bias Corrections
@@ -1288,56 +1316,75 @@ export default function ReportPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-amber-100 text-sm">
-                      {Object.entries(latestCategorical).map(([col, entry]) => {
-                        return (
-                          <tr
-                            key={`${col}-latest`}
-                            className="hover:bg-amber-50/60"
-                          >
-                            <td className="px-4 py-3 font-semibold">{col}</td>
-                            <td className="px-4 py-3">
-                              {entry?.method || "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {entry?.threshold ?? "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {entry?.before?.total ?? "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {entry?.after?.total ?? "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {(() => {
-                                const r = computeRatio(
-                                  entry?.before?.distribution || entry?.before
-                                );
-                                return r === null ? "-" : r;
-                              })()}
-                            </td>
-                            <td className="px-4 py-3">
-                              {(() => {
-                                const r = computeRatio(
-                                  entry?.after?.distribution || entry?.after
-                                );
-                                return r === null ? "-" : r;
-                              })()}
-                            </td>
-                            <td className="px-4 py-3">
-                              {entry?.ts
-                                ? new Date(entry.ts).toLocaleString()
-                                : "-"}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {(() => {
+                        // Use latestCategorical if available, otherwise fallback to biasFixResult
+                        const entries = Object.keys(latestCategorical).length > 0
+                          ? Object.entries(latestCategorical)
+                          : Object.entries(getStorageValue("dashboard_biasFixResult", null)?.columns || {}).map(([col, data]) => [
+                              col,
+                              {
+                                method: data.method,
+                                threshold: data.threshold,
+                                before: data.before,
+                                after: data.after,
+                                ts: Date.now()
+                              }
+                            ]);
+                        return entries.map(([col, entry]) => {
+                          return (
+                            <tr
+                              key={`${col}-latest`}
+                              className="hover:bg-amber-50/60"
+                            >
+                              <td className="px-4 py-3 font-semibold">{col}</td>
+                              <td className="px-4 py-3">
+                                {entry?.method || "-"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {entry?.threshold ?? "-"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {entry?.before?.total ?? "-"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {entry?.after?.total ?? "-"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {(() => {
+                                  const r = computeRatio(
+                                    entry?.before?.distribution || entry?.before
+                                  );
+                                  return r === null ? "-" : r;
+                                })()}
+                              </td>
+                              <td className="px-4 py-3">
+                                {(() => {
+                                  const r = computeRatio(
+                                    entry?.after?.distribution || entry?.after
+                                  );
+                                  return r === null ? "-" : r;
+                                })()}
+                              </td>
+                              <td className="px-4 py-3">
+                                {entry?.ts
+                                  ? new Date(entry.ts).toLocaleString()
+                                  : "-"}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
               </div>
             )}
 
-            {Object.keys(latestContinuous).length > 0 && (
+            {(() => {
+              const contCols = Object.keys(latestContinuous);
+              const skewnessFixResult = getStorageValue("dashboard_skewnessFixResult", null);
+              return contCols.length > 0 || (skewnessFixResult?.transformations && Object.keys(skewnessFixResult.transformations).length > 0);
+            })() && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-6 avoid-break official-section">
                 <h3 className="text-lg font-bold text-blue-900 mb-4">
                   2.2 Continuous Distribution Corrections
@@ -1358,30 +1405,44 @@ export default function ReportPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-blue-100 text-sm">
-                      {Object.entries(latestContinuous).map(([col, entry]) => {
-                        return (
-                          <tr
-                            key={`${col}-latest`}
-                            className="hover:bg-blue-50/60"
-                          >
-                            <td className="px-4 py-3 font-semibold">{col}</td>
-                            <td className="px-4 py-3">
-                              {entry?.original_skewness ?? "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {entry?.new_skewness ?? "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {entry?.method || "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {entry?.ts
-                                ? new Date(entry.ts).toLocaleString()
-                                : "-"}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {(() => {
+                        // Use latestContinuous if available, otherwise fallback to skewnessFixResult
+                        const entries = Object.keys(latestContinuous).length > 0
+                          ? Object.entries(latestContinuous)
+                          : Object.entries(getStorageValue("dashboard_skewnessFixResult", null)?.transformations || {}).map(([col, info]) => [
+                              col,
+                              {
+                                original_skewness: info.original_skewness,
+                                new_skewness: info.new_skewness,
+                                method: info.method,
+                                ts: Date.now()
+                              }
+                            ]);
+                        return entries.map(([col, entry]) => {
+                          return (
+                            <tr
+                              key={`${col}-latest`}
+                              className="hover:bg-blue-50/60"
+                            >
+                              <td className="px-4 py-3 font-semibold">{col}</td>
+                              <td className="px-4 py-3">
+                                {entry?.original_skewness ?? "-"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {entry?.new_skewness ?? "-"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {entry?.method || "-"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {entry?.ts
+                                  ? new Date(entry.ts).toLocaleString()
+                                  : "-"}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
